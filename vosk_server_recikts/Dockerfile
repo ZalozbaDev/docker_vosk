@@ -61,8 +61,10 @@ RUN cp vosk-server/websocket-cpp/asr_server.cpp /
 COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognitionResult.h  common/VADFrame.h  common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp /
 COPY vosk_server_recikts/recikts.h vosk_server_recikts/VoskRecognizer.cpp vosk_server_recikts/VoskRecognizer.h /
 
+RUN mkdir -p /data/
+
 RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -o recikts_server -I/boost_1_76_0/ -I. \
--I/webrtc-audio-processing/webrtc/ \
+-I/webrtc-audio-processing/webrtc/ -DPREFIX=/data/ \
 asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapper.cpp AudioLogger.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -ldl -lpthread

@@ -1,0 +1,14 @@
+version: '3.5'
+
+services:
+    # VOSK / Kaldi container
+    vosk-hsb-recikts:
+        image: vosk_server_recikts:latest
+        restart: unless-stopped
+        environment:
+            - VOSK_SAMPLE_RATE
+            - VOSK_LOG_AUDIO
+            - MODEL_PATH_FULL
+        volumes:
+            - ./data:/data
+            - ./logs:/logs
