@@ -37,3 +37,13 @@ This implementation uses common code, so it needs to be built from the root dire
 docker build -f vosk_server_whisper/Dockerfile --progress=plain -t vosk_server_whisper .
 
 ```
+
+## Authors
+
+- Dr. Frank Duckhorn (Fraunhofer Institute for Ceramic Technologies and Systems IKTS, Dresden, Germany)
+
+- Daniel Sobe (Foundation for the Sorbian people)
+
+## License
+
+See file "LICENSE".
