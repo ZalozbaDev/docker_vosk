@@ -10,9 +10,13 @@
 
 #include <VADFrame.h>
 
+#ifndef WEBRTC_VAD_MOCK
 extern "C" {
 #include "webrtc-audio-processing/webrtc/common_audio/vad/include/webrtc_vad.h"
 }
+#else
+#include "webrtc_vad_mock.h"
+#endif
 
 enum VADWrapperState {IDLE, INCOMPLETE, COMPLETE};
 
@@ -47,6 +51,12 @@ private:
 	bool findUtteranceStart(void);
 	void findUtteranceStop(void);
 
+#ifdef TEST_VADWRAPPER
+
+public:
+	std::size_t getLeftOverSampleSize(void) { return leftOverSampleSize; }
+	VadInst* getRtcVadInst(void) { return rtcVadInst; }
+#endif	
 };
 
 #endif
