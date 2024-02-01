@@ -14,6 +14,7 @@ class AudioLogger
 public:
 	AudioLogger(std::string logPath, int instanceId);
 	~AudioLogger(void);
+	void activate(void) { m_active = true; }
 	void addChunk(std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk);
 	void flush(std::string resultText);
 private:
@@ -22,6 +23,7 @@ private:
 	std::deque<std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>>> chunks;
 	std::string filename;
 	unsigned long long idx;
+	bool m_active;
 };
 
 #endif // AUDIO_LOGGER_H
