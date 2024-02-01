@@ -59,24 +59,19 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 	retVal = 0;
 	frame_ptr = 0;
 	
-	// frames to analyze should always have minimum length
-	if (frame_length < nrVADSamples)
-	{
-		std::cout << "Got " << frame_length << " samples but expected at least " << nrVADSamples << std::endl;
-		assert(frame_length > nrVADSamples);
-	}
-	
-	while ((frame_length - frame_ptr) >= nrVADSamples)
+	while (leftOverSampleSize + (frame_length - frame_ptr) >= nrVADSamples)
 	{
 		std::unique_ptr<VADFrame<nrVADSamples>> chunk = std::make_unique<VADFrame<nrVADSamples>>();
 
 		// check and prepend leftover data
 		if (leftOverSampleSize > 0)
 		{
+			int leftOverSampleBytes = leftOverSampleSize * sizeof(short);
+			
 			assert(leftOverSampleSize < nrVADSamples);
 			
-			memcpy(chunk->samples, leftOverSamples, leftOverSampleSize);
-			memcpy(chunk->samples + leftOverSampleSize, audio_frame + frame_ptr, sizeof(chunk->samples) - leftOverSampleSize);
+			memcpy(chunk->samples                               , leftOverSamples        , leftOverSampleBytes);
+			memcpy(((char*)chunk->samples) + leftOverSampleBytes, audio_frame + frame_ptr, sizeof(chunk->samples) - leftOverSampleBytes);
 			
 			frame_ptr += nrVADSamples - leftOverSampleSize;
 			leftOverSampleSize = 0;
@@ -122,11 +117,12 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 	// remember leftover data
 	if (frame_ptr < frame_length)
 	{
-		assert((frame_length - frame_ptr) < nrVADSamples);
-		assert(leftOverSampleSize == 0);
+		int leftOverSampleBytes = leftOverSampleSize * sizeof(short);
 		
-		leftOverSampleSize = frame_length - frame_ptr;
-		memcpy(leftOverSamples, audio_frame + frame_ptr, leftOverSampleSize);
+		assert(leftOverSampleSize + (frame_length - frame_ptr) < nrVADSamples);
+		
+		memcpy(((char*)leftOverSamples) + leftOverSampleBytes, audio_frame + frame_ptr, (frame_length - frame_ptr) * sizeof(short));
+		leftOverSampleSize += frame_length - frame_ptr;
 	}
 	
 	return retVal;

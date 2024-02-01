@@ -48,13 +48,51 @@ TEST_CASE("minimum number samples")
 		CHECK(wrapper.getLeftOverSampleSize() == 0);
 	}
 
-	/*
 	SUBCASE("run with small samples") {
 		int16_t buf[50];
-		fill_buffer(buf, 50);
-		wrapper->process(16000, buf, 50);
+		fill_buffer(buf, 0, 50);
+		WebRtcVad_Mock_reset(wrapper.getRtcVadInst());
+		wrapper.process(16000, buf, 50);
+		CHECK(wrapper.getLeftOverSampleSize() == 50);
 	}
-	*/
 	
-	// delete wrapper;
+	SUBCASE("accumulate samples until frame full") {
+		int16_t buf[40];
+		fill_buffer(buf, 0, 40);
+		WebRtcVad_Mock_reset(wrapper.getRtcVadInst());
+		wrapper.process(16000, buf, 40);
+		CHECK(wrapper.getLeftOverSampleSize() == 40);
+		
+		fill_buffer(buf, 40, 40);
+		wrapper.process(16000, buf, 40);
+		CHECK(wrapper.getLeftOverSampleSize() == 80);
+
+		fill_buffer(buf, 80, 40);
+		wrapper.process(16000, buf, 40);
+		CHECK(wrapper.getLeftOverSampleSize() == 120);
+
+		fill_buffer(buf, 120, 40);
+		wrapper.process(16000, buf, 40);
+		CHECK(wrapper.getLeftOverSampleSize() == 0);
+	}
+	
+	SUBCASE("check corner case one sample too few and one too much for full frame") {
+		int16_t buf1[159];
+		fill_buffer(buf1, 0, 159);
+		WebRtcVad_Mock_reset(wrapper.getRtcVadInst());
+		wrapper.process(16000, buf1, 159);
+		CHECK(wrapper.getLeftOverSampleSize() == 159);
+
+		int16_t buf2[2];
+		fill_buffer(buf2, 159, 2);
+		wrapper.process(16000, buf2, 2);
+		CHECK(wrapper.getLeftOverSampleSize() == 1);
+
+		int16_t buf3[159];
+		fill_buffer(buf3, 161, 159);
+		wrapper.process(16000, buf3, 159);
+		CHECK(wrapper.getLeftOverSampleSize() == 0);
+	}
+
+
 }
