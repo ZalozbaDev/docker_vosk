@@ -87,6 +87,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 
 		m_recoState = VoskRecognizerState::INIT;
 		
+		// TODO check if we can still process the audio by simply not returning here
 		return 0;
 	}
 	
