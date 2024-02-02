@@ -101,6 +101,8 @@ private:
 	void promoteToFinalResult(void);
 	
 	AudioLogger *audioLogger;
+	
+	std::string subword_regex;
 };
 
 #endif // VOSK_RECOGNIZER_H

@@ -9,6 +9,7 @@ services:
             - VOSK_SAMPLE_RATE
             - VOSK_LOG_AUDIO
             - MODEL_PATH_FULL
+            - VOSK_SUBWORD_REGEX
         volumes:
             - ./data:/data
             - ./logs:/logs

@@ -9,6 +9,8 @@
 
 #include <cassert>
 
+#include <regex>
+
 #ifndef PREFIX
   #define PREFIX "/"
 #endif
@@ -60,6 +62,16 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
         {
         	audioLogger->activate();	
         }
+    }
+    
+    if (const char *env_p = std::getenv("VOSK_SUBWORD_REGEX"))
+    {
+    	subword_regex = std::string(env_p);
+    	std::cout << "Using regex '" << subword_regex << "' for subword  merging." << std::endl;
+    }
+    else
+    {
+    	subword_regex = std::string("");	
     }
 }
 
@@ -310,6 +322,12 @@ const char* VoskRecognizer::getPartialResult(void)
 	
 	res += "\" }";
 	
+	if (subword_regex.length() > 0)
+	{
+		std::regex subword(subword_regex);
+		res = std::regex_replace(res, subword, "");
+	}
+	
 	std::cout << "Partial result: " << res << std::endl;
 	
 	memset(partialResultBuffer, 0, sizeof(partialResultBuffer));
@@ -326,6 +344,13 @@ const char* VoskRecognizer::getFinalResult(void)
 	if (finalResults.size() > 0)
 	{
 		std::string currFinalResult = finalResults.front();
+		
+		if (subword_regex.length() > 0)
+		{
+			std::regex subword(subword_regex);
+			currFinalResult = std::regex_replace(currFinalResult, subword, "");
+		}
+		
 		audioLogger->flush(currFinalResult);
 		res += currFinalResult;
 		finalResults.erase(finalResults.begin());
@@ -390,11 +415,11 @@ void VoskRecognizer::resultCallback(char* word, unsigned int startTimeMs, unsign
 void VoskRecognizer::recikts_callback(struct recikts_callback_dat dat, void *userdata){
 	VoskRecognizer* inst;
 	
-        if(dat.word[0]){
-	  printf("Result [%i-%i ms]: %s [%.1f]\n",dat.tstart,dat.tend,dat.word,dat.nld);
-	  fflush(stdout);
-  
-	  inst = static_cast<VoskRecognizer*>(userdata);
-	  inst->resultCallback(dat.word, dat.tstart, dat.tend, dat.nld);
-        }
+	if(dat.word[0]){
+		printf("Result [%i-%i ms]: %s [%.1f]\n",dat.tstart,dat.tend,dat.word,dat.nld);
+		fflush(stdout);
+
+		inst = static_cast<VoskRecognizer*>(userdata);
+		inst->resultCallback(dat.word, dat.tstart, dat.tend, dat.nld);
+	}
 }
