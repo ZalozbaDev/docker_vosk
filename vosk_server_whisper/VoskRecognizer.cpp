@@ -26,10 +26,10 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	
 	m_configPath = std::string(configPath);
 	
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < m_numberModelAnnouncements; i++)
 	{
 		std::string helloworld = m_configPath;
-		for (int k = i; k < 10; k++)
+		for (int k = i; k < m_numberModelAnnouncements; k++)
 		{
 			helloworld = "*" + helloworld; 	
 		}

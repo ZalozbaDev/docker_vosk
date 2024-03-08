@@ -64,6 +64,8 @@ public:
 private:
 	static const ssize_t m_processingSampleRate = 16000;
 	
+	static const int m_numberModelAnnouncements = 3;
+	
 	static int voskRecognizerInstanceId;
 
 	int m_instanceId;
