@@ -45,7 +45,11 @@ RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -
 # Build vosk server wrapper and whisper glue code
 ############################################
 
-RUN apt install -y nvidia-cuda-toolkit nvidia-utils-535-server
+
+RUN apt install -y nvidia-cuda-toolkit 
+
+# try to force a fixed version
+RUN apt install -y nvidia-utils-535-server=535.161.08-0ubuntu2.22.04.1
 
 # get boost source code for some boost header files 
 RUN wget -q https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
