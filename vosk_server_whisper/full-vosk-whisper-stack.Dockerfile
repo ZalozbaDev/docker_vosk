@@ -37,4 +37,30 @@ RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -DGGML_USE_CUBLAS \
 
 RUN mkdir ./logs ./whisper
 
-CMD ["./asr_server", "0.0.0.0" ,"2700", "1" ,"./ggml-model.q8_0.bin"]
+
+
+FROM python:3 as convertmodel
+WORKDIR /opt
+
+RUN pip install torch numpy transformers
+
+COPY --from=whispercpp /app/models/convert-h5-to-ggml.py .
+COPY whisper ./whisper
+COPY hsb_stt_demo ./hsb_stt_demo
+COPY whisper-small/vocab.json whisper-small/added_tokens.json hsb_stt_demo/hsb_whisper/
+
+RUN python ./convert-h5-to-ggml.py ./hsb_stt_demo/hsb_whisper/ ./whisper .
+
+
+FROM whispercpp as quantize
+COPY --from=convertmodel /opt/ggml-model.bin ./
+RUN ./quantize ./ggml-model.bin ./ggml-model.q8_0.bin q8_0
+
+
+
+FROM ubuntu:24.04
+
+COPY --from=quantize /app/ggml-model.q8_0.bin ./
+COPY --from=build /opt/vosk_whisper_server ./
+
+CMD ["./vosk_whisper_server", "0.0.0.0" ,"2700", "1" ,"./ggml-model.q8_0.bin"]
