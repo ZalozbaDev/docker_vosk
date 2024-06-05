@@ -6,6 +6,8 @@ services:
         image: vosk_server_whisper:latest
         privileged: true
         restart: unless-stopped
+#        ports:
+#            - 2700:2700
         environment:
             - VOSK_SAMPLE_RATE
             - VOSK_LOG_AUDIO
