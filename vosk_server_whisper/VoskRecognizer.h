@@ -17,6 +17,8 @@ extern "C" {
 
 #include "whisper.h"
 
+#include <HunspellPostProc.h>
+
 enum VoskRecognizerState {UNINIT, INIT};
 
 // command-line parameters from stream example
@@ -99,6 +101,8 @@ private:
 	void runWhisper(void);
 	
 	AudioLogger *audioLogger;
+	
+	HunspellPostProc *hpp;
 };
 
 #endif // VOSK_RECOGNIZER_H

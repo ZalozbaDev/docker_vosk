@@ -49,12 +49,16 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
         	audioLogger->activate();	
         }
     }
+    
+    hpp = new HunspellPostProc(NULL, NULL, NULL);
 }
 
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
 	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
+	
+	delete(hpp);
 	
 	delete(audioLogger);
 	
@@ -219,8 +223,14 @@ const char* VoskRecognizer::getFinalResult(void)
 	if (finalResults.size() > 0)
 	{
 		std::string currFinalResult = finalResults.front();
-		audioLogger->flush(currFinalResult);
-		res += currFinalResult;
+		
+		std::cout << "Raw final result: " << currFinalResult << std::endl;
+		
+		// try to fix various shortcomings of the result
+		std::string spellResult = hpp->processLine(currFinalResult);
+		
+		audioLogger->flush(spellResult);
+		res += spellResult;
 		finalResults.erase(finalResults.begin());
 	}
 	
