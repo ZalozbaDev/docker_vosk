@@ -34,5 +34,9 @@ TEST_CASE("dictionary mode")
 		CHECK(hpp.processLine("witajće k num").compare("witajće k nim") == 0);
 	}
 
+	SUBCASE("check corrected result 1 spelling mistake with case mixing") {
+		CHECK(hpp.processLine("WiTaJćE k NuM").compare("Witaj Će k Nur") == 0);
+	}
+
 }
 
