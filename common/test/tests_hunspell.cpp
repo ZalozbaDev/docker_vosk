@@ -23,11 +23,15 @@ TEST_CASE("dictionary mode")
 	HunspellPostProc hpp("./hsb_DE_soblex_w8_3.09.03.aff", "./hsb_DE_soblex_w8_3.09.03.dic", "");
 	
 	SUBCASE("check correct line") {
-		CHECK(hpp.processLine("witajće k nam").compare("witajće k nam"));
+		CHECK(hpp.processLine("witajće k nam").compare("witajće k nam") == 0);
 	}
 
 	SUBCASE("check incorrect result") {
 		CHECK(hpp.processLine("witajće k nam").compare("witajće k num") != 0);
+	}
+
+	SUBCASE("check corrected result 1 spelling mistake") {
+		CHECK(hpp.processLine("witajće k num").compare("witajće k nim") == 0);
 	}
 
 }

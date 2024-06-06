@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <regex>
 
 #include <HunspellPostProc.h>
 
@@ -40,10 +41,29 @@ std::string HunspellPostProc::processLine(std::string line)
 	
 	while(getline(strs, tmp, ' '))
 	{
-		retLine += tmp;
-		std::cout << "Tokenizer: " << tmp << " added to: " << retLine << std::endl;
+		if (hsp->spell(tmp) == false)
+		{
+			std::vector<std::string> sugg = hsp->suggest(tmp);
+			if (sugg.size() > 0)
+			{
+				for (ssize_t idx = 0; idx < sugg.size(); idx++)
+				{
+					std::cout << "Suggestion " << idx << " for word '" << tmp << "': " <<  sugg[idx] << std::endl;
+				}
+				std::string corr = sugg[0];
+				std::cout << "Tokenizer: '" << tmp << "' changed to '" << corr << "' and added to: " << retLine << std::endl;
+				retLine += corr;
+			}
+		}
+		else
+		{
+			std::cout << "Tokenizer: " << tmp << " added to: " << retLine << std::endl;
+			retLine += tmp;
+		}
 		retLine += " ";
 	}
+	
+	retLine = std::regex_replace(retLine, std::regex(" +$"), "");
 	
 	return retLine;
 }
