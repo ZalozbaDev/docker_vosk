@@ -46,7 +46,7 @@ std::string HunspellPostProc::processLine(std::string line)
 			std::vector<std::string> sugg = hsp->suggest(tmp);
 			if (sugg.size() > 0)
 			{
-				for (ssize_t idx = 0; idx < sugg.size(); idx++)
+				for (unsigned long idx = 0; idx < sugg.size(); idx++)
 				{
 					std::cout << "Suggestion " << idx << " for word '" << tmp << "': " <<  sugg[idx] << std::endl;
 				}

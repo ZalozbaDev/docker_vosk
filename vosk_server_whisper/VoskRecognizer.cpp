@@ -9,7 +9,9 @@
 
 #include <cassert>
 
+#ifndef WHISPER_MOCK
 #include "common.h"
+#endif
 
 int VoskRecognizer::voskRecognizerInstanceId = 1;
 
@@ -25,6 +27,8 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	m_recoState = VoskRecognizerState::UNINIT;
 	
 	m_configPath = std::string(configPath);
+	
+	detailedResults = false;
 	
 	for (int i = 0; i < m_numberModelAnnouncements; i++)
 	{
@@ -50,7 +54,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
         }
     }
     
-    hpp = new HunspellPostProc(NULL, NULL, NULL);
+    hpp = new HunspellPostProc("", "", "");
 }
 
 //////////////////////////////////////////////
@@ -77,6 +81,19 @@ VoskRecognizer::~VoskRecognizer(void)
 	
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
+}
+
+//////////////////////////////////////////////
+void VoskRecognizer::setDetailedResult(bool detailsOn)
+{
+	if (detailsOn == true)
+	{
+		detailedResults = true;	
+	}
+	else
+	{
+		detailedResults = false;	
+	}
 }
 
 //////////////////////////////////////////////
@@ -205,7 +222,17 @@ const char* VoskRecognizer::getPartialResult(void)
 		}
 	}
 	
-	res += "\" }";
+	if (detailedResults == false)
+	{
+		res += "\" }";
+	}
+	else
+	{
+		// return whether VAD has triggered (e.g. is collecting samples)
+		res += "\", \"listen\" : \"";
+		res += ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? "true" : "false");
+		res += "\" }";
+	}
 	
 	std::cout << "Partial result: " << res << std::endl;
 	
