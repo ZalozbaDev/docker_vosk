@@ -96,7 +96,7 @@ void vosk_recognizer_set_words(VoskRecognizer *recognizer, int words)
 {
 	// stub
 	printf("vosk_recognizer_set_words, instance=%d, words=%d.\n", recognizer->getInstanceId(), words);
-	recognizer->setDetailedResults(words != 0);
+	recognizer->setDetailedResult(words != 0);
 }
 
 ///////////////////////////////////////////////

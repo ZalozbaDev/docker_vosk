@@ -81,6 +81,8 @@ RUN cd whisper.cpp/ && WHISPER_CUBLAS=1 make ggml-alloc.o
 RUN cd whisper.cpp/ && WHISPER_CUBLAS=1 make ggml-backend.o
 RUN cd whisper.cpp/ && WHISPER_CUBLAS=1 make ggml-quants.o
 
+RUN apt install -y libhunspell-dev
+
 COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognitionResult.h  common/VADFrame.h  \
 common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp \
 common/HunspellPostProc.h common/HunspellPostProc.cpp /
