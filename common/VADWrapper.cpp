@@ -256,6 +256,7 @@ bool VADWrapper::findUtteranceStart(void)
 			// remember until where we analyzed (for faster search for end)
 			utteranceCurr = chunks.size() - 1;
 			state = VADWrapperState::INCOMPLETE;
+			startTime = time(NULL);
 			break;
 		}
 	}
@@ -318,6 +319,7 @@ void VADWrapper::findUtteranceStop(void)
 			// utterance stops right here
 			utteranceCurr = i;
 			state = VADWrapperState::COMPLETE;
+			stopTime = time(NULL);
 			break;
 		}
 	}

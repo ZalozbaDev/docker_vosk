@@ -7,6 +7,7 @@
 #include <deque>
 #include <memory>
 #include <cstddef>
+#include <ctime>
 
 #include <VADFrame.h>
 
@@ -33,6 +34,8 @@ public:
 	unsigned int getAvailableChunks(void);
 	VADWrapperState getUtteranceStatus(void) { return state; }
 	std::unique_ptr<VADFrame<nrVADSamples>> getNextChunk(void);
+	time_t getUtteranceStart(void) { return startTime; }
+	time_t getUtteranceStop(void) { return stopTime; }
 	
 private:
 	VadInst* rtcVadInst;
@@ -47,6 +50,9 @@ private:
 	
 	VADWrapperState state;
 	int utteranceCurr;
+	
+	time_t startTime;
+	time_t stopTime;
 	
 	bool findUtteranceStart(void);
 	void findUtteranceStop(void);

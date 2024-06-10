@@ -261,7 +261,18 @@ const char* VoskRecognizer::getFinalResult(void)
 		finalResults.erase(finalResults.begin());
 	}
 	
-	res += " --\" }";
+	if (detailedResults == false)
+	{
+		res += " --\" }";
+	}
+	else
+	{
+		res += " --\", \"start\" : \"";
+		res += std::to_string(vad->getUtteranceStart());
+		res += "\", \"stop\" : \"";
+		res += std::to_string(vad->getUtteranceStop());
+		res += "\" }";
+	}
 	
 	std::cout << "Final result: " << res << std::endl;
 	

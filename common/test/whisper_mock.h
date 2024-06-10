@@ -92,4 +92,6 @@ const char * whisper_full_get_segment_text           (struct whisper_context * c
 
 struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy);
 
+void whisper_mock_set_text(const char *text, int segments);
+
 #endif  // WHISPER_MOCK_H_
