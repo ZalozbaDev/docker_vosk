@@ -22,5 +22,9 @@ TEST_CASE("correction mode")
 {
 	CustomPostProc cpp(true);
 
+	SUBCASE("check chars to be removed") {
+		CHECK(cpp.processLine("witajće, k: nam!").compare("witajće k nam") == 0);
+	}
+	
 }
 
