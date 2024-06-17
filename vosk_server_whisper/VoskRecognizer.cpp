@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 
 #include <cassert>
+#include <regex>
 
 #ifndef WHISPER_MOCK
 #include "common.h"
@@ -32,10 +33,10 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	
 	for (int i = 0; i < m_numberModelAnnouncements; i++)
 	{
-		std::string helloworld = m_configPath;
+		std::string helloworld = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
 		for (int k = i; k < m_numberModelAnnouncements; k++)
 		{
-			helloworld = "*" + helloworld; 	
+			helloworld = "." + helloworld; 	
 		}
 		finalResults.push_back(helloworld);
 	}
@@ -55,6 +56,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     }
     
     hpp = new HunspellPostProc("", "", "");
+    cpp = new CustomPostProc(true);
 }
 
 //////////////////////////////////////////////
@@ -62,6 +64,7 @@ VoskRecognizer::~VoskRecognizer(void)
 {
 	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
 	
+	delete(cpp);
 	delete(hpp);
 	
 	delete(audioLogger);
@@ -254,7 +257,7 @@ const char* VoskRecognizer::getFinalResult(void)
 		std::cout << "Raw final result: " << currFinalResult << std::endl;
 		
 		// try to fix various shortcomings of the result
-		std::string spellResult = hpp->processLine(currFinalResult);
+		std::string spellResult = hpp->processLine(cpp->processLine(currFinalResult));
 		
 		audioLogger->flush(spellResult);
 		res += spellResult;

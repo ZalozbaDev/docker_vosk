@@ -85,13 +85,14 @@ RUN apt install -y libhunspell-dev
 
 COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognitionResult.h  common/VADFrame.h  \
 common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp \
-common/HunspellPostProc.h common/HunspellPostProc.cpp /
+common/HunspellPostProc.h common/HunspellPostProc.cpp common/CustomPostProc.cpp \
+common/CustomPostProc.h /
 COPY vosk_server_whisper/VoskRecognizer.cpp vosk_server_whisper/VoskRecognizer.h /
 
 RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -DGGML_USE_CUBLAS -o vosk_whisper_server \
 -DVAD_FRAME_CONVERT_FLOAT \
 -I/boost_1_76_0/ -I. -I/whisper.cpp/ -I/whisper.cpp/examples/ -I/webrtc-audio-processing/webrtc/ \
-asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogger.cpp HunspellPostProc.cpp \
+asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogger.cpp HunspellPostProc.cpp CustomPostProc.cpp \
 whisper.cpp/examples/common.cpp whisper.cpp/examples/common-ggml.cpp  whisper.cpp/ggml.o whisper.cpp/whisper.o \
 whisper.cpp/ggml-cuda.o whisper.cpp/ggml-alloc.o whisper.cpp/ggml-backend.o whisper.cpp/ggml-quants.o \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \

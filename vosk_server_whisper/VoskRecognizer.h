@@ -26,6 +26,7 @@ extern "C" {
 #endif
 
 #include <HunspellPostProc.h>
+#include <CustomPostProc.h>
 
 enum VoskRecognizerState {UNINIT, INIT};
 
@@ -113,6 +114,7 @@ private:
 	AudioLogger *audioLogger;
 	
 	HunspellPostProc *hpp;
+	CustomPostProc *cpp;
 };
 
 #endif // VOSK_RECOGNIZER_H

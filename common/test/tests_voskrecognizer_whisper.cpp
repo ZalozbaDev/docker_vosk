@@ -20,7 +20,7 @@ TEST_CASE("partial and full result format output options")
 {	
 	SUBCASE("simple partial result (empty)") {
 		char dummyData[16000];
-		VoskRecognizer vosk(1, 48000, "dummyConfig");
+		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(false);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
 		CHECK(std::string(vosk.getPartialResult()).compare("{ \"partial\" : \"\" }") == 0);
@@ -28,7 +28,7 @@ TEST_CASE("partial and full result format output options")
 
 	SUBCASE("detailed partial result (empty), recognizer inactive") {
 		char dummyData[16000] = {0};
-		VoskRecognizer vosk(1, 48000, "dummyConfig");
+		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(true);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
 		CHECK(std::string(vosk.getPartialResult()).compare("{ \"partial\" : \"\", \"listen\" : \"false\" }") == 0);
@@ -36,7 +36,7 @@ TEST_CASE("partial and full result format output options")
 
 	SUBCASE("detailed partial result (empty), recognizer active") {
 		char dummyData[48000] = {127};
-		VoskRecognizer vosk(1, 48000, "dummyConfig");
+		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(true);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
 		fill_buffer((int16_t *) &dummyData, 0, sizeof(dummyData) / 2);
@@ -47,7 +47,7 @@ TEST_CASE("partial and full result format output options")
 
 	SUBCASE("simple final result (empty)") {
 		char dummyData[16000];
-		VoskRecognizer vosk(1, 48000, "dummyConfig");
+		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(false);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
 		vosk.getFinalResult();
@@ -58,7 +58,7 @@ TEST_CASE("partial and full result format output options")
 
 	SUBCASE("detailed final result") {
 		char dummyData[48000] = {127};
-		VoskRecognizer vosk(1, 48000, "dummyConfig");
+		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(true);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
 		fill_buffer((int16_t *) &dummyData, 0, sizeof(dummyData) / 2);
