@@ -8,8 +8,11 @@
 #include <dlfcn.h>
 
 #include <cassert>
+#include <regex>
 
+#ifndef WHISPER_MOCK
 #include "common.h"
+#endif
 
 int VoskRecognizer::voskRecognizerInstanceId = 1;
 
@@ -26,12 +29,14 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	
 	m_configPath = std::string(configPath);
 	
+	detailedResults = false;
+	
 	for (int i = 0; i < m_numberModelAnnouncements; i++)
 	{
-		std::string helloworld = m_configPath;
+		std::string helloworld = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
 		for (int k = i; k < m_numberModelAnnouncements; k++)
 		{
-			helloworld = "*" + helloworld; 	
+			helloworld = "." + helloworld; 	
 		}
 		finalResults.push_back(helloworld);
 	}
@@ -49,12 +54,18 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
         	audioLogger->activate();	
         }
     }
+    
+    hpp = new HunspellPostProc("", "", "");
+    cpp = new CustomPostProc(true);
 }
 
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
 	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
+	
+	delete(cpp);
+	delete(hpp);
 	
 	delete(audioLogger);
 	
@@ -73,6 +84,19 @@ VoskRecognizer::~VoskRecognizer(void)
 	
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
+}
+
+//////////////////////////////////////////////
+void VoskRecognizer::setDetailedResult(bool detailsOn)
+{
+	if (detailsOn == true)
+	{
+		detailedResults = true;	
+	}
+	else
+	{
+		detailedResults = false;	
+	}
 }
 
 //////////////////////////////////////////////
@@ -201,7 +225,17 @@ const char* VoskRecognizer::getPartialResult(void)
 		}
 	}
 	
-	res += "\" }";
+	if (detailedResults == false)
+	{
+		res += "\" }";
+	}
+	else
+	{
+		// return whether VAD has triggered (e.g. is collecting samples)
+		res += "\", \"listen\" : \"";
+		res += ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? "true" : "false");
+		res += "\" }";
+	}
 	
 	std::cout << "Partial result: " << res << std::endl;
 	
@@ -219,12 +253,29 @@ const char* VoskRecognizer::getFinalResult(void)
 	if (finalResults.size() > 0)
 	{
 		std::string currFinalResult = finalResults.front();
-		audioLogger->flush(currFinalResult);
-		res += currFinalResult;
+		
+		std::cout << "Raw final result: " << currFinalResult << std::endl;
+		
+		// try to fix various shortcomings of the result
+		std::string spellResult = hpp->processLine(cpp->processLine(currFinalResult));
+		
+		audioLogger->flush(spellResult);
+		res += spellResult;
 		finalResults.erase(finalResults.begin());
 	}
 	
-	res += " --\" }";
+	if (detailedResults == false)
+	{
+		res += " --\" }";
+	}
+	else
+	{
+		res += " --\", \"start\" : \"";
+		res += std::to_string(vad->getUtteranceStart());
+		res += "\", \"stop\" : \"";
+		res += std::to_string(vad->getUtteranceStop());
+		res += "\" }";
+	}
 	
 	std::cout << "Final result: " << res << std::endl;
 	

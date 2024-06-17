@@ -27,6 +27,8 @@ int WebRtcVad_ValidRateAndFrameLength(int rate, size_t frame_length);
 
 void WebRtcVad_Mock_reset(VadInst* handle);
 
+void WebRtcVad_Mock_set_result(int result);
+
 #ifdef __cplusplus
 }
 #endif

@@ -12,6 +12,8 @@ struct WebRtcVadInst
 
 VadInst dummy;
 
+int WebRtcVad_resultValue = 0;
+
 VadInst* WebRtcVad_Create(void)
 {
 	printf("WebRtcVad_Create()\n");
@@ -50,7 +52,7 @@ int WebRtcVad_Process(VadInst* handle,
 		}
 		dummy.sample_ctr++;
 	}
-	return 0;	
+	return WebRtcVad_resultValue;	
 }
 
 int WebRtcVad_ValidRateAndFrameLength(int rate, size_t frame_length)
@@ -62,4 +64,10 @@ void WebRtcVad_Mock_reset(VadInst* handle)
 {
 	printf("WebRtcVad_Mock_reset()\n");
 	dummy.sample_ctr = 0;
+	WebRtcVad_resultValue = 0;
+}
+
+void WebRtcVad_Mock_set_result(int result)
+{
+	WebRtcVad_resultValue = result;
 }
