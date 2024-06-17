@@ -63,6 +63,8 @@ std::string HunspellPostProc::processLine(std::string line)
 		retLine += " ";
 	}
 	
+	// remove trailing whitespace
+	// TODO: optimize loop above to get rid of this regex
 	retLine = std::regex_replace(retLine, std::regex(" +$"), "");
 	
 	return retLine;
