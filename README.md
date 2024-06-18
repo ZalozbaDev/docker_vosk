@@ -38,6 +38,11 @@ docker build -f vosk_server_whisper/Dockerfile --progress=plain -t vosk_server_w
 
 ```
 
+## Full vosk_server_whisper build
+
+For building vosk_server_whisper together with the model and deploy it as part of a full jitsi installation you can clone the [mudrowak](https://github.com/ZalozbaDev/mudrowak) repo, which includes all required dependencies as submodules (including this `docker_vosk` repo).
+See the readme there for instructions.
+
 ## Authors
 
 - Dr. Frank Duckhorn (Fraunhofer Institute for Ceramic Technologies and Systems IKTS, Dresden, Germany)
