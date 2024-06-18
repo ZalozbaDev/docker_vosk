@@ -10,6 +10,9 @@ extern "C" {
 #include "vosk_api.h"
 }
 
+// #define VERBOSE_API_USAGE
+
+
 //////////////////////////////////////////////
 class VoskModel
 {
@@ -30,8 +33,11 @@ static int voskModelInstanceId = 1;
 VoskModel *vosk_model_new(const char *model_path)
 {
 	VoskModel* instance;
+
+#ifdef VERBOSE_API_USAGE
 	printf("vosk_model_new, path=%s, instance=%d.\n", model_path, voskModelInstanceId);
-	
+#endif
+
 	instance = new VoskModel();
 	instance->instanceId = voskModelInstanceId;
 	instance->modelPath  = std::string(model_path);
@@ -47,7 +53,10 @@ VoskModel *vosk_model_new(const char *model_path)
 //////////////////////////////////////////////
 void vosk_model_free(VoskModel *model)
 {
+	
+#ifdef VERBOSE_API_USAGE
 	printf("vosk_model_free, instance=%d\n", model->instanceId);
+#endif
 	
 	delete(model);
 	
@@ -88,14 +97,20 @@ void vosk_recognizer_free(VoskRecognizer *recognizer)
 void vosk_recognizer_set_max_alternatives(VoskRecognizer *recognizer, int max_alternatives)
 {
 	// stub
+	
+#ifdef VERBOSE_API_USAGE
 	printf("vosk_recognizer_set_max_alternatives, instance=%d, max_alternatives=%d.\n", recognizer->getInstanceId(), max_alternatives);
+#endif
 }
 
 ///////////////////////////////////////////////
 void vosk_recognizer_set_words(VoskRecognizer *recognizer, int words)
 {
-	// stub
+	
+#ifdef VERBOSE_API_USAGE
 	printf("vosk_recognizer_set_words, instance=%d, words=%d.\n", recognizer->getInstanceId(), words);
+#endif
+
 	recognizer->setDetailedResult(words != 0);
 }
 
@@ -106,7 +121,10 @@ void vosk_recognizer_set_words(VoskRecognizer *recognizer, int words)
 //////////////////////////////////////////////
 int vosk_recognizer_accept_waveform(VoskRecognizer *recognizer, const char *data, int length)
 {
+	
+#ifdef VERBOSE_API_USAGE
 	printf("vosk_recognizer_accept_waveform, instance=%d, modelInstaceId=%d, length=%d, sampleRate=%.2f.\n", recognizer->getInstanceId(), recognizer->getModelInstanceId(), length, recognizer->getSampleRate());
+#endif
 	
 	return recognizer->acceptWaveform(data, length);
 }
@@ -114,7 +132,10 @@ int vosk_recognizer_accept_waveform(VoskRecognizer *recognizer, const char *data
 ////////////////////////////////////////////////
 const char *vosk_recognizer_partial_result(VoskRecognizer *recognizer)
 {
+
+#ifdef VERBOSE_API_USAGE
 	printf("vosk_recognizer_partial_result, instance=%d, modelInstaceId=%d\n", recognizer->getInstanceId(), recognizer->getModelInstanceId());
+#endif
 	
 	return recognizer->getPartialResult();
 }
@@ -122,7 +143,10 @@ const char *vosk_recognizer_partial_result(VoskRecognizer *recognizer)
 ////////////////////////////////////////////////
 const char *vosk_recognizer_result(VoskRecognizer *recognizer)
 {
+
+#ifdef VERBOSE_API_USAGE
 	printf("vosk_recognizer_result, instance=%d, modelInstaceId=%d\n", recognizer->getInstanceId(), recognizer->getModelInstanceId());
+#endif
 
 	return recognizer->getFinalResult();
 }
@@ -131,7 +155,11 @@ const char *vosk_recognizer_result(VoskRecognizer *recognizer)
 const char *vosk_recognizer_final_result(VoskRecognizer *recognizer)
 {
 	// no special handling required, just forward
+
+#ifdef VERBOSE_API_USAGE
 	printf("vosk_recognizer_final_result, instance=%d, modelInstaceId=%d\n", recognizer->getInstanceId(), recognizer->getModelInstanceId());
+#endif
+		
 	return vosk_recognizer_result(recognizer);
 }
 
