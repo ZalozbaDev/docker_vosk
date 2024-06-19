@@ -1,6 +1,11 @@
-feliks	Feliks
-ričel	Ričel
-felix	Feliks
-ben	Ben
-boese	Boese
-böse	Boese
+feliks	Feliks	2
+ričel	Ričel	2
+felix	Feliks	2
+ben	Ben	0
+boese	Boese	0
+böse	Boese	0
+henó	nic wěrno	0
+heno	nic wěrno	0
+hyno	nic wěrno	0
+hynó	nic wěrno	0
+chróšćic	Chróšćic	1

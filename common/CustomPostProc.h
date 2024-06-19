@@ -13,7 +13,7 @@ public:
 	std::string processLine(std::string line);
 private:
 	bool readReplacementFile(std::string filename);
-	std::string replace_all(std::string line, std::string replacee, std::string replacer); 
+	std::string replace_all(std::string line, std::string replacee, std::string replacer, std::size_t maxSuffix); 
 	
 	bool passThrough;
 	
@@ -25,6 +25,7 @@ private:
 	
 	std::vector<std::string> replacees;
 	std::vector<std::string> replacers;
+	std::vector<std::size_t> maxsuffixes;
 };
 
 #endif // CUSTOM_POSTPROC

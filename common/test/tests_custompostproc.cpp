@@ -32,6 +32,11 @@ TEST_CASE("correction mode with list")
 {
 	CustomPostProc cpp(true, "replacement_list.txt");
 
+	///////////////////////////////////////
+	//
+	// replacements start, middle, end
+	//
+	///////////////////////////////////////
 	SUBCASE("check replacements somewhere in text") {
 		CHECK(cpp.processLine("hrajer feliks ričel so!").compare("hrajer Feliks Ričel so") == 0);
 	}
@@ -42,6 +47,36 @@ TEST_CASE("correction mode with list")
 	
 	SUBCASE("check replacements at end of line") {
 		CHECK(cpp.processLine("ben böse njeda so, ričel").compare("Ben Boese njeda so Ričel") == 0);
+	}
+	
+	///////////////////////////////////////
+	//
+	// no replacements start, middle, end
+	//
+	///////////////////////////////////////
+	SUBCASE("check no replacement if word does not match exactly") {
+		CHECK(cpp.processLine("benej böseu njeda so, ričel").compare("benej böseu njeda so Ričel") == 0);
+	}
+	
+	SUBCASE("check no replacement at beginning of line when match not at word start") {
+		CHECK(cpp.processLine("aben boese njeda so,").compare("aben Boese njeda so") == 0);
+	}
+	
+	SUBCASE("check no replacement somewhere in text when match not at word start") {
+		CHECK(cpp.processLine("ben boese alričel njeda so,").compare("Ben Boese alričel njeda so") == 0);
+	}
+	
+	SUBCASE("check no replacement of last word when match not at word start") {
+		CHECK(cpp.processLine("ben boese ričel njeda so, alričel").compare("Ben Boese Ričel njeda so alričel") == 0);
+	}
+	
+	///////////////////////////////////////
+	//
+	// suffix length
+	//
+	///////////////////////////////////////
+	SUBCASE("check no replacement of last word when match not at word start") {
+		CHECK(cpp.processLine("chróšćic chróšćic chróšćicy chróšćicej chróšćicy").compare("Chróšćic Chróšćic Chróšćicy chróšćicej Chróšćicy") == 0);
 	}
 	
 }
