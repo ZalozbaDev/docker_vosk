@@ -10,6 +10,7 @@ services:
             - VOSK_SAMPLE_RATE
             - VOSK_LOG_AUDIO
             - MODEL_PATH_FULL
+            - VOSK_REPLACEMENT_FILE
         volumes:
             - ./logs:/logs
             - ./whisper:/whisper

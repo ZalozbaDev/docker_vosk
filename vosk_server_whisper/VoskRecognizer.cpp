@@ -56,7 +56,13 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     }
     
     hpp = new HunspellPostProc("", "", "");
-    cpp = new CustomPostProc(true);
+
+    std::string replacement_file = "";
+    if (const char *env_p = std::getenv("VOSK_REPLACEMENT_FILE"))
+    {
+    	replacement_file = env_p;
+    }
+    cpp = new CustomPostProc(true, replacement_file);
 }
 
 //////////////////////////////////////////////
