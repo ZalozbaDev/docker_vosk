@@ -74,6 +74,11 @@ bool CustomPostProc::readReplacementFile(std::string filename)
 	
 	std::ifstream myList(filename);
 	
+	if (myList.fail() == true)
+	{
+		return false;	
+	}
+	
 	while (!myList.eof())
 	{
 		std::string oneLine;
