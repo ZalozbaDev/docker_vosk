@@ -90,3 +90,13 @@ TEST_CASE("correction mode with list")
 	
 }
 
+TEST_CASE("case modification")
+{
+	CustomPostProc cpp(true, "replacement_list.txt", true);
+	
+	SUBCASE("check lower casing of buffer and then replacements") {
+		CHECK(cpp.processLine("HRAJER FELIKS RIČEL SO!").compare("hrajer Feliks Ričel so") == 0);
+	}
+	
+}
+

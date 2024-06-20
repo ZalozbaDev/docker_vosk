@@ -5,6 +5,6 @@ g++ -o tests_postproc -g3 -Wall -DTEST_HUNSPELL -I. -I.. test_support.cpp tests_
 ./tests_postproc
 
 rm -f ./tests_custrompostproc
-g++ -o tests_custrompostproc -g3 -Wall -I. -I.. test_support.cpp tests_custompostproc.cpp ../CustomPostProc.cpp
+g++ -o tests_custrompostproc -g3 -Wall -I. -I.. test_support.cpp tests_custompostproc.cpp ../CustomPostProc.cpp -licuio -licuuc
 ./tests_custrompostproc
 

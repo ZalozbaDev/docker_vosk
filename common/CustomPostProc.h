@@ -8,7 +8,7 @@
 class CustomPostProc
 {
 public:
-	CustomPostProc(bool active, std::string replacementFile);
+	CustomPostProc(bool active, std::string replacementFile, bool convertCase = false);
 	~CustomPostProc(void);
 	std::string processLine(std::string line);
 private:
@@ -26,6 +26,8 @@ private:
 	std::vector<std::string> replacees;
 	std::vector<std::string> replacers;
 	std::vector<std::size_t> maxsuffixes;
+	
+	bool convCase;
 };
 
 #endif // CUSTOM_POSTPROC

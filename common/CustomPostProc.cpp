@@ -2,10 +2,14 @@
 #include <iostream>
 #include <fstream>
 
+#include <unicode/unistr.h>
+#include <unicode/ustream.h>
+#include <unicode/locid.h>
+
 #include <CustomPostProc.h>
 
 //////////////////////////////////////////////
-CustomPostProc::CustomPostProc(bool active, std::string replacementFile)
+CustomPostProc::CustomPostProc(bool active, std::string replacementFile, bool convertCase)
 {
 	passThrough = !active;
 	
@@ -22,6 +26,8 @@ CustomPostProc::CustomPostProc(bool active, std::string replacementFile)
 			std::cout << "File " << replacementFile << " is invalid - ignored!" << std::endl;	
 		}
 	}
+	
+	convCase = convertCase;
 }
 
 //////////////////////////////////////////////
@@ -47,6 +53,14 @@ std::string CustomPostProc::processLine(std::string line)
 	
 	// replace several whitespaces by one
 	retVal = std::regex_replace(retVal, severalSpaces, " ");
+	
+	if (convCase == true)
+	{
+		std::string tmp = "";
+		icu::UnicodeString unicodeString(retVal.c_str());
+		tmp = unicodeString.toLower().toUTF8String(tmp);
+		retVal = tmp;
+	}
 	
 	// iterate through list and replace all occurences with their counterpart
 	if (listReplace == true)
