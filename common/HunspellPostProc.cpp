@@ -50,6 +50,7 @@ std::string HunspellPostProc::processLine(std::string line)
 				{
 					std::cout << "Suggestion " << idx << " for word '" << tmp << "': " <<  sugg[idx] << std::endl;
 				}
+				// TODO some logic behind picking an alternative?
 				std::string corr = sugg[0];
 				std::cout << "Tokenizer: '" << tmp << "' changed to '" << corr << "' and added to: " << retLine << std::endl;
 				retLine += corr;
