@@ -17,7 +17,7 @@ private:
 	
 	bool passThrough;
 	
-	std::regex unwantedChars = std::regex(",|\\.|;|:|\\!|\\?");
+	std::regex unwantedChars = std::regex(",|\\.|;|:|\\!|\\?|-");
 	
 	std::regex severalSpaces = std::regex("[' ']{2,}");
 	
