@@ -81,7 +81,7 @@ RUN cd whisper.cpp/ && WHISPER_CUBLAS=1 make ggml-alloc.o
 RUN cd whisper.cpp/ && WHISPER_CUBLAS=1 make ggml-backend.o
 RUN cd whisper.cpp/ && WHISPER_CUBLAS=1 make ggml-quants.o
 
-RUN apt install -y libhunspell-dev
+RUN apt install -y libhunspell-dev  libicu-dev
 
 COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognitionResult.h  common/VADFrame.h  \
 common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp \
@@ -96,7 +96,7 @@ asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogge
 whisper.cpp/examples/common.cpp whisper.cpp/examples/common-ggml.cpp  whisper.cpp/ggml.o whisper.cpp/whisper.o \
 whisper.cpp/ggml-cuda.o whisper.cpp/ggml-alloc.o whisper.cpp/ggml-backend.o whisper.cpp/ggml-quants.o \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--lpthread -lhunspell -lcuda -lcublas -lculibos -lcudart -lcublasLt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64
+-lpthread -lhunspell  -licuio -licuuc -lcuda -lcublas -lculibos -lcudart -lcublasLt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64
 
 RUN mkdir -p /logs/
 RUN mkdir -p /whisper/
