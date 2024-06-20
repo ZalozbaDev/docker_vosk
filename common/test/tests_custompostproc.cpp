@@ -79,5 +79,14 @@ TEST_CASE("correction mode with list")
 		CHECK(cpp.processLine("chróšćic chróšćic chróšćicy chróšćicej chróšćicy").compare("Chróšćic Chróšćic Chróšćicy chróšćicej Chróšćicy") == 0);
 	}
 	
+	///////////////////////////////////////
+	//
+	// replacee with space
+	//
+	///////////////////////////////////////
+	SUBCASE("check no replacement of last word when match not at word start") {
+		CHECK(cpp.processLine("to je sven erik lehmann tule").compare("to je Sven Erik Lehmann tule") == 0);
+	}
+	
 }
 
