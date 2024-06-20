@@ -58,7 +58,7 @@ RUN cd vosk-server && git checkout 21147c33e383f45b942846c9f713789d8bca41d1
 RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /
 
-RUN apt install -y libhunspell-dev
+RUN apt install -y libhunspell-dev libicu-dev
 
 COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognitionResult.h  common/VADFrame.h  \
 common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp \
@@ -72,7 +72,7 @@ RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -o recikts_server -I/boost
 -I/webrtc-audio-processing/webrtc/ -DPREFIX=\"/data/\" \
 asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapper.cpp AudioLogger.cpp HunspellPostProc.cpp CustomPostProc.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--ldl -lpthread -lhunspell 
+-ldl -lpthread -lhunspell -licuio -licuuc
 
 RUN mkdir -p /logs/
 
