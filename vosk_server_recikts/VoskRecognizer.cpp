@@ -73,12 +73,24 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     {
     	subword_regex = std::string("");	
     }
+
+    hpp = new HunspellPostProc("", "", "");
+
+    std::string replacement_file = "";
+    if (const char *env_p = std::getenv("VOSK_REPLACEMENT_FILE"))
+    {
+    	replacement_file = env_p;
+    }
+    cpp = new CustomPostProc(true, replacement_file);
 }
 
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
 	char status;
+	
+	delete(cpp);
+	delete(hpp);
 	
 	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
 	
@@ -192,6 +204,19 @@ void VoskRecognizer::unloadLibrary(void)
 	if (status != 0) libraryError();
 	
 	m_libraryLoaded = false;
+}
+
+//////////////////////////////////////////////
+void VoskRecognizer::setDetailedResult(bool detailsOn)
+{
+	if (detailsOn == true)
+	{
+		detailedResults = true;	
+	}
+	else
+	{
+		detailedResults = false;	
+	}
 }
 
 //////////////////////////////////////////////
@@ -320,8 +345,18 @@ const char* VoskRecognizer::getPartialResult(void)
 		}
 	}
 	
-	res += "\" }";
-	
+	if (detailedResults == false)
+	{
+		res += "\" }";
+	}
+	else
+	{
+		// return whether VAD has triggered (e.g. is collecting samples)
+		res += "\", \"listen\" : \"";
+		res += ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? "true" : "false");
+		res += "\" }";
+	}
+		
 	if (subword_regex.length() > 0)
 	{
 		std::regex subword(subword_regex);
@@ -351,13 +386,29 @@ const char* VoskRecognizer::getFinalResult(void)
 			currFinalResult = std::regex_replace(currFinalResult, subword, "");
 		}
 		
-		audioLogger->flush(currFinalResult);
-		res += currFinalResult;
+		std::cout << "Raw final result: " << currFinalResult << std::endl;
+		
+		// try to fix various shortcomings of the result
+		std::string spellResult = hpp->processLine(cpp->processLine(currFinalResult));
+
+		audioLogger->flush(spellResult);
+		res += spellResult;
 		finalResults.erase(finalResults.begin());
 	}
 	
-	res += " --\" }";
-	
+	if (detailedResults == false)
+	{
+		res += " --\" }";
+	}
+	else
+	{
+		res += " --\", \"start\" : \"";
+		res += std::to_string(vad->getUtteranceStart());
+		res += "\", \"stop\" : \"";
+		res += std::to_string(vad->getUtteranceStop());
+		res += "\" }";
+	}
+		
 	std::cout << "Final result: " << res << std::endl;
 	
 	memset(finalResultBuffer, 0, sizeof(finalResultBuffer));

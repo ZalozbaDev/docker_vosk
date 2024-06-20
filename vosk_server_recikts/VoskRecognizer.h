@@ -15,6 +15,8 @@ extern "C" {
 #include "common_audio/signal_processing/include/signal_processing_library.h"
 }
 
+#include <HunspellPostProc.h>
+#include <CustomPostProc.h>
 
 enum VoskRecognizerState {UNINIT, INIT};
 
@@ -27,6 +29,7 @@ public:
 	int getInstanceId(void) { return m_instanceId; }
 	int getModelInstanceId(void) { return m_modelInstanceId; }
 	float getSampleRate(void) { return m_inputSampleRate; }
+	void setDetailedResult(bool detailsOn);
 	int acceptWaveform(const char *data, int length);
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);
 	const char* getPartialResult(void);
@@ -97,12 +100,16 @@ private:
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];
 	char finalResultBuffer[1000];
+	bool detailedResults;
 	
 	void promoteToFinalResult(void);
 	
 	AudioLogger *audioLogger;
 	
 	std::string subword_regex;
+	
+	HunspellPostProc *hpp;
+	CustomPostProc *cpp;
 };
 
 #endif // VOSK_RECOGNIZER_H
