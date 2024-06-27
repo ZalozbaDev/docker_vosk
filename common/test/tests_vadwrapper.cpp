@@ -151,4 +151,60 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == 25);
 	}
 	
+	SUBCASE("check start/stop behaviour with distributed anayze runs") {
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 0; i < 10; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (int i = 10; i < 20; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		wrapper.analyze(false);
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 20; i < 23; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		wrapper.analyze(false);
+		for (int i = 23; i < 40; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		wrapper.analyze(false);
+		// 10 active, 5 pre, 5 post
+		CHECK(wrapper.getAvailableChunks() == 20);
+		
+		// check that the next run is corect again
+		WebRtcVad_Mock_reset(wrapper.getRtcVadInst());
+		for (int i = 0; i < 10; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (int i = 10; i < 20; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 20; i < 40; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		wrapper.analyze(false);
+		// 10 active, 5 pre, 5 post
+		CHECK(wrapper.getAvailableChunks() == 20);		
+	}
+	
+
 }

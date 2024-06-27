@@ -51,6 +51,10 @@ private:
 	static const unsigned int postbufValShort = 10;
 	static const unsigned int postbufValLong  = 5;
 	
+	unsigned int prebufCtrStart;
+	unsigned int prebufCtrToggle;
+	unsigned int postBufCtrStop;
+	
 	VADWrapperState state;
 	int utteranceCurr;
 	

@@ -35,6 +35,10 @@ VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz)
 	
 	state = VADWrapperState::IDLE;
 	utteranceCurr  = -1;
+	
+	prebufCtrStart  = 0;
+	prebufCtrToggle = 0;
+	postBufCtrStop  = 0;
 }
 
 //////////////////////////////////////////////
@@ -200,6 +204,10 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 			std::cout << "VADWrapper::getNextChunk() resetting to IDLE after complete utterance was fetched" << std::endl;
 			state = VADWrapperState::IDLE;
 			utteranceCurr = -1;
+			
+			prebufCtrStart  = 0;
+			prebufCtrToggle = 0;
+			postBufCtrStop  = 0;
 		}
 	}
 	
@@ -216,9 +224,6 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 //////////////////////////////////////////////
 bool VADWrapper::findUtteranceStart(void)
 {
-	unsigned int prebufCtr = 0;
-	unsigned int startToggleCtr = 0;
-	
 	assert(state == VADWrapperState::IDLE);
 	assert(utteranceCurr < 0);
 	
@@ -227,25 +232,25 @@ bool VADWrapper::findUtteranceStart(void)
 	{
 		if (chunks[i]->state == VADState::ACTIVE)
 		{
-			prebufCtr++;
-			startToggleCtr++;
+			prebufCtrStart++;
+			prebufCtrToggle++;
 		}
 		else
 		{
-			if (prebufCtr > 0)
+			if (prebufCtrStart > 0)
 			{
-				prebufCtr--;
-				startToggleCtr++;
+				prebufCtrStart--;
+				prebufCtrToggle++;
 			}
 		}
 
-		if (startToggleCtr > 0)
+		if (prebufCtrToggle > 0)
 		{
-			std::cout << "Utterance possible start at " << i << " with toggleCtr " << startToggleCtr << "." << std::endl;
+			std::cout << "Utterance possible start at " << i << " with toggleCtr " << prebufCtrToggle << "." << std::endl;
 		}
 		
 		// did we find X active frames?
-		if (prebufCtr == prebufVal)
+		if (prebufCtrStart == prebufVal)
 		{
 			// yes, chop off possible silence at beginning of vector
 			unsigned int chopOff = (i > (2 * prebufVal)) ? (i - (2 * prebufVal) + 1) : 0;
@@ -293,7 +298,6 @@ bool VADWrapper::findUtteranceStart(void)
 //////////////////////////////////////////////
 void VADWrapper::findUtteranceStop(bool hintShortAudio)
 {
-	unsigned int postbufCtr = 0;
 	unsigned int searchStart = 0;
 	
 	unsigned int maxPostbufVal = (hintShortAudio == true) ? postbufValShort : postbufValLong;
@@ -312,15 +316,15 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 	{
 		if (chunks[i]->state == VADState::OFF)
 		{
-			postbufCtr++;
+			postBufCtrStop++;
 		}
 		else
 		{
-			postbufCtr = 0;	
+			postBufCtrStop = 0;	
 		}
 		
 		// did we find X consecutive silent frames?
-		if (postbufCtr == maxPostbufVal)
+		if (postBufCtrStop == maxPostbufVal)
 		{
 			std::cout << "Utterance stop found at " << i << "." << std::endl; 
 			
@@ -335,12 +339,15 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 	// not complete yet, so remember how far we analyzed
 	if (state == VADWrapperState::INCOMPLETE)
 	{
-		utteranceCurr = chunks.size() - 1;
-		std::cout << "VADWrapper::findUtteranceStop() still accumulating, chunks = " << chunks.size() << std::endl;
+		// continue at next (not yet existing) chunk
+		utteranceCurr = chunks.size();
+		std::cout << "VADWrapper::findUtteranceStop() still accumulating, chunks=" << chunks.size() 
+		          << ", postBufCtr=" << postBufCtrStop 
+		          << ", continue at index=" << utteranceCurr << std::endl;
 	}
 	else
 	{
-		std::cout << "VADWrapper::findUtteranceStop() complete, chunks = " << chunks.size() << " and end is at " << utteranceCurr << std::endl; 
+		std::cout << "VADWrapper::findUtteranceStop() complete, chunks=" << chunks.size() << " and end is at " << utteranceCurr << std::endl; 
 	}
 }
 
