@@ -30,7 +30,7 @@ public:
 	VADWrapper(int aggressiveness, size_t frequencyHz);
 	~VADWrapper(void);
 	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length);
-	bool analyze(void);
+	bool analyze(bool hintShortAudio = false);
 	unsigned int getAvailableChunks(void);
 	VADWrapperState getUtteranceStatus(void) { return state; }
 	std::unique_ptr<VADFrame<nrVADSamples>> getNextChunk(void);
@@ -45,8 +45,11 @@ private:
 	short       leftOverSamples[nrVADSamples];
 	std::size_t leftOverSampleSize;
 	
-	static const unsigned int prebufVal  = 5;
-	static const unsigned int postbufVal = 5;
+	static const unsigned int prebufVal = 5;
+	
+	// collect more audio if the utterance is still short
+	static const unsigned int postbufValShort = 10;
+	static const unsigned int postbufValLong  = 5;
 	
 	VADWrapperState state;
 	int utteranceCurr;
@@ -55,7 +58,7 @@ private:
 	time_t stopTime;
 	
 	bool findUtteranceStart(void);
-	void findUtteranceStop(void);
+	void findUtteranceStop(bool hintShortAudio);
 
 #ifdef TEST_VADWRAPPER
 

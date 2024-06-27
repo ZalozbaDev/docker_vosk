@@ -136,7 +136,7 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 // returns true if there is no data to fetch for recognition
 //
 //////////////////////////////////////////////
-bool VADWrapper::analyze(void)
+bool VADWrapper::analyze(bool hintShortAudio)
 {
 	switch (state)
 	{
@@ -145,11 +145,11 @@ bool VADWrapper::analyze(void)
 			success = findUtteranceStart();
 			if (success == true)
 			{
-				findUtteranceStop();
+				findUtteranceStop(hintShortAudio);
 			}
 			break;
 		case VADWrapperState::INCOMPLETE:
-			findUtteranceStop();
+			findUtteranceStop(hintShortAudio);
 			break;
 		case VADWrapperState::COMPLETE:
 			// nothing to analyze as we have a complete utterance waiting to be fetched
@@ -285,10 +285,12 @@ bool VADWrapper::findUtteranceStart(void)
 }
 
 //////////////////////////////////////////////
-void VADWrapper::findUtteranceStop(void)
+void VADWrapper::findUtteranceStop(bool hintShortAudio)
 {
 	unsigned int postbufCtr = 0;
 	unsigned int searchStart = 0;
+	
+	unsigned int maxPostbufVal = (hintShortAudio == true) ? postbufValShort : postbufValLong;
 	
 	assert(state == VADWrapperState::INCOMPLETE);
 	
@@ -312,7 +314,7 @@ void VADWrapper::findUtteranceStop(void)
 		}
 		
 		// did we find X consecutive silent frames?
-		if (postbufCtr == postbufVal)
+		if (postbufCtr == maxPostbufVal)
 		{
 			std::cout << "Utterance stop found at " << i << "." << std::endl; 
 			
