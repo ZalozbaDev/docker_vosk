@@ -168,7 +168,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 		memcpy(leftOverData,data,length);
 	}
 	
-	noMoreData = vad->analyze();
+	noMoreData = vad->analyze((pcmf32.size() < pcm_buffer_short) ? true : false);
 	
 	while (noMoreData == false)
 	{
@@ -185,13 +185,14 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 			availableChunks--;
 		}
 		
-		noMoreData = vad->analyze();
+		noMoreData = vad->analyze((pcmf32.size() < pcm_buffer_short) ? true : false);
 	}
 	
 	// if we are in idle state (again), a possible partial result is now final
+	// alternatively: if buffer grows too big
 	if (pcmf32.size() > 0)
 	{
-		if (vad->getUtteranceStatus() == VADWrapperState::IDLE)
+		if ((vad->getUtteranceStatus() == VADWrapperState::IDLE) || (pcmf32.size() > pcm_buffer_max))
 		{
 			runWhisper();
 			promoteToFinalResult();
