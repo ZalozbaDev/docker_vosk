@@ -271,7 +271,7 @@ bool VADWrapper::findUtteranceStart(void)
 			// delete everything but the last 10 frames
 			chunks.erase(chunks.begin(), chunks.end() - (prebufVal * 2));
 
-			std::cout << "Chunks trimmed to " << chunks.size() << std::endl;
+			// std::cout << "Chunks trimmed to " << chunks.size() << std::endl;
 			
 			assert(chunks.size() == (prebufVal * 2));
 		}

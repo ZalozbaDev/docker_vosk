@@ -243,7 +243,7 @@ const char* VoskRecognizer::getPartialResult(void)
 		res += "\" }";
 	}
 	
-	std::cout << "Partial result: " << res << std::endl;
+	// std::cout << "Partial result: " << res << std::endl;
 	
 	memset(partialResultBuffer, 0, sizeof(partialResultBuffer));
 	strncpy(partialResultBuffer, res.c_str(), sizeof(partialResultBuffer) - 1);
@@ -307,7 +307,7 @@ void VoskRecognizer::promoteToFinalResult(void)
 			}
 		}
 		
-		std::cout << "Promoting partial result to final: " << finalResult << std::endl;
+		// std::cout << "Promoting partial result to final: " << finalResult << std::endl;
 		
 		finalResults.push_back(finalResult);
 		
