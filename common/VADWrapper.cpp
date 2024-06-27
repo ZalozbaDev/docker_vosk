@@ -341,9 +341,9 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 	{
 		// continue at next (not yet existing) chunk
 		utteranceCurr = chunks.size();
-		std::cout << "VADWrapper::findUtteranceStop() still accumulating, chunks=" << chunks.size() 
-		          << ", postBufCtr=" << postBufCtrStop 
-		          << ", continue at index=" << utteranceCurr << std::endl;
+//		std::cout << "VADWrapper::findUtteranceStop() still accumulating, chunks=" << chunks.size() 
+//		          << ", postBufCtr=" << postBufCtrStop 
+//		          << ", continue at index=" << utteranceCurr << std::endl;
 	}
 	else
 	{
