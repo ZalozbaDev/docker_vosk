@@ -16,7 +16,7 @@ void fill_buffer(int16_t* buf, size_t valOffset, size_t len)
 	}
 }
 
-TEST_CASE("minimum number samples")
+TEST_CASE("test handling of leftover samples")
 {
 	VADWrapper wrapper(3, 16000);
 	
@@ -95,4 +95,60 @@ TEST_CASE("minimum number samples")
 	}
 
 
+}
+
+TEST_CASE("test utterance start/stop computations")
+{
+	VADWrapper wrapper(3, 16000);
+	
+	SUBCASE("check normal start/stop behaviour") {
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 0; i < 10; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (int i = 10; i < 20; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 20; i < 40; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		wrapper.analyze(false);
+		// 10 active, 5 pre, 5 post
+		CHECK(wrapper.getAvailableChunks() == 20);
+	}
+	
+	SUBCASE("check start/stop behaviour with short hint set") {
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 0; i < 10; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (int i = 10; i < 20; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 20; i < 40; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			wrapper.process(16000, buf, 160);
+		}
+		wrapper.analyze(true);
+		// 10 active, 5 pre, 10 post
+		CHECK(wrapper.getAvailableChunks() == 25);
+	}
+	
 }

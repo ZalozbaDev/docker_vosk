@@ -248,13 +248,19 @@ bool VADWrapper::findUtteranceStart(void)
 		if (prebufCtr == prebufVal)
 		{
 			// yes, chop off possible silence at beginning of vector
-			if (i > (2 * prebufVal))
+			unsigned int chopOff = (i > (2 * prebufVal)) ? (i - (2 * prebufVal) + 1) : 0;
+			
+			// std::cout << "Size b4=" << chunks.size() << ",chop off " << chopOff << std::endl;
+			
+			if (chopOff > 0)
 			{
-				chunks.erase(chunks.begin(), chunks.begin() + (i - (2 * prebufVal)));	
+				chunks.erase(chunks.begin(), chunks.begin() + chopOff);	
 			}
 			
+			// std::cout << "Size after=" << chunks.size()  << std::endl;
+			
 			// remember until where we analyzed (for faster search for end)
-			utteranceCurr = chunks.size() - 1;
+			utteranceCurr = i - chopOff;
 			state = VADWrapperState::INCOMPLETE;
 			startTime = time(NULL);
 			break;
