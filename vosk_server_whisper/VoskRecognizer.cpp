@@ -345,6 +345,11 @@ void VoskRecognizer::runWhisper(void)
 	wparams.prompt_tokens    = nullptr; // params.no_context ? nullptr : prompt_tokens.data();
 	wparams.prompt_n_tokens  = 0;       // params.no_context ? 0       : prompt_tokens.size();
 
+	if (pcmf32.size() < pcm_buffer_min)
+	{
+		pcmf32.insert(pcmf32.cend(), WHISPER_SAMPLE_RATE, 0.0f);
+	}
+	
 	std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
 	if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
 		fprintf(stderr, "whisper_full(): failed to process audio\n");
