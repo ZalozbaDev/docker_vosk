@@ -29,7 +29,7 @@ public:
 	
 	VADWrapper(int aggressiveness, size_t frequencyHz);
 	~VADWrapper(void);
-	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length);
+	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, time_t startTime = 0);
 	bool analyze(bool hintShortAudio = false);
 	unsigned int getAvailableChunks(void);
 	VADWrapperState getUtteranceStatus(void) { return state; }

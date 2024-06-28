@@ -143,6 +143,8 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 	int32_t tmp[framelen48 + 256] = { 0 };
 	int16_t buf[framelen16];
 	
+	time_t waveformStartTime = time(NULL);
+	
 	while(leftOverDataLen + length >= framelen48 * 2){
 
 		int useLen = framelen48 * 2 - leftOverDataLen;
@@ -154,7 +156,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 		WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
   
 		// TODO we could remove all leftover handling from VAD
-		status = vad->process(m_processingSampleRate, buf, framelen16);
+		status = vad->process(m_processingSampleRate, buf, framelen16, waveformStartTime);
 	
 		if (status == -1)
 		{

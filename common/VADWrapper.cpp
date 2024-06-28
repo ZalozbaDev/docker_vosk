@@ -55,7 +55,7 @@ VADWrapper::~VADWrapper(void)
 // all data is VAD analyzed and stored in the "chunks" vector (leftover data is kept)
 //
 //////////////////////////////////////////////
-int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length)
+int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, time_t startTime)
 {
 	int result, retVal;
 	size_t frame_ptr;
@@ -67,6 +67,8 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 	{
 		std::unique_ptr<VADFrame<nrVADSamples>> chunk = std::make_unique<VADFrame<nrVADSamples>>();
 
+		chunk->frameStartTime = startTime;
+		
 		// check and prepend leftover data
 		if (leftOverSampleSize > 0)
 		{

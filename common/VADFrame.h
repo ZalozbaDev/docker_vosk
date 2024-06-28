@@ -1,5 +1,6 @@
 
 #include <cstddef>
+#include <ctime>
 
 enum VADState {OFF, ACTIVE};
 
@@ -10,6 +11,7 @@ public:
 	short    samples[numberSamples];
 #ifdef VAD_FRAME_CONVERT_FLOAT	
 	float    fSamples[numberSamples];
-#endif	
+#endif
 	VADState state;
+	time_t frameStartTime;
 };
