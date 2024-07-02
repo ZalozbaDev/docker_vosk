@@ -10,10 +10,10 @@ class RecognitionResultSplitter
 {
 public:
 	RecognitionResultSplitter(void);
-	pushResult(RecognitionResult result);
-	RecognitionResult pullResultPieces(void);
+	pushResult(std::unique_ptr<TimedRecognitionResult> result);
+	std::unique_ptr<TimedRecognitionResult> pullResultPieces(void);
 private:
-	std::vector<RecognitionResult> resultPieces;
+	std::vector<std::unique_ptr<TimedRecognitionResult>> resultPieces;
 };
 
 #endif // RECOGNITION_RESULT_SPLITTER_H

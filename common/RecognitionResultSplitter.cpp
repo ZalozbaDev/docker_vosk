@@ -14,13 +14,16 @@ RecognitionResultSplitter::~RecognitionResultSplitter(void)
 }
 
 //////////////////////////////////////////////
-void RecognitionResultSplitter::pushResult(RecognitionResult result)
+void RecognitionResultSplitter::pushResult(std::unique_ptr<TimedRecognitionResult> result)
 {
-	
+	if ((result.end - result.start) < 5)
+	{
+		resultPieces.push_back(std::move(result));	
+	}
 }
 
 //////////////////////////////////////////////
-RecognitionResult RecognitionResultSplitter::pullResultPieces(void)
+std::unique_ptr<TimedRecognitionResult> RecognitionResultSplitter::pullResultPieces(void)
 {
-	
+	return nullptr;
 }

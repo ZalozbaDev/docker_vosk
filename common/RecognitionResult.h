@@ -21,4 +21,19 @@ public:
 	}
 };
 
+class TimedRecognitionResult
+{
+public:
+	std::string text;
+	time_t      start;
+	time_t      end;
+	
+	TimedRecognitionResult(char* word, time_t startTimeSeconds, time_t endTimeSeconds) 
+	{
+		text               = word;
+		start              = startTimeSeconds;
+		end                = endTimeSeconds;
+	}
+};
+
 #endif // RECOGNITION_RESULT_H
