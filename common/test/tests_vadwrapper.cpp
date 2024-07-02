@@ -8,6 +8,13 @@
 
 #include "webrtc_vad_mock.h"
 
+#include <ctime>
+#include <chrono>
+
+#include <iostream>
+
+#include <sys/time.h>
+
 void fill_buffer(int16_t* buf, size_t valOffset, size_t len)
 {
 	for (size_t index = 0; index < len; index++)
@@ -207,4 +214,35 @@ TEST_CASE("test utterance start/stop computations")
 	}
 	
 
+}
+
+TEST_CASE("test timestamps")
+{
+	VADWrapper wrapper(3, 16000);
+	
+	SUBCASE("check C/C++ computations") {
+		time_t stamp = time(NULL);
+		std::chrono::time_point newStamp = std::chrono::system_clock::now();
+		
+		std::cout << "Seconds since epoch" << std::endl;
+		std::cout << "C   impl: " << stamp << std::endl;
+		std::cout << "C++ impl: " << std::chrono::duration_cast<std::chrono::seconds>(newStamp.time_since_epoch()).count() << std::endl;
+		
+		struct timeval tp;
+		gettimeofday(&tp, NULL);
+		
+		std::chrono::time_point newMsStamp = std::chrono::system_clock::now();
+		
+		long int stamp_s      = tp.tv_sec;
+		long int stamp_millis = tp.tv_usec / 1000;
+
+		long int newStamp_s  = std::chrono::duration_cast<std::chrono::seconds>(newMsStamp.time_since_epoch()).count();
+		long int newStamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(newMsStamp.time_since_epoch()).count() - (newStamp_s * 1000);
+		
+		std::cout << "Seconds and ms since epoch" << std::endl;
+		std::cout << "C   impl: " << stamp_s << " s, " << stamp_millis << " ms." << std::endl;
+		std::cout << "C++ impl: " << newStamp_s << " s, " << newStamp_ms << " ms." << std::endl;
+		
+	}
+	
 }

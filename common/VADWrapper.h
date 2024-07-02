@@ -34,8 +34,10 @@ public:
 	unsigned int getAvailableChunks(void);
 	VADWrapperState getUtteranceStatus(void) { return state; }
 	std::unique_ptr<VADFrame<nrVADSamples>> getNextChunk(void);
-	time_t getUtteranceStart(void) { return startTime; }
-	time_t getUtteranceStop(void) { return stopTime; }
+	int64_t getUtteranceStart(void)   { return uStartTime;   }
+	int64_t getUtteranceStartMs(void) { return uStartTimeMs; }
+	int64_t getUtteranceStop(void)    { return uStopTime;    }
+	int64_t getUtteranceStopMs(void)  { return uStopTimeMs;  }
 	
 private:
 	VadInst* rtcVadInst;
@@ -58,8 +60,10 @@ private:
 	VADWrapperState state;
 	int utteranceCurr;
 	
-	time_t startTime;
-	time_t stopTime;
+	int64_t uStartTime;
+	int64_t uStartTimeMs;
+	int64_t uStopTime;
+	int64_t uStopTimeMs;
 	
 	bool findUtteranceStart(void);
 	void findUtteranceStop(bool hintShortAudio);

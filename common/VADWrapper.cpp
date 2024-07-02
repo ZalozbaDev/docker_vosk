@@ -6,6 +6,8 @@
 #include <cassert>
 #include <cstring>
 
+#include <chrono>
+
 //////////////////////////////////////////////
 VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz)
 {
@@ -269,7 +271,12 @@ bool VADWrapper::findUtteranceStart(void)
 			// remember until where we analyzed (for faster search for end)
 			utteranceCurr = i - chopOff;
 			state = VADWrapperState::INCOMPLETE;
-			startTime = time(NULL);
+
+			std::chrono::time_point timeStampStart = std::chrono::system_clock::now();
+			
+			uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
+			uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
+			
 			break;
 		}
 	}
@@ -333,7 +340,12 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 			// utterance stops right here
 			utteranceCurr = i;
 			state = VADWrapperState::COMPLETE;
-			stopTime = time(NULL);
+			
+			std::chrono::time_point timeStampStop = std::chrono::system_clock::now();
+			
+			uStopTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStop.time_since_epoch()).count();
+			uStopTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStop.time_since_epoch()).count() - (uStopTime * 1000);
+			
 			break;
 		}
 	}

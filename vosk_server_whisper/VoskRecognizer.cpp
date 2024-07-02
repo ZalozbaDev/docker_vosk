@@ -281,8 +281,12 @@ const char* VoskRecognizer::getFinalResult(void)
 	{
 		res += " --\", \"start\" : \"";
 		res += std::to_string(vad->getUtteranceStart());
+		res += "\", \"startMs\" : \"";
+		res += std::to_string(vad->getUtteranceStartMs());
 		res += "\", \"stop\" : \"";
 		res += std::to_string(vad->getUtteranceStop());
+		res += "\", \"stopMs\" : \"";
+		res += std::to_string(vad->getUtteranceStopMs());
 		res += "\" }";
 	}
 	
