@@ -54,7 +54,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 
     vad = new VADWrapper(3, m_processingSampleRate);
 	
-    audioLogger = new AudioLogger(std::string(PREFIX "/logs/"), m_instanceId);
+    audioLogger = new AudioLogger(std::string(PREFIX "logs/"), m_instanceId);
     
     if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
     {
@@ -81,7 +81,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     {
     	replacement_file = env_p;
     }
-    cpp = new CustomPostProc(true, replacement_file);
+    cpp = new CustomPostProc(true, replacement_file, true);
 }
 
 //////////////////////////////////////////////
