@@ -5,6 +5,8 @@
 
 #include <cstdint>
 
+#include <queue>
+
 extern "C" {
 #include "recikts.h"
 #include "vosk_api.h"
@@ -109,7 +111,7 @@ private:
 	
 	std::vector<std::unique_ptr<RecognitionResult>> partialResult;
 	
-	std::vector<std::string>                        finalResults;
+	std::deque<std::unique_ptr<FinalResult>>        finalResults;
 	
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];

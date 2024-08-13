@@ -386,22 +386,9 @@ const char* VoskRecognizer::getFinalResult(void)
 	
 	if (finalResults.size() > 0)
 	{
-		std::string currFinalResult = finalResults.front();
-		
-		if (subword_regex.length() > 0)
-		{
-			std::regex subword(subword_regex);
-			currFinalResult = std::regex_replace(currFinalResult, subword, "");
-		}
-		
-		std::cout << "Raw final result: " << currFinalResult << std::endl;
-		
-		// try to fix various shortcomings of the result
-		std::string spellResult = hpp->processLine(cpp->processLine(currFinalResult));
-
-		audioLogger->flush(spellResult);
-		res += spellResult;
-		finalResults.erase(finalResults.begin());
+		std::unique_ptr<FinalResult> fin = std::move(finalResults.front());
+		finalResults.pop_front();
+		res += fin->text;
 	}
 	
 	if (detailedResults == false)
@@ -411,9 +398,9 @@ const char* VoskRecognizer::getFinalResult(void)
 	else
 	{
 		res += " --\", \"start\" : \"";
-		res += std::to_string(vad->getUtteranceStart());
+		res += std::to_string(vad->getUtteranceStart()); // TBD this is flawed (see utt frame ctr)
 		res += "\", \"stop\" : \"";
-		res += std::to_string(vad->getUtteranceStop());
+		res += std::to_string(vad->getUtteranceStop()); // TBD this is flawed (see utt frame ctr)
 		res += "\" }";
 	}
 		
@@ -430,31 +417,11 @@ std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
 {
 	std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
 	
-	std::string text = "";
-	
 	if (finalResults.size() > 0)
 	{
-		std::string currFinalResult = finalResults.front();
-		
-		if (subword_regex.length() > 0)
-		{
-			std::regex subword(subword_regex);
-			currFinalResult = std::regex_replace(currFinalResult, subword, "");
-		}
-		
-		std::cout << "Raw final result: " << currFinalResult << std::endl;
-		
-		// try to fix various shortcomings of the result
-		std::string spellResult = hpp->processLine(cpp->processLine(currFinalResult));
-
-		audioLogger->flush(spellResult);
-		text = spellResult;
-		finalResults.erase(finalResults.begin());
+		res = std::move(finalResults.front());
+		finalResults.pop_front();
 	}
-
-	res->text = text;
-	res->frameCounterStart = vad->getUtteranceStartFrameCtr();
-	res->frameCounterEnd   = vad->getUtteranceStopFrameCtr();
 	
 	return res;
 }
@@ -477,7 +444,26 @@ void VoskRecognizer::promoteToFinalResult(void)
 		
 		std::cout << "Promoting partial result to final: " << finalResult << std::endl;
 		
-		finalResults.push_back(finalResult);
+		std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
+		
+		if (subword_regex.length() > 0)
+		{
+			std::regex subword(subword_regex);
+			finalResult = std::regex_replace(finalResult, subword, "");
+		}
+		
+		std::cout << "Raw final result: " << finalResult << std::endl;
+		
+		// try to fix various shortcomings of the result
+		std::string spellResult = hpp->processLine(cpp->processLine(finalResult));
+
+		audioLogger->flush(spellResult);
+				
+		res->text = spellResult;
+		res->frameCounterStart = vad->getUtteranceStartFrameCtr();
+		res->frameCounterEnd   = vad->getUtteranceStopFrameCtr();
+		
+		finalResults.push_back(std::move(res));
 		
 		partialResult.clear();
 	}
