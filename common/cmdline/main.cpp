@@ -13,6 +13,22 @@
 
 #define LOG_BUFFER_LEN 32768
 
+static std::string to_timestamp(uint64_t t) {
+
+    int64_t msec = t * (16000 / VADWrapper::nrVADSamples);
+    int64_t hr = msec / (1000 * 60 * 60);
+    msec = msec - hr * (1000 * 60 * 60);
+    int64_t min = msec / (1000 * 60);
+    msec = msec - min * (1000 * 60);
+    int64_t sec = msec / 1000;
+    msec = msec - sec * 1000;
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d%s%03d", (int) hr, (int) min, (int) sec, ",", (int) msec);
+
+    return std::string(buf);
+}
+
 int main(int argc, char **argv)
 {
 	SndfileHandle file;
@@ -24,6 +40,7 @@ int main(int argc, char **argv)
 	sf_count_t size;
 	sf_count_t index;
 	// int logsize;
+	int subtitle_index;
 	
 	if (argc < 3)
 	{
@@ -76,6 +93,7 @@ int main(int argc, char **argv)
 	subtitles.open("subtitles.srt", std::ios::out | std::ios::trunc);
 	
 	index = 0;
+	subtitle_index = 1;
 	while (index < size)
 	{
 		int res;
@@ -106,6 +124,12 @@ int main(int argc, char **argv)
 			std::unique_ptr<FinalResult> res = v.getFinalResultData();
 			
 			transcript << res->text << std::endl;
+			
+			subtitles << subtitle_index << std::endl;
+			subtitles << to_timestamp(res->frameCounterStart) << " --> " << to_timestamp(res->frameCounterEnd) << std::endl;
+			subtitles << res->text << std::endl;
+			subtitles << std::endl;
+			subtitle_index++;
 			
 			std::cout << res->text << std::endl;	
 		}
