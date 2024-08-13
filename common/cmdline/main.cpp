@@ -1,7 +1,7 @@
 
 #include <iostream>
 #include <cstdint>
-
+#include <cstdlib>
 
 #include <sndfile.hh>
 
@@ -59,6 +59,9 @@ int main(int argc, char **argv)
 		std::cout << "Error in .wav file format!" << std::endl;	
 		return 1;
 	}
+	
+	// not part of C++
+	setenv("VOSK_SUBWORD_REGEX", "# #", 1);
 	
 	VoskRecognizer v(1, 48000, argv[1]);
 	
