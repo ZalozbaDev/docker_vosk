@@ -15,16 +15,25 @@
 
 static std::string to_timestamp(uint64_t t) {
 
-    int64_t msec = t * (16000 / VADWrapper::nrVADSamples);
-    int64_t hr = msec / (1000 * 60 * 60);
+	// one VAD frame == 10ms
+    uint64_t msec = t * 10;
+    
+    // compute hour and remember fraction of ms
+    uint64_t hr = msec / (1000 * 60 * 60);
     msec = msec - hr * (1000 * 60 * 60);
-    int64_t min = msec / (1000 * 60);
+    
+    // compute minutes and remember fraction of ms
+    uint64_t min = msec / (1000 * 60);
     msec = msec - min * (1000 * 60);
-    int64_t sec = msec / 1000;
+    
+    // compute seconds and remember fraction of ms
+    uint64_t sec = msec / 1000;
     msec = msec - sec * 1000;
 
+    std::cout << t << " --> " << hr << ":" << min << ":" << sec << "," << msec << std::endl;
+    
     char buf[32];
-    snprintf(buf, sizeof(buf), "%02d:%02d:%02d%s%03d", (int) hr, (int) min, (int) sec, ",", (int) msec);
+    snprintf(buf, sizeof(buf), "%02u:%02u:%02u%s%03u", (int) hr, (int) min, (int) sec, ",", (int) msec);
 
     return std::string(buf);
 }
@@ -143,7 +152,7 @@ int main(int argc, char **argv)
 		}
 		*/
 	
-		std::cout << "Read " << amount << " samples, total=" << index << "." << std::endl;
+		std::cout << "Read " << amount << " samples, total=" << index << ", sec=" << (index / 48000) << ", " << ((float) index / (float) size) << "%." << std::endl;
 	}
 	
 	std::cout << v.getFinalResult() << std::endl;	
