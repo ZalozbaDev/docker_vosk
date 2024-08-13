@@ -29,7 +29,7 @@ public:
 	
 	VADWrapper(int aggressiveness, size_t frequencyHz);
 	~VADWrapper(void);
-	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, time_t startTime = 0);
+	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr);
 	bool analyze(bool hintShortAudio = false);
 	unsigned int getAvailableChunks(void);
 	VADWrapperState getUtteranceStatus(void) { return state; }
@@ -38,6 +38,9 @@ public:
 	int64_t getUtteranceStartMs(void) { return uStartTimeMs; }
 	int64_t getUtteranceStop(void)    { return uStopTime;    }
 	int64_t getUtteranceStopMs(void)  { return uStopTimeMs;  }
+	
+	uint64_t getUtteranceStartFrameCtr(void)  { return frameCtrStart;  }
+	uint64_t getUtteranceStopFrameCtr(void)   { return frameCtrStop;  }
 	
 private:
 	VadInst* rtcVadInst;
@@ -64,6 +67,10 @@ private:
 	int64_t uStartTimeMs;
 	int64_t uStopTime;
 	int64_t uStopTimeMs;
+	
+	std::uint64_t frameCtrStart;
+	std::uint64_t frameCtrStop;
+	
 	
 	bool findUtteranceStart(void);
 	void findUtteranceStop(bool hintShortAudio);

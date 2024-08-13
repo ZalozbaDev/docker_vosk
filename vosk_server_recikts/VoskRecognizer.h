@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+#include <cstdint>
+
 extern "C" {
 #include "recikts.h"
 #include "vosk_api.h"
@@ -20,6 +22,15 @@ extern "C" {
 
 enum VoskRecognizerState {UNINIT, INIT};
 
+class FinalResult
+{
+public:
+	
+	std::string text;
+	uint64_t frameCounterStart;
+	uint64_t frameCounterEnd;
+};
+
 //////////////////////////////////////////////
 class VoskRecognizer
 {
@@ -34,6 +45,8 @@ public:
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);
 	const char* getPartialResult(void);
 	const char* getFinalResult(void);
+	bool getPartialStatus(void);
+	std::unique_ptr<FinalResult> getFinalResultData(void);
 	
 private:
 	static const ssize_t m_processingSampleRate = 16000;
@@ -45,6 +58,7 @@ private:
 	float m_inputSampleRate;
 	bool m_libraryLoaded;
 	VoskRecognizerState m_recoState;
+	uint64_t m_vadFrameCounter;
 	
 	std::string m_configPath;
 

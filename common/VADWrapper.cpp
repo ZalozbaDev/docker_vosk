@@ -57,7 +57,7 @@ VADWrapper::~VADWrapper(void)
 // all data is VAD analyzed and stored in the "chunks" vector (leftover data is kept)
 //
 //////////////////////////////////////////////
-int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, time_t startTime)
+int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr)
 {
 	int result, retVal;
 	size_t frame_ptr;
@@ -69,7 +69,7 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 	{
 		std::unique_ptr<VADFrame<nrVADSamples>> chunk = std::make_unique<VADFrame<nrVADSamples>>();
 
-		chunk->frameStartTime = startTime;
+		chunk->currFrameCtr = frameCtr;
 		
 		// check and prepend leftover data
 		if (leftOverSampleSize > 0)
@@ -277,6 +277,8 @@ bool VADWrapper::findUtteranceStart(void)
 			uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
 			uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
 			
+			frameCtrStart = chunks[i]->currFrameCtr;
+			
 			break;
 		}
 	}
@@ -345,6 +347,8 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 			
 			uStopTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStop.time_since_epoch()).count();
 			uStopTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStop.time_since_epoch()).count() - (uStopTime * 1000);
+			
+			frameCtrStop = chunks[i]->currFrameCtr;
 			
 			break;
 		}

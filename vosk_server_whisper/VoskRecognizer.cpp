@@ -44,6 +44,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	// init static parts already here
 	
 	vad = new VADWrapper(3, m_processingSampleRate);
+	m_vadFrameCounter = 0;
 	
 	audioLogger = new AudioLogger(std::string("/logs/"), m_instanceId);
     
@@ -143,7 +144,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 	int32_t tmp[framelen48 + 256] = { 0 };
 	int16_t buf[framelen16];
 	
-	time_t waveformStartTime = time(NULL);
+	// time_t waveformStartTime = time(NULL);
 	
 	while(leftOverDataLen + length >= framelen48 * 2){
 
@@ -156,7 +157,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 		WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
   
 		// TODO we could remove all leftover handling from VAD
-		status = vad->process(m_processingSampleRate, buf, framelen16, waveformStartTime);
+		status = vad->process(m_processingSampleRate, buf, framelen16, , m_vadFrameCounter++);
 	
 		if (status == -1)
 		{

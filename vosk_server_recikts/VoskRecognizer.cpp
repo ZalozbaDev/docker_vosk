@@ -53,7 +53,8 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     // init static parts already here
 
     vad = new VADWrapper(3, m_processingSampleRate);
-	
+	m_vadFrameCounter = 0;
+    
     audioLogger = new AudioLogger(std::string(PREFIX "logs/"), m_instanceId);
     
     if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
@@ -269,7 +270,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 		WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
   
 		// TODO we could remove all leftover handling from VAD
-		status = vad->process(m_processingSampleRate, buf, framelen16);
+		status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++);
 	
 		if (status == -1)
 		{
@@ -372,6 +373,12 @@ const char* VoskRecognizer::getPartialResult(void)
 }
 
 //////////////////////////////////////////////
+bool VoskRecognizer::getPartialStatus(void)
+{
+	return ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? true : false);
+}
+
+//////////////////////////////////////////////
 const char* VoskRecognizer::getFinalResult(void)
 {
 	std::string res = "{ \"text\" : \"-- ";
@@ -415,6 +422,40 @@ const char* VoskRecognizer::getFinalResult(void)
 	strncpy(finalResultBuffer, res.c_str(), sizeof(finalResultBuffer) - 1);
 	
 	return finalResultBuffer;	
+}
+
+//////////////////////////////////////////////
+std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
+{
+	std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
+	
+	std::string text = "";
+	
+	if (finalResults.size() > 0)
+	{
+		std::string currFinalResult = finalResults.front();
+		
+		if (subword_regex.length() > 0)
+		{
+			std::regex subword(subword_regex);
+			currFinalResult = std::regex_replace(currFinalResult, subword, "");
+		}
+		
+		std::cout << "Raw final result: " << currFinalResult << std::endl;
+		
+		// try to fix various shortcomings of the result
+		std::string spellResult = hpp->processLine(cpp->processLine(currFinalResult));
+
+		audioLogger->flush(spellResult);
+		text = spellResult;
+		finalResults.erase(finalResults.begin());
+	}
+
+	res->text = text;
+	res->frameCounterStart = vad->getUtteranceStartFrameCtr();
+	res->frameCounterEnd   = vad->getUtteranceStopFrameCtr();
+	
+	return res;
 }
 
 //////////////////////////////////////////////

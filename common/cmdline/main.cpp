@@ -15,13 +15,13 @@ int main(int argc, char **argv)
 {
 	SndfileHandle file;
 	short buffer[BUFFER_LEN];
-	char logBuffer[LOG_BUFFER_LEN];
+	// char logBuffer[LOG_BUFFER_LEN];
 	int channels;
 	int samplerate;
 	int format;
 	sf_count_t size;
 	sf_count_t index;
-	int logsize;
+	// int logsize;
 	
 	if (argc < 3)
 	{
@@ -91,11 +91,15 @@ int main(int argc, char **argv)
 		res = v.acceptWaveform((const char *) buffer, amount * 2);
 		if (res == 0)
 		{
-			std::cout << v.getPartialResult() << std::endl;	
+			std::cout << v.getPartialStatus() << std::endl;	
 		}
 		else
 		{
-			std::cout << v.getFinalResult() << std::endl;	
+			std::unique_ptr<FinalResult> res = v.getFinalResultData();
+			
+			
+			
+			std::cout << res->text << std::endl;	
 		}
 
 		/*

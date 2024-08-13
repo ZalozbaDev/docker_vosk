@@ -85,6 +85,7 @@ private:
 	float m_inputSampleRate;
 	bool m_libraryLoaded;
 	VoskRecognizerState m_recoState;
+	uint64_t m_vadFrameCounter;
 	
 	std::string m_configPath;
 

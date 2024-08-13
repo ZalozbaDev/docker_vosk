@@ -1,6 +1,7 @@
 
 #include <cstddef>
 #include <ctime>
+#include <cstdint>
 
 enum VADState {OFF, ACTIVE};
 
@@ -13,5 +14,5 @@ public:
 	float    fSamples[numberSamples];
 #endif
 	VADState state;
-	time_t frameStartTime;
+	std::uint64_t currFrameCtr;
 };
