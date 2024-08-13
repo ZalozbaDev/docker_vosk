@@ -1,5 +1,7 @@
 
 #include <iostream>
+#include <fstream>
+
 #include <cstdint>
 #include <cstdlib>
 
@@ -67,6 +69,12 @@ int main(int argc, char **argv)
 	
 	v.setDetailedResult(true);
 	
+	std::ofstream transcript;
+	transcript.open("transcript.txt", std::ios::out | std::ios::trunc);
+	
+	std::ofstream subtitles;
+	subtitles.open("subtitles.srt", std::ios::out | std::ios::trunc);
+	
 	index = 0;
 	while (index < size)
 	{
@@ -97,7 +105,7 @@ int main(int argc, char **argv)
 		{
 			std::unique_ptr<FinalResult> res = v.getFinalResultData();
 			
-			
+			transcript << res->text << std::endl;
 			
 			std::cout << res->text << std::endl;	
 		}
@@ -116,5 +124,11 @@ int main(int argc, char **argv)
 	
 	std::cout << v.getFinalResult() << std::endl;	
 
+	transcript.flush();
+	transcript.close();
+	
+	subtitles.flush();
+	subtitles.close();
+	
 	return 0;
 }
