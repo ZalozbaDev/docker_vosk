@@ -262,6 +262,9 @@ bool VADWrapper::findUtteranceStart(void)
 			unsigned int chopOff = (i > (2 * m_prebufVal)) ? (i - (2 * m_prebufVal) + 1) : 0;
 			
 			// std::cout << "Size b4=" << chunks.size() << ",chop off " << chopOff << std::endl;
+
+			// reference chunk before we erase chunks!
+			frameCtrStart = chunks[i]->currFrameCtr;
 			
 			if (chopOff > 0)
 			{
@@ -278,8 +281,6 @@ bool VADWrapper::findUtteranceStart(void)
 			
 			uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
 			uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
-			
-			frameCtrStart = chunks[i]->currFrameCtr;
 			
 			break;
 		}

@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 
+#include <iomanip>
+
 #include <cstdint>
 #include <cstdlib>
 
@@ -75,6 +77,10 @@ int main(int argc, char **argv)
 	channels = file.channels();
 	size = file.frames();
 	format = file.format();
+	
+	// reduce float digits
+	std::setprecision(2);
+	
 	
 	std::cout << "File '" << argv[2] << "'." << std::endl;
 	std::cout << "    Sample rate : " << samplerate << std::endl;
@@ -152,7 +158,7 @@ int main(int argc, char **argv)
 		}
 		*/
 	
-		std::cout << "Read " << amount << " samples, total=" << index << ", sec=" << (index / 48000) << ", " << ((float) index / (float) size) << "%." << std::endl;
+		std::cout << "Read " << amount << " samples, total=" << index << ", sec=" << (index / 48000) << ", " << (((float) index / (float) size) * 100.0f) << "%." << std::endl;
 	}
 	
 	std::cout << v.getFinalResult() << std::endl;	

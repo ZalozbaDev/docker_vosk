@@ -52,8 +52,8 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 
     // init static parts already here
 
-    // only break at loooong pause
-    vad = new VADWrapper(3, m_processingSampleRate, 5, 50, 50);
+    // only break at loooong pause (30 == 300ms)
+    vad = new VADWrapper(3, m_processingSampleRate, 5, 30, 30);
 	m_vadFrameCounter = 0;
     
     audioLogger = new AudioLogger(std::string(PREFIX "logs/"), m_instanceId);
@@ -305,19 +305,18 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 			
 			// std::cout << "Push chunks to recognizer, remaining = " << availableChunks << std::endl;
 		}
-		
+
+		// whenever we were in state "COMPLETE" before reading all data, this means that one final
+		// result shall be available
+		//
+		// by this we assume that all callbacks from recikts have happened and there is nothing pending
 		if (uttStatus == VADWrapperState::COMPLETE)
 		{
 			recikts_restart();
+			promoteToFinalResult();
 		}
 
 		noMoreData = vad->analyze();
-	}
-	
-	// if we are in idle state (again), a possible partial result is now final
-	if (vad->getUtteranceStatus() == VADWrapperState::IDLE)
-	{
-		promoteToFinalResult();
 	}
 	
 	if (finalResults.size() > 0)
@@ -474,6 +473,11 @@ void VoskRecognizer::resultCallback(char* word, unsigned int startTimeMs, unsign
 {
 	std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(word, startTimeMs, endTimeMs, negLogLikelihood);
 	
+	partialResult.push_back(std::move(newResult));	
+	
+	// we assume that the callbacks are only triggered by recikts_audio() so we don't have to guess
+	// when an utterance shall be considered final
+	/*
 	if (partialResult.size() == 0)
 	{
 		partialResult.push_back(std::move(newResult));	
@@ -488,6 +492,7 @@ void VoskRecognizer::resultCallback(char* word, unsigned int startTimeMs, unsign
 
 		partialResult.push_back(std::move(newResult));		
 	}
+	*/
 }
 
 //////////////////////////////////////////////
