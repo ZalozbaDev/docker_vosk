@@ -27,7 +27,8 @@ class VADWrapper
 public:
 	static const unsigned int nrVADSamples = 160;
 	
-	VADWrapper(int aggressiveness, size_t frequencyHz);
+	VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int prebufVal = 5,
+	           unsigned int postbufValShort = 10, unsigned int postbufValLong = 5);
 	~VADWrapper(void);
 	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr);
 	bool analyze(bool hintShortAudio = false);
@@ -50,11 +51,10 @@ private:
 	short       leftOverSamples[nrVADSamples];
 	std::size_t leftOverSampleSize;
 	
-	static const unsigned int prebufVal = 5;
+	const unsigned int m_prebufVal;
 	
-	// collect more audio if the utterance is still short
-	static const unsigned int postbufValShort = 10;
-	static const unsigned int postbufValLong  = 5;
+	const unsigned int m_postbufValShort;
+	const unsigned int m_postbufValLong;
 	
 	unsigned int prebufCtrStart;
 	unsigned int prebufCtrToggle;

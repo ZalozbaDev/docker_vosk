@@ -9,7 +9,9 @@
 #include <chrono>
 
 //////////////////////////////////////////////
-VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz)
+VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int prebufVal,
+	unsigned int postbufValShort, unsigned int postbufValLong) :
+	m_prebufVal(prebufVal), m_postbufValShort(postbufValShort), m_postbufValLong(postbufValLong)
 {
 	int status;
 	
@@ -254,10 +256,10 @@ bool VADWrapper::findUtteranceStart(void)
 		}
 		
 		// did we find X active frames?
-		if (prebufCtrStart == prebufVal)
+		if (prebufCtrStart == m_prebufVal)
 		{
 			// yes, chop off possible silence at beginning of vector
-			unsigned int chopOff = (i > (2 * prebufVal)) ? (i - (2 * prebufVal) + 1) : 0;
+			unsigned int chopOff = (i > (2 * m_prebufVal)) ? (i - (2 * m_prebufVal) + 1) : 0;
 			
 			// std::cout << "Size b4=" << chunks.size() << ",chop off " << chopOff << std::endl;
 			
@@ -286,16 +288,16 @@ bool VADWrapper::findUtteranceStart(void)
 	// if nothing found, we can trim stored elements
 	if (state == VADWrapperState::IDLE)
 	{
-		if (chunks.size() > (prebufVal * 2))
+		if (chunks.size() > (m_prebufVal * 2))
 		{
 			// std::cout << "Trimming silence. Have " << chunks.size() << " chunks, reduce to " << (prebufVal * 2) << std::endl; 
 			
 			// delete everything but the last 10 frames
-			chunks.erase(chunks.begin(), chunks.end() - (prebufVal * 2));
+			chunks.erase(chunks.begin(), chunks.end() - (m_prebufVal * 2));
 
 			// std::cout << "Chunks trimmed to " << chunks.size() << std::endl;
 			
-			assert(chunks.size() == (prebufVal * 2));
+			assert(chunks.size() == (m_prebufVal * 2));
 		}
 		
 		return false;
@@ -311,7 +313,7 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 {
 	unsigned int searchStart = 0;
 	
-	unsigned int maxPostbufVal = (hintShortAudio == true) ? postbufValShort : postbufValLong;
+	unsigned int maxPostbufVal = (hintShortAudio == true) ? m_postbufValShort : m_postbufValLong;
 	
 	assert(state == VADWrapperState::INCOMPLETE);
 	
