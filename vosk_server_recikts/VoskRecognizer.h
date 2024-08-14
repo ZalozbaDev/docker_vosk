@@ -31,6 +31,10 @@ public:
 	std::string text;
 	uint64_t frameCounterStart;
 	uint64_t frameCounterEnd;
+    int64_t  uStartTime;
+    int64_t  uStartTimeMs;
+    int64_t  uStopTime;
+    int64_t  uStopTimeMs;
 };
 
 //////////////////////////////////////////////

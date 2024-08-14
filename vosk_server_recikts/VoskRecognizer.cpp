@@ -382,12 +382,21 @@ bool VoskRecognizer::getPartialStatus(void)
 const char* VoskRecognizer::getFinalResult(void)
 {
 	std::string res = "{ \"text\" : \"-- ";
+    int64_t uStartTime = 0;
+    int64_t uStartTimeMs = 0;
+    int64_t uStopTime = 0;
+    int64_t uStopTimeMs = 0;
 	
 	if (finalResults.size() > 0)
 	{
 		std::unique_ptr<FinalResult> fin = std::move(finalResults.front());
 		finalResults.pop_front();
 		res += fin->text;
+		
+		uStartTime   = fin->uStartTime;
+		uStartTimeMs = fin->uStartTimeMs;
+		uStopTime    = fin->uStopTime;
+		uStopTimeMs  = fin->uStopTimeMs;
 	}
 	
 	if (detailedResults == false)
@@ -397,9 +406,13 @@ const char* VoskRecognizer::getFinalResult(void)
 	else
 	{
 		res += " --\", \"start\" : \"";
-		res += std::to_string(vad->getUtteranceStart()); // TBD this is flawed (see utt frame ctr)
+		res += std::to_string(uStartTime);
+		res += "\", \"startMs\" : \"";
+		res += std::to_string(uStartTimeMs);
 		res += "\", \"stop\" : \"";
-		res += std::to_string(vad->getUtteranceStop()); // TBD this is flawed (see utt frame ctr)
+		res += std::to_string(uStopTime);
+		res += "\", \"stopMs\" : \"";
+		res += std::to_string(uStopTimeMs);
 		res += "\" }";
 	}
 		
@@ -459,8 +472,14 @@ void VoskRecognizer::promoteToFinalResult(void)
 		audioLogger->flush(spellResult);
 				
 		res->text = spellResult;
+		
 		res->frameCounterStart = vad->getUtteranceStartFrameCtr();
 		res->frameCounterEnd   = vad->getUtteranceStopFrameCtr();
+		
+		res->uStartTime   = vad->getUtteranceStart();
+		res->uStartTimeMs = vad->getUtteranceStartMs();
+		res->uStopTime    = vad->getUtteranceStop();
+		res->uStopTimeMs  = vad->getUtteranceStopMs();
 		
 		finalResults.push_back(std::move(res));
 		
