@@ -92,6 +92,17 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
+	// clear audio queue and finalize thread
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+	audioPackets.clear();
+	threadRunning = false;
+	audioPacketLock.unlock();
+	audioPacketNotify.notify_one();
+	recoWorkerThread->join();
+	delete(recoWorkerThread);
+
+	// now we can free all resources
+	
 	delete(cpp);
 	delete(hpp);
 	
@@ -105,15 +116,6 @@ VoskRecognizer::~VoskRecognizer(void)
 	
 	partialResult.clear();
 	finalResults.clear();
-	
-	// clear audio queue and finalize thread
-	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
-	audioPackets.clear();
-	threadRunning = false;
-	audioPacketLock.unlock();
-	audioPacketNotify.notify_one();
-	recoWorkerThread->join();
-	delete(recoWorkerThread);
 	
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
