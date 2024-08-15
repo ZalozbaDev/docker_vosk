@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include <chrono>
+
 #include <sndfile.hh>
 
 #include "VoskRecognizer.h"
@@ -159,6 +161,10 @@ int main(int argc, char **argv)
 		*/
 	
 		std::cout << "Read " << amount << " samples, total=" << index << ", sec=" << (index / 48000) << ", " << (((float) index / (float) size) * 100.0f) << "%." << std::endl;
+		
+		// for a threaded impl we are providing too much data at once, so slow it down here 
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+		
 	}
 	
 	std::cout << v.getFinalResult() << std::endl;	
