@@ -59,7 +59,7 @@ VADWrapper::~VADWrapper(void)
 // all data is VAD analyzed and stored in the "chunks" vector (leftover data is kept)
 //
 //////////////////////////////////////////////
-int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr)
+int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime)
 {
 	int result, retVal;
 	size_t frame_ptr;
@@ -71,7 +71,8 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 	{
 		std::unique_ptr<VADFrame<nrVADSamples>> chunk = std::make_unique<VADFrame<nrVADSamples>>();
 
-		chunk->currFrameCtr = frameCtr;
+		chunk->currFrameCtr  = frameCtr;
+		chunk->currFrameTime = frameTime; 
 		
 		// check and prepend leftover data
 		if (leftOverSampleSize > 0)
@@ -265,6 +266,7 @@ bool VADWrapper::findUtteranceStart(void)
 
 			// reference chunk before we erase chunks!
 			frameCtrStart = chunks[i]->currFrameCtr;
+			std::chrono::time_point<std::chrono::system_clock> timeStampStart = chunks[i]->currFrameTime;
 			
 			if (chopOff > 0)
 			{
@@ -277,10 +279,11 @@ bool VADWrapper::findUtteranceStart(void)
 			utteranceCurr = i - chopOff;
 			state = VADWrapperState::INCOMPLETE;
 
-			std::chrono::time_point timeStampStart = std::chrono::system_clock::now();
-			
 			uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
 			uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
+			
+			// log subtitle pause
+			std::cout << "SUBTITLEPAUSE: " << std::to_string(uStartTime - uStopTime) << "," << std::to_string(uStartTimeMs - uStopTimeMs) << " s" << std::endl;
 			
 			break;
 		}
@@ -346,12 +349,14 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 			utteranceCurr = i;
 			state = VADWrapperState::COMPLETE;
 			
-			std::chrono::time_point timeStampStop = std::chrono::system_clock::now();
+			frameCtrStop = chunks[i]->currFrameCtr;
+			std::chrono::time_point<std::chrono::system_clock> timeStampStop = chunks[i]->currFrameTime;
 			
 			uStopTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStop.time_since_epoch()).count();
 			uStopTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStop.time_since_epoch()).count() - (uStopTime * 1000);
 			
-			frameCtrStop = chunks[i]->currFrameCtr;
+			// log subtitle length
+			std::cout << "SUBTITLELEN: " << std::to_string(uStopTime - uStartTime) << "," << std::to_string(uStopTimeMs - uStartTimeMs) << " s" << std::endl;
 			
 			break;
 		}

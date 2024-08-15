@@ -30,7 +30,7 @@ public:
 	VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int prebufVal = 5,
 	           unsigned int postbufValShort = 10, unsigned int postbufValLong = 5);
 	~VADWrapper(void);
-	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr);
+	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime);
 	bool analyze(bool hintShortAudio = false);
 	unsigned int getAvailableChunks(void);
 	VADWrapperState getUtteranceStatus(void) { return state; }

@@ -309,6 +309,7 @@ void VoskRecognizer::workerThreadFunc(void)
 
 			char *data = packet->data;
 			int length = packet->length;
+			std::chrono::time_point<std::chrono::system_clock> arrivalTime = packet->arrivalTime;
 			
 			// splitting audio into chunks & resampling to 16kHz
 			while(leftOverDataLen + length >= framelen48 * 2){
@@ -322,12 +323,15 @@ void VoskRecognizer::workerThreadFunc(void)
 				WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
 		  
 				// TODO we could remove all leftover handling from VAD
-				status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++);
+				status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
 			
 				if (status == -1)
 				{
 					std::cout << "VAD processing error!" << std::endl;	
 				}
+				
+				// every VAD frame covers 10ms of audio
+				arrivalTime += std::chrono::milliseconds(10);
 			}
 		
 			if (length > 0)
