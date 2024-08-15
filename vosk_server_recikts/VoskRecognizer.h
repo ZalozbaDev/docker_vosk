@@ -131,7 +131,6 @@ private:
 	bool threadRunning;
 	std::deque<std::unique_ptr<AudioPacket>> audioPackets;
 	std::mutex audioPacketMutex;
-	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 	std::condition_variable audioPacketNotify;
 	void workerThreadFunc(void);
 	

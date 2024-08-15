@@ -107,7 +107,7 @@ VoskRecognizer::~VoskRecognizer(void)
 	finalResults.clear();
 	
 	// clear audio queue and finalize thread
-	audioPacketLock.lock();
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 	audioPackets.clear();
 	threadRunning = false;
 	audioPacketLock.unlock();
@@ -240,11 +240,13 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 	memcpy(packet->data, data, length);
 	
 	// push to queue and notify worker
-	audioPacketLock.lock();
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 	audioPackets.push_back(std::move(packet));
 	audioPacketLock.unlock();
 	audioPacketNotify.notify_one();
 	
+	std::cout << "acceptWaveform push -->" << std::endl;
+			
 	// access final results queue to compute return value
     finalResultMutex.lock();
     
@@ -294,7 +296,7 @@ void VoskRecognizer::workerThreadFunc(void)
 	threadAlive = true;
 	while (threadAlive == true)
 	{
-		audioPacketLock.lock();
+		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 		
 		if (audioPackets.size() > 0)
 		{
@@ -303,6 +305,8 @@ void VoskRecognizer::workerThreadFunc(void)
 
 			audioPacketLock.unlock();
 		
+			std::cout << "RECO_THREAD <-- pop" << std::endl;
+
 			char *data = packet->data;
 			int length = packet->length;
 			
