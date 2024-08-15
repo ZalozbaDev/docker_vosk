@@ -7,6 +7,10 @@
 
 #include <queue>
 
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
 extern "C" {
 #include "recikts.h"
 #include "vosk_api.h"
@@ -35,6 +39,26 @@ public:
     int64_t  uStartTimeMs;
     int64_t  uStopTime;
     int64_t  uStopTimeMs;
+};
+
+class AudioPacket
+{
+public:
+	std::chrono::time_point<std::chrono::system_clock> arrivalTime;
+	char *data;
+	int length;
+	
+	AudioPacket() {
+		data = nullptr;
+		length = 0;
+	}
+	
+	~AudioPacket() {
+		if (length > 0) {
+			delete[] data;
+		}
+		length = 0;
+	}
 };
 
 //////////////////////////////////////////////
@@ -103,6 +127,14 @@ private:
 	char        (*cfgikts_free)(struct cfgikts *cfg);
 	char        (*recikts_err)(char* buf,int size);
 	
+	std::thread *recoWorkerThread;
+	bool threadRunning;
+	std::deque<std::unique_ptr<AudioPacket>> audioPackets;
+	std::mutex audioPacketMutex;
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+	std::condition_variable audioPacketNotify;
+	void workerThreadFunc(void);
+	
 	struct cfgikts recikts_cfg;
 	
 	static void recikts_callback(struct recikts_callback_dat dat, void *userdata);
@@ -114,8 +146,10 @@ private:
 	int leftOverDataLen = 0;
 	
 	std::vector<std::unique_ptr<RecognitionResult>> partialResult;
+	std::mutex partialResultMutex;
 	
 	std::deque<std::unique_ptr<FinalResult>>        finalResults;
+	std::mutex finalResultMutex;
 	
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];

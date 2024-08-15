@@ -84,13 +84,14 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     	replacement_file = env_p;
     }
     cpp = new CustomPostProc(true, replacement_file, true);
+    
+    threadRunning = true;
+    recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
 
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
-	char status;
-	
 	delete(cpp);
 	delete(hpp);
 	
@@ -98,24 +99,21 @@ VoskRecognizer::~VoskRecognizer(void)
 	
 	delete(audioLogger);
 	
-	// if not yet initalized, do not try to shut down either
-	if (m_recoState == VoskRecognizerState::UNINIT)
-	{
-                status = recikts_stop();
-                checkRecognizerError(status, "recikts_stop");
-                
-                status = cfgikts_free(&recikts_cfg);
-                checkRecognizerError(status, "cfgikts_free");
-	}
-	
-	m_recoState = VoskRecognizerState::UNINIT;
-	
 	unloadLibrary();
 	
 	delete(vad);
 	
 	partialResult.clear();
 	finalResults.clear();
+	
+	// clear audio queue and finalize thread
+	audioPacketLock.lock();
+	audioPackets.clear();
+	threadRunning = false;
+	audioPacketLock.unlock();
+	audioPacketNotify.notify_one();
+	recoWorkerThread->join();
+	delete(recoWorkerThread);
 	
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
@@ -224,27 +222,7 @@ void VoskRecognizer::setDetailedResult(bool detailsOn)
 //////////////////////////////////////////////
 int VoskRecognizer::acceptWaveform(const char *data, int length)
 {
-	int status;
-	bool noMoreData;
-
-	// if not yet initalized, do that here and discard this audio
-	if (m_recoState == VoskRecognizerState::UNINIT)
-	{
-		char initStatus;
-		
-		initStatus = cfgikts_load(m_configPath.c_str(), &recikts_cfg);
-		checkRecognizerError(initStatus, "cfgikts_load");
-		
-		initStatus = recikts_start(recikts_cfg);
-		checkRecognizerError(initStatus, "recikts_start");
-		
-		WebRtcSpl_ResetResample48khzTo16khz(&m_resamplestate_48_to_16);
-
-		m_recoState = VoskRecognizerState::INIT;
-		
-		// TODO check if we can still process the audio by simply not returning here
-		return 0;
-	}
+	int retVal;
 	
 	if ((m_inputSampleRate != 48000) || (m_processingSampleRate != 16000))
 	{
@@ -254,85 +232,172 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 		assert(false);	
 	}
 
-	// splitting audio into chunks & resampling to 16kHz
+	// create object and copy all data
+	std::unique_ptr packet = std::make_unique<AudioPacket>();
+	packet->length      = length;
+	packet->data        = new char[length];
+	packet->arrivalTime = std::chrono::system_clock::now();
+	memcpy(packet->data, data, length);
+	
+	// push to queue and notify worker
+	audioPacketLock.lock();
+	audioPackets.push_back(std::move(packet));
+	audioPacketLock.unlock();
+	audioPacketNotify.notify_one();
+	
+	// access final results queue to compute return value
+    finalResultMutex.lock();
+    
+	if (finalResults.size() > 0)
+	{
+		// at least one final utterance can be read
+		retVal = 1;
+	}
+	else
+	{
+		// no final utterance available (maybe partial)
+		retVal = 0;
+	}
+	
+	finalResultMutex.unlock();
+	
+	return retVal;
+}
+
+//////////////////////////////////////////////
+void VoskRecognizer::workerThreadFunc(void)
+{
+	char initStatus;
+	
+	bool threadAlive;
+	
+	int status;
+	bool noMoreData;
+
 	const int framelen48=480;
 	const int framelen16=160;
 	int32_t tmp[framelen48 + 256] = { 0 };
 	int16_t buf[framelen16];
 	
-	while(leftOverDataLen + length >= framelen48 * 2){
-
-		int useLen = framelen48 * 2 - leftOverDataLen;
-		memcpy(leftOverData + leftOverDataLen, data, useLen);
-		data += useLen;
-		length -= useLen;
-		leftOverDataLen = 0;
-
-		WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
-  
-		// TODO we could remove all leftover handling from VAD
-		status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++);
-	
-		if (status == -1)
-		{
-			std::cout << "VAD processing error!" << std::endl;	
-		}
-	}
-
-	if (length > 0)
-	{
-		leftOverDataLen=length;
-		memcpy(leftOverData,data,length);
-	}
-	
-	noMoreData = vad->analyze();
-	
-	while (noMoreData == false)
-	{
-		unsigned int availableChunks = vad->getAvailableChunks();
-		VADWrapperState uttStatus = vad->getUtteranceStatus();
+	initStatus = cfgikts_load(m_configPath.c_str(), &recikts_cfg);
+	checkRecognizerError(initStatus, "cfgikts_load");
 		
-		while (availableChunks > 0)
-		{
-			std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk = vad->getNextChunk();
-			
-			status = recikts_audio(chunk->samples, VADWrapper::nrVADSamples);
-	                checkRecognizerError(status, "recikts_audio");
-			
-			audioLogger->addChunk(std::move(chunk));
-			
-			availableChunks--;
-			
-			// std::cout << "Push chunks to recognizer, remaining = " << availableChunks << std::endl;
-		}
+	initStatus = recikts_start(recikts_cfg);
+	checkRecognizerError(initStatus, "recikts_start");
+		
+	WebRtcSpl_ResetResample48khzTo16khz(&m_resamplestate_48_to_16);
 
-		// whenever we were in state "COMPLETE" before reading all data, this means that one final
-		// result shall be available
-		//
-		// by this we assume that all callbacks from recikts have happened and there is nothing pending
-		if (uttStatus == VADWrapperState::COMPLETE)
-		{
-			recikts_restart();
-			promoteToFinalResult();
-		}
-
-		noMoreData = vad->analyze();
-	}
+	m_recoState = VoskRecognizerState::INIT;
 	
-	if (finalResults.size() > 0)
+	std::cout << "RECO_THREAD cfg load OK" << std::endl;
+
+	threadAlive = true;
+	while (threadAlive == true)
 	{
-		// at least one final utterance can be read
-		return 1;
+		audioPacketLock.lock();
+		
+		if (audioPackets.size() > 0)
+		{
+			std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
+			audioPackets.pop_front();
+
+			audioPacketLock.unlock();
+		
+			char *data = packet->data;
+			int length = packet->length;
+			
+			// splitting audio into chunks & resampling to 16kHz
+			while(leftOverDataLen + length >= framelen48 * 2){
+		
+				int useLen = framelen48 * 2 - leftOverDataLen;
+				memcpy(leftOverData + leftOverDataLen, data, useLen);
+				data += useLen;
+				length -= useLen;
+				leftOverDataLen = 0;
+		
+				WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
+		  
+				// TODO we could remove all leftover handling from VAD
+				status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++);
+			
+				if (status == -1)
+				{
+					std::cout << "VAD processing error!" << std::endl;	
+				}
+			}
+		
+			if (length > 0)
+			{
+				leftOverDataLen=length;
+				memcpy(leftOverData,data,length);
+			}
+			
+			noMoreData = vad->analyze();
+			
+			while (noMoreData == false)
+			{
+				unsigned int availableChunks = vad->getAvailableChunks();
+				VADWrapperState uttStatus = vad->getUtteranceStatus();
+				
+				while (availableChunks > 0)
+				{
+					std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk = vad->getNextChunk();
+					
+					status = recikts_audio(chunk->samples, VADWrapper::nrVADSamples);
+							checkRecognizerError(status, "recikts_audio");
+					
+					audioLogger->addChunk(std::move(chunk));
+					
+					availableChunks--;
+					
+					// std::cout << "Push chunks to recognizer, remaining = " << availableChunks << std::endl;
+				}
+		
+				// whenever we were in state "COMPLETE" before reading all data, this means that one final
+				// result shall be available
+				//
+				// by this we assume that all callbacks from recikts have happened and there is nothing pending
+				if (uttStatus == VADWrapperState::COMPLETE)
+				{
+					recikts_restart();
+					promoteToFinalResult();
+				}
+		
+				noMoreData = vad->analyze();
+			}
+		} 
+		else
+		{
+			if (threadRunning == false)
+			{
+				threadAlive = false;
+				audioPacketLock.unlock();
+			}
+			else
+			{
+				// lock is still held
+				audioPacketNotify.wait(audioPacketLock);
+			}
+		}		
 	}
+		
+    initStatus = recikts_stop();
+    checkRecognizerError(initStatus, "recikts_stop");
+                
+    initStatus = cfgikts_free(&recikts_cfg);
+    checkRecognizerError(initStatus, "cfgikts_free");
 	
-	// no final utterance available (maybe partial)
-	return 0;
+	m_recoState = VoskRecognizerState::UNINIT;
+	
+	std::cout << "RECO_THREAD goodbye" << std::endl;
 }
 
 //////////////////////////////////////////////
 const char* VoskRecognizer::getPartialResult(void)
 {
 	std::string res = "{ \"partial\" : \"";
+	
+	partialResultMutex.lock();
 	
 	if (partialResult.size() > 0)
 	{
@@ -345,6 +410,8 @@ const char* VoskRecognizer::getPartialResult(void)
 			}
 		}
 	}
+	
+	partialResultMutex.unlock();
 	
 	if (detailedResults == false)
 	{
@@ -387,6 +454,8 @@ const char* VoskRecognizer::getFinalResult(void)
     int64_t uStopTime = 0;
     int64_t uStopTimeMs = 0;
 	
+    finalResultMutex.lock();
+    
 	if (finalResults.size() > 0)
 	{
 		std::unique_ptr<FinalResult> fin = std::move(finalResults.front());
@@ -399,6 +468,8 @@ const char* VoskRecognizer::getFinalResult(void)
 		uStopTimeMs  = fin->uStopTimeMs;
 	}
 	
+    finalResultMutex.unlock();
+    
 	if (detailedResults == false)
 	{
 		res += " --\" }";
@@ -429,12 +500,16 @@ std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
 {
 	std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
 	
+    finalResultMutex.lock();
+    
 	if (finalResults.size() > 0)
 	{
 		res = std::move(finalResults.front());
 		finalResults.pop_front();
 	}
 	
+    finalResultMutex.unlock();
+    
 	return res;
 }
 
@@ -442,6 +517,8 @@ std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
 void VoskRecognizer::promoteToFinalResult(void)
 {
 	std::string finalResult;
+	
+	partialResultMutex.lock();
 	
 	if (partialResult.size() > 0)
 	{
@@ -481,10 +558,16 @@ void VoskRecognizer::promoteToFinalResult(void)
 		res->uStopTime    = vad->getUtteranceStop();
 		res->uStopTimeMs  = vad->getUtteranceStopMs();
 		
+		finalResultMutex.lock();
+		
 		finalResults.push_back(std::move(res));
+		
+		finalResultMutex.unlock();
 		
 		partialResult.clear();
 	}
+	
+	partialResultMutex.unlock();
 }
 
 //////////////////////////////////////////////
