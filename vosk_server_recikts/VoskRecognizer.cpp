@@ -269,10 +269,48 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 }
 
 //////////////////////////////////////////////
-int VoskRecognizer::getWaveformBufferPackets(void)
+bool VoskRecognizer::getRecognizerBusy(bool audioQueueOnly)
 {
+	bool busy = false;
+	
 	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
-	return audioPackets.size();
+	if (audioQueueOnly == true)
+	{
+		// poll input queue only
+		return 	(audioPackets.size() > 2) ? true : false;
+	}
+
+	// polling for finished
+	
+	if (audioPackets.size() > 0)
+	{
+		busy = true;
+	}
+	audioPacketLock.unlock();
+	
+	//
+	
+	partialResultMutex.lock();
+	
+	if (partialResult.size() > 0)
+	{
+		busy = true;
+	}
+	
+	partialResultMutex.unlock();
+	
+	//
+	
+    finalResultMutex.lock();
+    
+	if (finalResults.size() > 0)
+	{
+		busy = true;
+	}
+	
+    finalResultMutex.unlock();
+    
+	return busy;
 }
 
 //////////////////////////////////////////////
@@ -398,6 +436,8 @@ void VoskRecognizer::workerThreadFunc(void)
 		}		
 	}
 		
+	promoteToFinalResult();
+	
     initStatus = recikts_stop();
     checkRecognizerError(initStatus, "recikts_stop");
                 

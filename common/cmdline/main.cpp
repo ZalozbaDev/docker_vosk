@@ -163,14 +163,14 @@ int main(int argc, char **argv)
 		std::cout << "Read " << amount << " samples, total=" << index << ", sec=" << (index / 48000) << ", " << (((float) index / (float) size) * 100.0f) << "%." << std::endl;
 		
 		// for a threaded impl we are providing too much data at once, so slow it down here 
-		if (v.getWaveformBufferPackets() > 2)
+		if (v.getRecognizerBusy(true) == true)
 		{
 			std::cout << "Throttle!" << std::endl;
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 	}
 	
-	while (v.getWaveformBufferPackets() > 0)
+	while (v.getRecognizerBusy(false) == true)
 	{
 		std::unique_ptr<FinalResult> res = v.getFinalResultData();
 		

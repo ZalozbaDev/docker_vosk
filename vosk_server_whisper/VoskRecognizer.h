@@ -110,7 +110,7 @@ public:
 	float getSampleRate(void) { return m_inputSampleRate; }
 	void setDetailedResult(bool detailsOn);
 	int acceptWaveform(const char *data, int length);
-	int getWaveformBufferPackets(void);
+	bool getRecognizerBusy(bool audioQueueOnly = false);
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);
 	const char* getPartialResult(void);
 	const char* getFinalResult(void);
