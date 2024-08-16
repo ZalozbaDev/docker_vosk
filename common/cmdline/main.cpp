@@ -163,12 +163,33 @@ int main(int argc, char **argv)
 		std::cout << "Read " << amount << " samples, total=" << index << ", sec=" << (index / 48000) << ", " << (((float) index / (float) size) * 100.0f) << "%." << std::endl;
 		
 		// for a threaded impl we are providing too much data at once, so slow it down here 
-		std::this_thread::sleep_for(std::chrono::seconds(1));
-		
+		if (v.getWaveformBufferPackets() > 2)
+		{
+			std::cout << "Throttle!" << std::endl;
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
 	}
 	
-	std::cout << v.getFinalResult() << std::endl;	
+	while (v.getWaveformBufferPackets() > 0)
+	{
+		std::unique_ptr<FinalResult> res = v.getFinalResultData();
+		
+		if (res->text.length() > 0)
+		{
+			transcript << res->text << std::endl;
+			
+			subtitles << subtitle_index << std::endl;
+			subtitles << to_timestamp(res->frameCounterStart) << " --> " << to_timestamp(res->frameCounterEnd) << std::endl;
+			subtitles << res->text << std::endl;
+			subtitles << std::endl;
+			subtitle_index++;
+			
+			std::cout << res->text << std::endl;
+		}
 
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	
 	transcript.flush();
 	transcript.close();
 	

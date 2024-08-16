@@ -269,6 +269,13 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 }
 
 //////////////////////////////////////////////
+int VoskRecognizer::getWaveformBufferPackets(void)
+{
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+	return audioPackets.size();
+}
+
+//////////////////////////////////////////////
 void VoskRecognizer::workerThreadFunc(void)
 {
 	char initStatus;
