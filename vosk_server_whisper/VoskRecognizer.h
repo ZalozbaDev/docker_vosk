@@ -4,6 +4,14 @@
 #include <iostream>
 #include <vector>
 
+#include <cstdint>
+
+#include <queue>
+
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
 extern "C" {
 #include "vosk_api.h"
 }
@@ -58,6 +66,39 @@ struct whisper_params {
     std::string fname_out;
 };
 
+class FinalResult
+{
+public:
+	
+	std::string text;
+	uint64_t frameCounterStart;
+	uint64_t frameCounterEnd;
+    int64_t  uStartTime;
+    int64_t  uStartTimeMs;
+    int64_t  uStopTime;
+    int64_t  uStopTimeMs;
+};
+
+class AudioPacket
+{
+public:
+	std::chrono::time_point<std::chrono::system_clock> arrivalTime;
+	char *data;
+	int length;
+	
+	AudioPacket() {
+		data = nullptr;
+		length = 0;
+	}
+	
+	~AudioPacket() {
+		if (length > 0) {
+			delete[] data;
+		}
+		length = 0;
+	}
+};
+
 //////////////////////////////////////////////
 class VoskRecognizer
 {
@@ -69,9 +110,12 @@ public:
 	float getSampleRate(void) { return m_inputSampleRate; }
 	void setDetailedResult(bool detailsOn);
 	int acceptWaveform(const char *data, int length);
+	int getWaveformBufferPackets(void);
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);
 	const char* getPartialResult(void);
 	const char* getFinalResult(void);
+	bool getPartialStatus(void);
+	std::unique_ptr<FinalResult> getFinalResultData(void);
 	
 private:
 	static const ssize_t m_processingSampleRate = 16000;
@@ -87,6 +131,13 @@ private:
 	VoskRecognizerState m_recoState;
 	uint64_t m_vadFrameCounter;
 	
+	std::thread *recoWorkerThread;
+	bool threadRunning;
+	std::deque<std::unique_ptr<AudioPacket>> audioPackets;
+	std::mutex audioPacketMutex;
+	std::condition_variable audioPacketNotify;
+	void workerThreadFunc(void);
+
 	std::string m_configPath;
 
 	struct whisper_context_params cparams;
@@ -107,8 +158,10 @@ private:
 	int leftOverDataLen = 0;
 	
 	std::vector<std::unique_ptr<RecognitionResult>> partialResult;
+	std::mutex partialResultMutex;
 	
-	std::vector<std::string>                        finalResults;
+	std::deque<std::unique_ptr<FinalResult>>        finalResults;
+	std::mutex finalResultMutex;
 	
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];
