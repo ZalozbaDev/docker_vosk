@@ -49,7 +49,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	vad = new VADWrapper(3, m_processingSampleRate);
 	m_vadFrameCounter = 0;
 	
-	audioLogger = new AudioLogger(std::string("/logs/"), m_instanceId);
+	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
     
     if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
     {
