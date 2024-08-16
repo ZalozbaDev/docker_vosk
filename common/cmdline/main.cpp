@@ -55,9 +55,9 @@ int main(int argc, char **argv)
 	// int logsize;
 	int subtitle_index;
 	
-	if (argc < 3)
+	if (argc < 4)
 	{
-		std::cout << "Error! Need to specify model path and .wav file!" << std::endl;
+		std::cout << "Error! Need to specify model path, .wav file and destination path!" << std::endl;
 		return 1;
 	}
 	
@@ -104,10 +104,10 @@ int main(int argc, char **argv)
 	v.setDetailedResult(true);
 	
 	std::ofstream transcript;
-	transcript.open("transcript.txt", std::ios::out | std::ios::trunc);
+	transcript.open(std::string(argv[3]) + "/transcript.txt", std::ios::out | std::ios::trunc);
 	
 	std::ofstream subtitles;
-	subtitles.open("subtitles.srt", std::ios::out | std::ios::trunc);
+	subtitles.open(std::string(argv[3]) + "/subtitles.srt", std::ios::out | std::ios::trunc);
 	
 	index = 0;
 	subtitle_index = 1;
