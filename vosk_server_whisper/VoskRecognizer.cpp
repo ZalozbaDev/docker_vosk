@@ -288,6 +288,7 @@ void VoskRecognizer::workerThreadFunc(void)
 			while (noMoreData == false)
 			{
 				unsigned int availableChunks = vad->getAvailableChunks();
+				VADWrapperState uttStatus = vad->getUtteranceStatus();
 				
 				while (availableChunks > 0)
 				{
@@ -300,24 +301,16 @@ void VoskRecognizer::workerThreadFunc(void)
 					availableChunks--;
 				}
 				
-				noMoreData = vad->analyze((pcmf32.size() < pcm_buffer_short) ? true : false);
-			}
-			
-			// if we are in idle state (again), a possible partial result is now final
-			// alternatively: if buffer grows too big
-			if (pcmf32.size() > 0)
-			{
-				if ((vad->getUtteranceStatus() == VADWrapperState::IDLE) || (pcmf32.size() > pcm_buffer_max))
+				// whenever we were in state "COMPLETE" before reading all data, this means that one final
+				// result shall be available
+				if ((uttStatus == VADWrapperState::COMPLETE) || (pcmf32.size() > pcm_buffer_max))
 				{
 					runWhisper();
 					promoteToFinalResult();
 					pcmf32.clear();
 				}
-				else
-				{
-					std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>("."), (unsigned int) 0, (unsigned int) 1, 1.0f);
-					// partialResult.push_back(std::move(newResult));
-				}
+		
+				noMoreData = vad->analyze((pcmf32.size() < pcm_buffer_short) ? true : false);
 			}
 		}
 		else
