@@ -143,7 +143,7 @@ void VoskRecognizer::loadLibrary(void)
 				cfgikts_load              = (char (*)(const char*, cfgikts*))       dlsym(recInstance, "cfgikts_load");
 				recikts_start             = (char (*)(cfgikts))                     dlsym(recInstance, "recikts_start");
 				recikts_audio             = (char (*)(int16_t*, uint32_t))          dlsym(recInstance, "recikts_audio");
-				recikts_restart           = (char (*)())                            dlsym(recInstance, "recikts_restart");
+				recikts_restart           = (char (*)(char))                        dlsym(recInstance, "recikts_restart");
 				recikts_stop              = (char (*)())                            dlsym(recInstance, "recikts_stop");
 				cfgikts_free              = (char (*)(cfgikts*))                    dlsym(recInstance, "cfgikts_free");
 				recikts_err               = (char (*)(char*, int))                  dlsym(recInstance, "recikts_err");
@@ -414,7 +414,8 @@ void VoskRecognizer::workerThreadFunc(void)
 				// by this we assume that all callbacks from recikts have happened and there is nothing pending
 				if (uttStatus == VADWrapperState::COMPLETE)
 				{
-					recikts_restart();
+					// TBD be more clever w.r.t. signalling new speaker
+					recikts_restart(1);
 					promoteToFinalResult();
 				}
 		

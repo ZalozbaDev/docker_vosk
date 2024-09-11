@@ -123,7 +123,7 @@ private:
 	char        (*cfgikts_load)(const char *fn, struct cfgikts *cfg);
 	char        (*recikts_start)(struct cfgikts cfg);
 	char        (*recikts_audio)(int16_t* buf,uint32_t samples);
-	char        (*recikts_restart)();
+	char        (*recikts_restart)(char);
 	char        (*recikts_stop)();
 	char        (*cfgikts_free)(struct cfgikts *cfg);
 	char        (*recikts_err)(char* buf,int size);
