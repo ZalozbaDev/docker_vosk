@@ -60,6 +60,9 @@ RUN cp vosk-server/websocket-cpp/asr_server.cpp /
 
 RUN apt install -y libhunspell-dev libicu-dev
 
+# for a possible debugging session
+RUN apt install -y gdb
+
 COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognitionResult.h  common/VADFrame.h  \
 common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp \
 common/HunspellPostProc.h common/HunspellPostProc.cpp common/CustomPostProc.cpp \
@@ -79,8 +82,6 @@ RUN mkdir -p /logs/
 ############################################
 # Vosk server startup script
 ############################################
-
-RUN apt install -y gdb
 
 COPY vosk_server_recikts/startme.sh /
 RUN chmod 755 startme.sh
