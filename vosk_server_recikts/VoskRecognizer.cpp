@@ -87,6 +87,9 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     
     threadRunning = true;
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
+    
+    lastUttStopTime = 0;
+    longPauseBetweenUtterances = true;
 }
 
 //////////////////////////////////////////////
@@ -247,7 +250,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 	audioPacketLock.unlock();
 	audioPacketNotify.notify_one();
 	
-	std::cout << "acceptWaveform push -->" << std::endl;
+	// std::cout << "acceptWaveform push -->" << std::endl;
 			
 	// access final results queue to compute return value
     finalResultMutex.lock();
@@ -352,7 +355,7 @@ void VoskRecognizer::workerThreadFunc(void)
 
 			audioPacketLock.unlock();
 		
-			std::cout << "RECO_THREAD <-- pop" << std::endl;
+			// std::cout << "RECO_THREAD <-- pop" << std::endl;
 
 			char *data = packet->data;
 			int length = packet->length;
@@ -414,9 +417,13 @@ void VoskRecognizer::workerThreadFunc(void)
 				// by this we assume that all callbacks from recikts have happened and there is nothing pending
 				if (uttStatus == VADWrapperState::COMPLETE)
 				{
-					// TBD be more clever w.r.t. signalling new speaker
-					recikts_restart(1);
+					// flush results, but don't indicate new speaker yet
+					recikts_restart(0);
+					
 					promoteToFinalResult();
+
+					// restart again but now consider the hint whether speaker has changed
+					recikts_restart((longPauseBetweenUtterances == true) ? 1 : 0);
 				}
 		
 				noMoreData = vad->analyze();
@@ -615,6 +622,22 @@ void VoskRecognizer::promoteToFinalResult(void)
 		res->uStartTimeMs = vad->getUtteranceStartMs();
 		res->uStopTime    = vad->getUtteranceStop();
 		res->uStopTimeMs  = vad->getUtteranceStopMs();
+		
+		// calculate the hint whether the speaker has changed
+		if (res->uStartTime >= lastUttStopTime)
+		{
+			if ((res->uStartTime - lastUttStopTime) > longPauseSeconds)
+			{
+				std::cout << ">>>> HINT: new speaker <<<<" << std::endl;
+				longPauseBetweenUtterances = true;
+			}
+			else
+			{
+				std::cout << "<<<< HINT: speaker unchanged >>>>" << std::endl;
+				longPauseBetweenUtterances = false;
+			}
+		}
+		lastUttStopTime = res->uStopTime;
 		
 		finalResultMutex.lock();
 		
