@@ -10,8 +10,9 @@
 
 //////////////////////////////////////////////
 VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int prebufVal,
-	unsigned int postbufValShort, unsigned int postbufValLong) :
-	m_prebufVal(prebufVal), m_postbufValShort(postbufValShort), m_postbufValLong(postbufValLong)
+	unsigned int postbufValShort, unsigned int postbufValLong, unsigned int uttTriggerVal) :
+	m_prebufVal(prebufVal), m_postbufValShort(postbufValShort), m_postbufValLong(postbufValLong),
+	m_uttTriggerVal(uttTriggerVal)
 {
 	int status;
 	
@@ -239,6 +240,22 @@ bool VADWrapper::findUtteranceStart(void)
 	{
 		if (chunks[i]->state == VADState::ACTIVE)
 		{
+			// remember start time/start frame of utterance
+			if (prebufCtrStart == 0)
+			{
+				// go back as many frames as m_prebufVal
+				frameCtrStart = (chunks[i]->currFrameCtr > m_prebufVal) ? (chunks[i]->currFrameCtr - m_prebufVal) : 0;
+				
+				// go back as many ms*10 as m_prebufVal
+				std::chrono::time_point<std::chrono::system_clock> timeStampStart = chunks[i]->currFrameTime - std::chrono::milliseconds(10 * m_prebufVal);
+			
+				uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
+				uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
+			
+				// log subtitle pause
+				// std::cout << "SUBTITLEPAUSE: " << std::to_string(uStartTime - uStopTime) << "," << std::to_string(uStartTimeMs - uStopTimeMs) << " s" << std::endl;
+			}			
+			
 			prebufCtrStart++;
 			prebufCtrToggle++;
 		}
@@ -257,17 +274,13 @@ bool VADWrapper::findUtteranceStart(void)
 		}
 		
 		// did we find X active frames?
-		if (prebufCtrStart == m_prebufVal)
+		if (prebufCtrStart == m_uttTriggerVal)
 		{
 			// yes, chop off possible silence at beginning of vector
 			unsigned int chopOff = (i > (2 * m_prebufVal)) ? (i - (2 * m_prebufVal) + 1) : 0;
 			
 			// std::cout << "Size b4=" << chunks.size() << ",chop off " << chopOff << std::endl;
 
-			// reference chunk before we erase chunks!
-			frameCtrStart = chunks[i]->currFrameCtr;
-			std::chrono::time_point<std::chrono::system_clock> timeStampStart = chunks[i]->currFrameTime;
-			
 			if (chopOff > 0)
 			{
 				chunks.erase(chunks.begin(), chunks.begin() + chopOff);	
@@ -279,12 +292,6 @@ bool VADWrapper::findUtteranceStart(void)
 			utteranceCurr = i - chopOff;
 			state = VADWrapperState::INCOMPLETE;
 
-			uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
-			uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
-			
-			// log subtitle pause
-			std::cout << "SUBTITLEPAUSE: " << std::to_string(uStartTime - uStopTime) << "," << std::to_string(uStartTimeMs - uStopTimeMs) << " s" << std::endl;
-			
 			break;
 		}
 	}

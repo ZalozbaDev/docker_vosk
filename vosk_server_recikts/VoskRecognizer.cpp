@@ -52,8 +52,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 
     // init static parts already here
 
-    // only break at loooong pause (30 == 300ms)
-    vad = new VADWrapper(3, m_processingSampleRate, 5, 30, 30);
+    vad = new VADWrapper(3, m_processingSampleRate, 15, 15, 15, 5);
 	m_vadFrameCounter = 0;
     
     audioLogger = new AudioLogger(std::string(PREFIX "logs/"), m_instanceId);

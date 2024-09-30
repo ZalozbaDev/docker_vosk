@@ -28,7 +28,8 @@ public:
 	static const unsigned int nrVADSamples = 160;
 	
 	VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int prebufVal = 5,
-	           unsigned int postbufValShort = 10, unsigned int postbufValLong = 5);
+	           unsigned int postbufValShort = 10, unsigned int postbufValLong = 5,
+	           unsigned int uttTriggerVal = 5);
 	~VADWrapper(void);
 	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime);
 	bool analyze(bool hintShortAudio = false);
@@ -55,6 +56,8 @@ private:
 	
 	const unsigned int m_postbufValShort;
 	const unsigned int m_postbufValLong;
+	
+	const unsigned int m_uttTriggerVal;
 	
 	unsigned int prebufCtrStart;
 	unsigned int prebufCtrToggle;
