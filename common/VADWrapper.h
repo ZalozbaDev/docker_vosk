@@ -19,7 +19,7 @@ extern "C" {
 #include "webrtc_vad_mock.h"
 #endif
 
-enum VADWrapperState {IDLE, INCOMPLETE, COMPLETE};
+enum VADWrapperState {IDLE, ACTIVE, POSTBUF};
 
 //////////////////////////////////////////////
 class VADWrapper
@@ -27,9 +27,14 @@ class VADWrapper
 public:
 	static const unsigned int nrVADSamples = 160;
 	
-	VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int prebufVal = 5,
-	           unsigned int postbufValShort = 10, unsigned int postbufValLong = 5,
-	           unsigned int uttTriggerVal = 5);
+	static const unsigned int vadMaxNrToggles = 10;
+	
+	VADWrapper(int aggressiveness, 
+		       size_t frequencyHz, 
+		       unsigned int audioPreBufferFrames  = 15,
+	           unsigned int audioPostBufferFrames = 15, 
+	           unsigned int vadHystheresisFramesOn = 5,
+	           unsigned int vadHystheresisFramesOff = 5);
 	~VADWrapper(void);
 	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime);
 	bool analyze(bool hintShortAudio = false);
@@ -49,31 +54,28 @@ private:
 	
 	std::deque<std::unique_ptr<VADFrame<nrVADSamples>>> chunks;
 	
-	short       leftOverSamples[nrVADSamples];
-	std::size_t leftOverSampleSize;
+	const unsigned int m_audioPreBufferFrames;
+	const unsigned int m_audioPostBufferFrames;
 	
-	const unsigned int m_prebufVal;
-	
-	const unsigned int m_postbufValShort;
-	const unsigned int m_postbufValLong;
-	
-	const unsigned int m_uttTriggerVal;
-	
-	unsigned int prebufCtrStart;
-	unsigned int prebufCtrToggle;
-	unsigned int postBufCtrStop;
+	const unsigned int m_vadHystheresisFramesOn;
+	const unsigned int m_vadHystheresisFramesOff;
 	
 	VADWrapperState state;
-	int utteranceCurr;
 	
+	unsigned int m_analyzeStopOffset;
+	
+	unsigned int m_unbufferedStopChunks;
+	unsigned int m_bufferedStopChunks;
+	
+	// for live recognition use
 	int64_t uStartTime;
 	int64_t uStartTimeMs;
 	int64_t uStopTime;
 	int64_t uStopTimeMs;
-	
+
+	// for cmdline usage
 	std::uint64_t frameCtrStart;
 	std::uint64_t frameCtrStop;
-	
 	
 	bool findUtteranceStart(void);
 	void findUtteranceStop(bool hintShortAudio);

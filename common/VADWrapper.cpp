@@ -9,10 +9,10 @@
 #include <chrono>
 
 //////////////////////////////////////////////
-VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int prebufVal,
-	unsigned int postbufValShort, unsigned int postbufValLong, unsigned int uttTriggerVal) :
-	m_prebufVal(prebufVal), m_postbufValShort(postbufValShort), m_postbufValLong(postbufValLong),
-	m_uttTriggerVal(uttTriggerVal)
+VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int audioPreBufferFrames,
+	unsigned int audioPostBufferFrames, unsigned int vadHystheresisFramesOn, unsigned int vadHystheresisFramesOff) :
+	m_audioPreBufferFrames(audioPreBufferFrames), m_audioPostBufferFrames(audioPostBufferFrames), 
+	m_vadHystheresisFramesOn(vadHystheresisFramesOn), m_vadHystheresisFramesOff(vadHystheresisFramesOff)
 {
 	int status;
 	
@@ -39,11 +39,6 @@ VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int preb
 	leftOverSampleSize = 0;
 	
 	state = VADWrapperState::IDLE;
-	utteranceCurr  = -1;
-	
-	prebufCtrStart  = 0;
-	prebufCtrToggle = 0;
-	postBufCtrStop  = 0;
 }
 
 //////////////////////////////////////////////
@@ -56,8 +51,8 @@ VADWrapper::~VADWrapper(void)
 
 //////////////////////////////////////////////
 //
-// process all data provided, plus leftover from previous call
-// all data is VAD analyzed and stored in the "chunks" vector (leftover data is kept)
+// process all data provided
+// all data is VAD analyzed and stored in the "chunks" vector
 //
 //////////////////////////////////////////////
 int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime)
@@ -65,77 +60,40 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 	int result, retVal;
 	size_t frame_ptr;
 	
-	retVal = 0;
-	frame_ptr = 0;
+	// leftover samples handling done at upper layer, can assume one full frame per call
+	assert(frame_length == nrVADSamples);
 	
-	while (leftOverSampleSize + (frame_length - frame_ptr) >= nrVADSamples)
-	{
-		std::unique_ptr<VADFrame<nrVADSamples>> chunk = std::make_unique<VADFrame<nrVADSamples>>();
+	retVal = 0;
 
-		chunk->currFrameCtr  = frameCtr;
-		chunk->currFrameTime = frameTime; 
+	std::unique_ptr<VADFrame<nrVADSamples>> chunk = std::make_unique<VADFrame<nrVADSamples>>();
+
+	chunk->currFrameCtr  = frameCtr;
+	chunk->currFrameTime = frameTime; 
 		
-		// check and prepend leftover data
-		if (leftOverSampleSize > 0)
-		{
-			int leftOverSampleBytes = leftOverSampleSize * sizeof(short);
-			
-			assert(leftOverSampleSize < nrVADSamples);
-			
-			memcpy(chunk->samples                               , leftOverSamples        , leftOverSampleBytes);
-			memcpy(((char*)chunk->samples) + leftOverSampleBytes, audio_frame + frame_ptr, sizeof(chunk->samples) - leftOverSampleBytes);
-			
-			frame_ptr += nrVADSamples - leftOverSampleSize;
-			leftOverSampleSize = 0;
-		}
-		else
-		{
-			memcpy(chunk->samples, audio_frame + frame_ptr, sizeof(chunk->samples));
-			frame_ptr += nrVADSamples;
-		}
+	memcpy(chunk->samples, audio_frame, sizeof(chunk->samples));
+
+	// actual VAD processing
+	result = WebRtcVad_Process(rtcVadInst, samplingFrequency, chunk->samples, nrVADSamples);
 		
-		// actual VAD processing
-		result = WebRtcVad_Process(rtcVadInst, samplingFrequency, chunk->samples, nrVADSamples);
+	if (result == -1)
+	{
+		std::cout << "Error processing VAD data!" << std::endl;
+		retVal = -1;
+	}
 		
-		// log every frame result
-		// std::cout << result;
-		
-		if (result == -1)
-		{
-			std::cout << "Error processing VAD data!" << std::endl;
-			retVal = -1;
-		}
-		
-		// 1 == active, 0 == not active, -1 == error
-		chunk->state = (result == 1) ? VADState::ACTIVE : VADState::OFF;
+	// 1 == active, 0 == not active, -1 == error
+	chunk->state = (result == 1) ? VADState::ACTIVE : VADState::OFF;
 
 #ifdef VAD_FRAME_CONVERT_FLOAT	
-		if (result == 1)
-		{
-			// only when data will be used later, we need to convert to float for whisper
-			for (unsigned int tmp = 0; tmp < nrVADSamples; tmp++)
-			{
-				chunk->fSamples[tmp] = (float) (((double) chunk->samples[tmp]) / 32768.0); 
-			}
-		}
+	// we need to convert every frame to float for whisper
+	// because we dont know which range is used for recognition
+	for (unsigned int tmp = 0; tmp < nrVADSamples; tmp++)
+	{
+		chunk->fSamples[tmp] = (float) (((double) chunk->samples[tmp]) / 32768.0); 
+	}
 #endif		
 		
-		chunks.push_back(std::move(chunk));
-	}
-	
-	// finish logging VAD results
-	// std::cout << std::endl;
-	
-	// remember leftover data
-	if (frame_ptr < frame_length)
-	{
-		int leftOverSampleBytes = leftOverSampleSize * sizeof(short);
-		
-		assert(leftOverSampleSize + (frame_length - frame_ptr) < nrVADSamples);
-		
-		memcpy(((char*)leftOverSamples) + leftOverSampleBytes, audio_frame + frame_ptr, (frame_length - frame_ptr) * sizeof(short));
-		leftOverSampleSize += frame_length - frame_ptr;
-	}
+	chunks.push_back(std::move(chunk));
 	
 	return retVal;
 }
@@ -152,6 +110,7 @@ bool VADWrapper::analyze(bool hintShortAudio)
 {
 	switch (state)
 	{
+		// utterance has not started
 		case VADWrapperState::IDLE:
 			bool success;
 			success = findUtteranceStart();
@@ -160,11 +119,13 @@ bool VADWrapper::analyze(bool hintShortAudio)
 				findUtteranceStop(hintShortAudio);
 			}
 			break;
-		case VADWrapperState::INCOMPLETE:
+		// utterance start detected, checking for stop
+		case VADWrapperState::ACTIVE:
 			findUtteranceStop(hintShortAudio);
 			break;
-		case VADWrapperState::COMPLETE:
-			// nothing to analyze as we have a complete utterance waiting to be fetched
+		// utterance start and stop detected, duplicate data for the postbuf period
+		case VADWrapperState::POSTBUF:
+			// nothing to analyze, wait for postbuf data drained before going idle
 			break;
 	}
 	
@@ -180,10 +141,10 @@ unsigned int VADWrapper::getAvailableChunks(void)
 		case VADWrapperState::IDLE:
 			// don't feed irrelevant silence to recognizer 
 			return 0;
-		case VADWrapperState::INCOMPLETE:
+		case VADWrapperState::ACTIVE:
 			// all chunks can be read
 			return chunks.size();
-		case VADWrapperState::COMPLETE:
+		case VADWrapperState::POSTBUF:
 			// read chunks until the end of utterance was analyzed
 			return (utteranceCurr + 1);
 	}
@@ -194,193 +155,249 @@ unsigned int VADWrapper::getAvailableChunks(void)
 }
 
 //////////////////////////////////////////////
+bool VADWrapper::findUtteranceStart(void)
+{
+	assert(state == VADWrapperState::IDLE);
+	
+	unsigned int numberActiveFrames = 0;
+	unsigned int numberToggles      = 0;
+	VADState lastState              = VADState::OFF;
+	
+	// estimated utterance start chunk
+	unsigned int chunkUttStart;	
+	
+	unsigned int chunksChopOffIdx = 0;
+	
+	// last chunk analyzed before utterance start detected
+	unsigned int chunksAnalyzedStart = 0;
+	
+	///////////////////////////////////////////////////
+	// 1. search through all stored chunks for a possible utterance start (with toggle)
+	///////////////////////////////////////////////////
+	
+	for (unsigned int i = 0; i < chunks.size(); i++)
+	{
+		// remember if VAD toggles
+		if (lastState != chunks[i]->state)
+		{
+			numberToggles++;
+		}
+		
+		// count consecutive active frames
+		if (chunks[i]->state == VADState::ACTIVE)
+		{
+			numberActiveFrames++;
+		}
+		else
+		{
+			if (numberActiveFrames > 0) 
+			{
+				numberActiveFrames--;
+			}
+			else
+			{
+				// reset toggles if too many inactive frames
+				numberToggles = 0;
+			}
+		}
+		
+		// check criteria for "start found": enough active frames
+		if (numberActiveFrames >= m_vadHystheresisFramesOn)
+		{
+			assert(i >= m_vadHystheresisFramesOn);
+			
+			state = VADWrapperState::ACTIVE;
+			chunkUttStart = i - m_vadHystheresisFramesOn;
+			chunksAnalyzedStart = i;
+			break;
+		}
+		// or: heavy toggling
+		if ((numberActiveFrames > 0) && (numberToggles > vadMaxNrToggles))
+		{
+			assert(i >= vadMaxNrToggles);
+			
+			state = VADWrapperState::ACTIVE;
+			chunkUttStart = i - vadMaxNrToggles;
+			chunksAnalyzedStart = i;
+			break;
+		}
+		
+		lastState = chunks[i]->state;
+	}
+	
+	///////////////////////////////////////////////////
+	// 2. remember properties of start chunk
+	///////////////////////////////////////////////////
+	
+	if (state == VADWrapperState::ACTIVE)
+	{
+		frameCtrStart = chunks[chunkUttStart]->currFrameCtr;
+		
+		std::chrono::time_point<std::chrono::system_clock> timeStampStart = chunks[chunkUttStart]->currFrameTime;
+	
+		uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
+		uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
+	}
+	
+	
+	///////////////////////////////////////////////////
+	// 3. compute possible frames to be discarded
+	///////////////////////////////////////////////////
+	
+	if (state == VADWrapperState::IDLE)
+	{
+		// delete all old frames, keep prebuf frames only	
+		if (chunks.size() > m_audioPreBufferFrames)
+		{
+			chunksChopOffIdx = chunks.size() - m_audioPreBufferFrames;
+		}
+	}
+	else
+	{
+		// keep prebuf frames before utterance start, remove older
+		if (chunkUttStart > m_audioPreBufferFrames)
+		{
+			chunksChopOffIdx = chunkUttStart - m_audioPreBufferFrames;
+		}
+	}
+	
+	///////////////////////////////////////////////////
+	// 4. chop off old chunks
+	///////////////////////////////////////////////////
+	
+	if (chunksChopOffIdx > 0)
+	{
+		chunks.erase(chunks.begin(), chunks.begin() + (chunksChopOffIdx - 1));	
+	}
+	
+	///////////////////////////////////////////////////
+	// 5. return if start found
+	///////////////////////////////////////////////////
+	
+	if (state == VADWrapperState::ACTIVE)
+	{
+		m_analyzeStopOffset = chunksAnalyzedStart - chunksChopOffIdx;
+		return true;
+	}
+	else
+	{
+		assert(chunks.size() == m_audioPreBufferFrames);
+		return false;	
+	}
+}
+
+//////////////////////////////////////////////
+void VADWrapper::findUtteranceStop(bool hintShortAudio)
+{
+	assert(state == VADWrapperState::ACTIVE);
+	
+	unsigned int searchStart = m_analyzeStopOffset;
+	
+	unsigned int chunkUttStopCtr = 0; 
+	
+	unsigned int chunkUttEnd;	
+	
+	///////////////////////////////////////////////////
+	// 1. find possible end of utterance
+	///////////////////////////////////////////////////
+	for (unsigned int i = searchStart; i < chunks.size(); i++)
+	{
+		if (chunks[i]->state == VADState::OFF)
+		{
+			chunkUttStopCtr++;
+		}
+		else
+		{
+			chunkUttStopCtr = 0;	
+		}
+		
+		if (chunkUttStopCtr >= m_vadHystheresisFramesOff)
+		{
+			VADWrapperState::POSTBUF;
+			chunkUttEnd = i;
+			break;
+		}
+	}
+		
+	///////////////////////////////////////////////////
+	// 2. remember search props / assign utterance end props
+	///////////////////////////////////////////////////
+	if (state == VADWrapperState::ACTIVE)
+	{
+		m_analyzeStopOffset = chunks.size();	
+	}
+	else
+	{
+		frameCtrStop = chunks[chunkUttEnd]->currFrameCtr;
+		std::chrono::time_point<std::chrono::system_clock> timeStampStop = chunks[chunkUttEnd]->currFrameTime;
+		
+		uStopTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStop.time_since_epoch()).count();
+		uStopTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStop.time_since_epoch()).count() - (uStopTime * 1000);
+	}
+	
+	///////////////////////////////////////////////////
+	// 3. initialize postbuf logic
+	///////////////////////////////////////////////////
+	if (state == VADWrapperState::POSTBUF)
+	{
+		m_unbufferedStopChunks = frameCtrStop;
+		m_bufferedStopChunks   = m_audioPostBufferFrames;
+	}
+}
+
+//////////////////////////////////////////////
 std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(void)
 {
 	std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk;
 	
 	assert(state != VADWrapperState::IDLE);
 	assert(chunks.size() > 0);
-	assert(utteranceCurr >= 0);
-	
-	utteranceCurr--;
-	
-	// reset to idle state if a complete utterance was fetched successfully
-	if (state == VADWrapperState::COMPLETE)
+
+	// return whatever is in queue in active state
+	if (state == VADWrapperState::ACTIVE)
 	{
-		if (utteranceCurr < 0)
+		// this moves the element to the local var but keeps an invalid (maybe null) entry in the deque
+		chunk = std::move(chunks.front());
+		
+		// the invalid entry needs to be deleted
+		chunks.pop_front();
+	}
+	
+	if (state == VADWrapperState::POSTBUF)
+	{
+		// supply audio until end-of-utterance and remove from queue
+		if (m_unbufferedStopChunks > 0)
 		{
-			std::cout << "VADWrapper::getNextChunk() resetting to IDLE after complete utterance was fetched" << std::endl;
-			state = VADWrapperState::IDLE;
-			utteranceCurr = -1;
+			// this moves the element to the local var but keeps an invalid (maybe null) entry in the deque
+			chunk = std::move(chunks.front());
 			
-			prebufCtrStart  = 0;
-			prebufCtrToggle = 0;
-			postBufCtrStop  = 0;
+			// the invalid entry needs to be deleted
+			chunks.pop_front();
+			
+			m_unbufferedStopChunks--;
+		}
+		else
+		{
+			// copy the buffered chunks only, they shall be analyzed for a next possible start
+			assert(m_bufferedStopChunks > 0);
+	
+			memcpy(chunk.samples, chunks[0].samples, sizeof(chunk.samples));
+#ifdef VAD_FRAME_CONVERT_FLOAT	
+			memcpy(chunk.fsamples, chunks[0].fsamples, sizeof(chunk.fsamples));
+#endif
+			chunk.state         = chunks[0].state;
+			chunk.currFrameCtr  = chunks[0].currFrameCtr;
+			chunk.currFrameTime = chunks[0].currFrameTime
+			
+			m_bufferedStopChunks--;
+			if (m_bufferedStopChunks == 0)
+			{
+				state = VADWrapperState::IDLE;	
+			}
 		}
 	}
 	
-	// this moves the element to the local var but keeps an invalid (maybe null) entry in the deque
-	chunk = std::move(chunks.front());
-	
-	// the invalid entry needs to be deleted
-	chunks.pop_front();
-	
-	// and the value itself be returned
+	// return the current (copied / moved) chunk
 	return (chunk);
-}
-
-//////////////////////////////////////////////
-bool VADWrapper::findUtteranceStart(void)
-{
-	assert(state == VADWrapperState::IDLE);
-	assert(utteranceCurr < 0);
-	
-	// find possible beginning of utterance 
-	for (unsigned int i = 0; i < chunks.size(); i++)
-	{
-		if (chunks[i]->state == VADState::ACTIVE)
-		{
-			// remember start time/start frame of utterance
-			if (prebufCtrStart == 0)
-			{
-				// go back as many frames as m_prebufVal
-				frameCtrStart = (chunks[i]->currFrameCtr > m_prebufVal) ? (chunks[i]->currFrameCtr - m_prebufVal) : 0;
-				
-				// go back as many ms*10 as m_prebufVal
-				std::chrono::time_point<std::chrono::system_clock> timeStampStart = chunks[i]->currFrameTime - std::chrono::milliseconds(10 * m_prebufVal);
-			
-				uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
-				uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
-			
-				// log subtitle pause
-				// std::cout << "SUBTITLEPAUSE: " << std::to_string(uStartTime - uStopTime) << "," << std::to_string(uStartTimeMs - uStopTimeMs) << " s" << std::endl;
-			}			
-			
-			prebufCtrStart++;
-			prebufCtrToggle++;
-		}
-		else
-		{
-			if (prebufCtrStart > 0)
-			{
-				prebufCtrStart--;
-				prebufCtrToggle++;
-			}
-		}
-
-		if (prebufCtrToggle > 0)
-		{
-			std::cout << "Utterance possible start at " << i << " with toggleCtr " << prebufCtrToggle << "." << std::endl;
-		}
-		
-		// did we find X active frames?
-		if (prebufCtrStart == m_uttTriggerVal)
-		{
-			// yes, chop off possible silence at beginning of vector
-			unsigned int chopOff = (i > (2 * m_prebufVal)) ? (i - (2 * m_prebufVal) + 1) : 0;
-			
-			// std::cout << "Size b4=" << chunks.size() << ",chop off " << chopOff << std::endl;
-
-			if (chopOff > 0)
-			{
-				chunks.erase(chunks.begin(), chunks.begin() + chopOff);	
-			}
-			
-			// std::cout << "Size after=" << chunks.size()  << std::endl;
-			
-			// remember until where we analyzed (for faster search for end)
-			utteranceCurr = i - chopOff;
-			state = VADWrapperState::INCOMPLETE;
-
-			break;
-		}
-	}
-	
-	// if nothing found, we can trim stored elements
-	if (state == VADWrapperState::IDLE)
-	{
-		if (chunks.size() > (m_prebufVal * 2))
-		{
-			// std::cout << "Trimming silence. Have " << chunks.size() << " chunks, reduce to " << (prebufVal * 2) << std::endl; 
-			
-			// delete everything but the last 10 frames
-			chunks.erase(chunks.begin(), chunks.end() - (m_prebufVal * 2));
-
-			// std::cout << "Chunks trimmed to " << chunks.size() << std::endl;
-			
-			assert(chunks.size() == (m_prebufVal * 2));
-		}
-		
-		return false;
-	}
-	
-	std::cout << "VADWrapper::findUtteranceStart() triggered new utterance!" << std::endl;
-	
-	return true;
-}
-
-//////////////////////////////////////////////
-void VADWrapper::findUtteranceStop(bool hintShortAudio)
-{
-	unsigned int searchStart = 0;
-	
-	unsigned int maxPostbufVal = (hintShortAudio == true) ? m_postbufValShort : m_postbufValLong;
-	
-	assert(state == VADWrapperState::INCOMPLETE);
-	
-	if (utteranceCurr > 0)
-	{
-		searchStart = utteranceCurr;
-	}
-	
-	// std::cout << "VADWrapper::findUtteranceStop() searching from " << searchStart << " to " << chunks.size() << std::endl; 
-	
-	// find possible end of utterance 
-	for (unsigned int i = searchStart; i < chunks.size(); i++)
-	{
-		if (chunks[i]->state == VADState::OFF)
-		{
-			postBufCtrStop++;
-		}
-		else
-		{
-			postBufCtrStop = 0;	
-		}
-		
-		// did we find X consecutive silent frames?
-		if (postBufCtrStop == maxPostbufVal)
-		{
-			std::cout << "Utterance stop found at " << i << "." << std::endl; 
-			
-			// utterance stops right here
-			utteranceCurr = i;
-			state = VADWrapperState::COMPLETE;
-			
-			frameCtrStop = chunks[i]->currFrameCtr;
-			std::chrono::time_point<std::chrono::system_clock> timeStampStop = chunks[i]->currFrameTime;
-			
-			uStopTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStop.time_since_epoch()).count();
-			uStopTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStop.time_since_epoch()).count() - (uStopTime * 1000);
-			
-			// log subtitle length
-			std::cout << "SUBTITLELEN: " << std::to_string(uStopTime - uStartTime) << "," << std::to_string(uStopTimeMs - uStartTimeMs) << " s" << std::endl;
-			
-			break;
-		}
-	}
-
-	// not complete yet, so remember how far we analyzed
-	if (state == VADWrapperState::INCOMPLETE)
-	{
-		// continue at next (not yet existing) chunk
-		utteranceCurr = chunks.size();
-//		std::cout << "VADWrapper::findUtteranceStop() still accumulating, chunks=" << chunks.size() 
-//		          << ", postBufCtr=" << postBufCtrStop 
-//		          << ", continue at index=" << utteranceCurr << std::endl;
-	}
-	else
-	{
-		std::cout << "VADWrapper::findUtteranceStop() complete, chunks=" << chunks.size() << " and end is at " << utteranceCurr << std::endl; 
-	}
 }
 
