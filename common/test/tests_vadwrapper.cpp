@@ -23,6 +23,156 @@ void fill_buffer(int16_t* buf, size_t valOffset, size_t len)
 	}
 }
 
+void processBuffer(VADWrapper &wrapper, int16_t * buf)
+{
+	wrapper.process(16000, buf, 160, 0, std::chrono::system_clock::now());	
+}
+
+TEST_CASE("test utterance start/stop computations")
+{
+	VADWrapper wrapper(3, 16000);
+	
+	SUBCASE("check normal start/stop behaviour") {
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 0; i < 10; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (int i = 10; i < 20; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 20; i < 40; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// 10 active, 5 pre, 5 post
+		CHECK(wrapper.getAvailableChunks() == 20);
+	}
+	
+	SUBCASE("check start/stop behaviour with short hint set") {
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 0; i < 10; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (int i = 10; i < 20; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 20; i < 40; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(true);
+		// 10 active, 5 pre, 10 post
+		CHECK(wrapper.getAvailableChunks() == 25);
+	}
+	
+	SUBCASE("check start/stop behaviour with distributed anayze runs") {
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 0; i < 10; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (int i = 10; i < 20; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 20; i < 23; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		for (int i = 23; i < 40; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// 10 active, 5 pre, 5 post
+		CHECK(wrapper.getAvailableChunks() == 20);
+		
+		// check that the next run is corect again
+		WebRtcVad_Mock_reset(wrapper.getRtcVadInst());
+		for (int i = 0; i < 10; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (int i = 10; i < 20; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (int i = 20; i < 40; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// 10 active, 5 pre, 5 post
+		CHECK(wrapper.getAvailableChunks() == 20);		
+	}
+	
+
+}
+
+TEST_CASE("test timestamps")
+{
+	VADWrapper wrapper(3, 16000);
+	
+	SUBCASE("check C/C++ computations") {
+		time_t stamp = time(NULL);
+		std::chrono::time_point newStamp = std::chrono::system_clock::now();
+		
+		std::cout << "Seconds since epoch" << std::endl;
+		std::cout << "C   impl: " << stamp << std::endl;
+		std::cout << "C++ impl: " << std::chrono::duration_cast<std::chrono::seconds>(newStamp.time_since_epoch()).count() << std::endl;
+		
+		struct timeval tp;
+		gettimeofday(&tp, NULL);
+		
+		std::chrono::time_point newMsStamp = std::chrono::system_clock::now();
+		
+		long int stamp_s      = tp.tv_sec;
+		long int stamp_millis = tp.tv_usec / 1000;
+
+		long int newStamp_s  = std::chrono::duration_cast<std::chrono::seconds>(newMsStamp.time_since_epoch()).count();
+		long int newStamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(newMsStamp.time_since_epoch()).count() - (newStamp_s * 1000);
+		
+		std::cout << "Seconds and ms since epoch" << std::endl;
+		std::cout << "C   impl: " << stamp_s << " s, " << stamp_millis << " ms." << std::endl;
+		std::cout << "C++ impl: " << newStamp_s << " s, " << newStamp_ms << " ms." << std::endl;
+		
+	}
+	
+}
+
+// leftover samples functionality removed from VAD wrapper
+/*
 TEST_CASE("test handling of leftover samples")
 {
 	VADWrapper wrapper(3, 16000);
@@ -103,146 +253,5 @@ TEST_CASE("test handling of leftover samples")
 
 
 }
+*/
 
-TEST_CASE("test utterance start/stop computations")
-{
-	VADWrapper wrapper(3, 16000);
-	
-	SUBCASE("check normal start/stop behaviour") {
-		int16_t buf[160];
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 0; i < 10; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		WebRtcVad_Mock_set_result(1);
-		for (int i = 10; i < 20; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 20; i < 40; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		wrapper.analyze(false);
-		// 10 active, 5 pre, 5 post
-		CHECK(wrapper.getAvailableChunks() == 20);
-	}
-	
-	SUBCASE("check start/stop behaviour with short hint set") {
-		int16_t buf[160];
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 0; i < 10; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		WebRtcVad_Mock_set_result(1);
-		for (int i = 10; i < 20; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 20; i < 40; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		wrapper.analyze(true);
-		// 10 active, 5 pre, 10 post
-		CHECK(wrapper.getAvailableChunks() == 25);
-	}
-	
-	SUBCASE("check start/stop behaviour with distributed anayze runs") {
-		int16_t buf[160];
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 0; i < 10; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		WebRtcVad_Mock_set_result(1);
-		for (int i = 10; i < 20; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		wrapper.analyze(false);
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 20; i < 23; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		wrapper.analyze(false);
-		for (int i = 23; i < 40; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		wrapper.analyze(false);
-		// 10 active, 5 pre, 5 post
-		CHECK(wrapper.getAvailableChunks() == 20);
-		
-		// check that the next run is corect again
-		WebRtcVad_Mock_reset(wrapper.getRtcVadInst());
-		for (int i = 0; i < 10; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		WebRtcVad_Mock_set_result(1);
-		for (int i = 10; i < 20; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 20; i < 40; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			wrapper.process(16000, buf, 160);
-		}
-		wrapper.analyze(false);
-		// 10 active, 5 pre, 5 post
-		CHECK(wrapper.getAvailableChunks() == 20);		
-	}
-	
-
-}
-
-TEST_CASE("test timestamps")
-{
-	VADWrapper wrapper(3, 16000);
-	
-	SUBCASE("check C/C++ computations") {
-		time_t stamp = time(NULL);
-		std::chrono::time_point newStamp = std::chrono::system_clock::now();
-		
-		std::cout << "Seconds since epoch" << std::endl;
-		std::cout << "C   impl: " << stamp << std::endl;
-		std::cout << "C++ impl: " << std::chrono::duration_cast<std::chrono::seconds>(newStamp.time_since_epoch()).count() << std::endl;
-		
-		struct timeval tp;
-		gettimeofday(&tp, NULL);
-		
-		std::chrono::time_point newMsStamp = std::chrono::system_clock::now();
-		
-		long int stamp_s      = tp.tv_sec;
-		long int stamp_millis = tp.tv_usec / 1000;
-
-		long int newStamp_s  = std::chrono::duration_cast<std::chrono::seconds>(newMsStamp.time_since_epoch()).count();
-		long int newStamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(newMsStamp.time_since_epoch()).count() - (newStamp_s * 1000);
-		
-		std::cout << "Seconds and ms since epoch" << std::endl;
-		std::cout << "C   impl: " << stamp_s << " s, " << stamp_millis << " ms." << std::endl;
-		std::cout << "C++ impl: " << newStamp_s << " s, " << newStamp_ms << " ms." << std::endl;
-		
-	}
-	
-}

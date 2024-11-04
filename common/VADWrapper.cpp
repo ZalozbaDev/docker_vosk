@@ -36,8 +36,6 @@ VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int audi
 		std::cout << "Invalid combination of sample rate and number of samples!" << std::endl;	
 	}
 	
-	leftOverSampleSize = 0;
-	
 	state = VADWrapperState::IDLE;
 }
 
@@ -120,7 +118,7 @@ bool VADWrapper::analyze(bool hintShortAudio)
 			}
 			break;
 		// utterance start detected, checking for stop
-		case VADWrapperState::ACTIVE:
+		case VADWrapperState::BUFFERING:
 			findUtteranceStop(hintShortAudio);
 			break;
 		// utterance start and stop detected, duplicate data for the postbuf period
@@ -141,12 +139,19 @@ unsigned int VADWrapper::getAvailableChunks(void)
 		case VADWrapperState::IDLE:
 			// don't feed irrelevant silence to recognizer 
 			return 0;
-		case VADWrapperState::ACTIVE:
+		case VADWrapperState::BUFFERING:
 			// all chunks can be read
 			return chunks.size();
 		case VADWrapperState::POSTBUF:
-			// read chunks until the end of utterance was analyzed
-			return (utteranceCurr + 1);
+			if (m_unbufferedStopChunks > 0)
+			{
+				// read chunks until the end of utterance was analyzed
+				return m_unbufferedStopChunks;
+			}
+			else
+			{
+				return std::min(m_bufferedStopChunks, (unsigned int) chunks.size());
+			}
 	}
 	
 	assert(false);
@@ -206,7 +211,7 @@ bool VADWrapper::findUtteranceStart(void)
 		{
 			assert(i >= m_vadHystheresisFramesOn);
 			
-			state = VADWrapperState::ACTIVE;
+			state = VADWrapperState::BUFFERING;
 			chunkUttStart = i - m_vadHystheresisFramesOn;
 			chunksAnalyzedStart = i;
 			break;
@@ -216,7 +221,7 @@ bool VADWrapper::findUtteranceStart(void)
 		{
 			assert(i >= vadMaxNrToggles);
 			
-			state = VADWrapperState::ACTIVE;
+			state = VADWrapperState::BUFFERING;
 			chunkUttStart = i - vadMaxNrToggles;
 			chunksAnalyzedStart = i;
 			break;
@@ -229,7 +234,7 @@ bool VADWrapper::findUtteranceStart(void)
 	// 2. remember properties of start chunk
 	///////////////////////////////////////////////////
 	
-	if (state == VADWrapperState::ACTIVE)
+	if (state == VADWrapperState::BUFFERING)
 	{
 		frameCtrStart = chunks[chunkUttStart]->currFrameCtr;
 		
@@ -274,7 +279,7 @@ bool VADWrapper::findUtteranceStart(void)
 	// 5. return if start found
 	///////////////////////////////////////////////////
 	
-	if (state == VADWrapperState::ACTIVE)
+	if (state == VADWrapperState::BUFFERING)
 	{
 		m_analyzeStopOffset = chunksAnalyzedStart - chunksChopOffIdx;
 		return true;
@@ -289,7 +294,7 @@ bool VADWrapper::findUtteranceStart(void)
 //////////////////////////////////////////////
 void VADWrapper::findUtteranceStop(bool hintShortAudio)
 {
-	assert(state == VADWrapperState::ACTIVE);
+	assert(state == VADWrapperState::BUFFERING);
 	
 	unsigned int searchStart = m_analyzeStopOffset;
 	
@@ -322,7 +327,7 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 	///////////////////////////////////////////////////
 	// 2. remember search props / assign utterance end props
 	///////////////////////////////////////////////////
-	if (state == VADWrapperState::ACTIVE)
+	if (state == VADWrapperState::BUFFERING)
 	{
 		m_analyzeStopOffset = chunks.size();	
 	}
@@ -354,7 +359,7 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 	assert(chunks.size() > 0);
 
 	// return whatever is in queue in active state
-	if (state == VADWrapperState::ACTIVE)
+	if (state == VADWrapperState::BUFFERING)
 	{
 		// this moves the element to the local var but keeps an invalid (maybe null) entry in the deque
 		chunk = std::move(chunks.front());
@@ -381,13 +386,13 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 			// copy the buffered chunks only, they shall be analyzed for a next possible start
 			assert(m_bufferedStopChunks > 0);
 	
-			memcpy(chunk.samples, chunks[0].samples, sizeof(chunk.samples));
+			memcpy(chunk->samples, chunks[0]->samples, sizeof(chunk->samples));
 #ifdef VAD_FRAME_CONVERT_FLOAT	
-			memcpy(chunk.fsamples, chunks[0].fsamples, sizeof(chunk.fsamples));
+			memcpy(chunk->fsamples, chunks[0]->fsamples, sizeof(chunk->fsamples));
 #endif
-			chunk.state         = chunks[0].state;
-			chunk.currFrameCtr  = chunks[0].currFrameCtr;
-			chunk.currFrameTime = chunks[0].currFrameTime
+			chunk->state         = chunks[0]->state;
+			chunk->currFrameCtr  = chunks[0]->currFrameCtr;
+			chunk->currFrameTime = chunks[0]->currFrameTime;
 			
 			m_bufferedStopChunks--;
 			if (m_bufferedStopChunks == 0)

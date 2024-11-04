@@ -19,7 +19,7 @@ extern "C" {
 #include "webrtc_vad_mock.h"
 #endif
 
-enum VADWrapperState {IDLE, ACTIVE, POSTBUF};
+enum VADWrapperState {IDLE, BUFFERING, POSTBUF};
 
 //////////////////////////////////////////////
 class VADWrapper
@@ -36,7 +36,11 @@ public:
 	           unsigned int vadHystheresisFramesOn = 5,
 	           unsigned int vadHystheresisFramesOff = 5);
 	~VADWrapper(void);
-	int process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime);
+	int process(int samplingFrequency, 
+		        const int16_t* audio_frame, 
+		        size_t frame_length, 
+		        std::uint64_t frameCtr, 
+		        std::chrono::time_point<std::chrono::system_clock> frameTime);
 	bool analyze(bool hintShortAudio = false);
 	unsigned int getAvailableChunks(void);
 	VADWrapperState getUtteranceStatus(void) { return state; }
@@ -83,7 +87,6 @@ private:
 #ifdef TEST_VADWRAPPER
 
 public:
-	std::size_t getLeftOverSampleSize(void) { return leftOverSampleSize; }
 	VadInst* getRtcVadInst(void) { return rtcVadInst; }
 #endif	
 };
