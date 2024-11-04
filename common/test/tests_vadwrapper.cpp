@@ -169,116 +169,64 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == 0);
 	}
 	
-	
-	
-	/*
-	
-	SUBCASE("check normal start/stop behaviour") {
+	SUBCASE("test postbuffer logic with second utterance directly after postbuffer") {
 		int16_t buf[160];
+		std::uint64_t frameCtr = 0;
 		WebRtcVad_Mock_set_result(0);
-		for (int i = 0; i < 10; i++)
+		for (unsigned int i = 0; i < audioPreBufferFrames; i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		WebRtcVad_Mock_set_result(1);
-		for (int i = 10; i < 20; i++)
+		for (unsigned int i = audioPreBufferFrames; i < (audioPreBufferFrames + vadHystheresisFramesOn); i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		WebRtcVad_Mock_set_result(0);
-		for (int i = 20; i < 40; i++)
+		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		wrapper.analyze(false);
-		// 10 active, 5 pre, 5 post
-		CHECK(wrapper.getAvailableChunks() == 20);
-	}
-	
-	SUBCASE("check start/stop behaviour with short hint set") {
-		int16_t buf[160];
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 0; i < 10; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
-		WebRtcVad_Mock_set_result(1);
-		for (int i = 10; i < 20; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 20; i < 40; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
-		wrapper.analyze(true);
-		// 10 active, 5 pre, 10 post
-		CHECK(wrapper.getAvailableChunks() == 25);
-	}
-	
-	SUBCASE("check start/stop behaviour with distributed anayze runs") {
-		int16_t buf[160];
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 0; i < 10; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
-		WebRtcVad_Mock_set_result(1);
-		for (int i = 10; i < 20; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
-		wrapper.analyze(false);
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 20; i < 23; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
-		wrapper.analyze(false);
-		for (int i = 23; i < 40; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
-		wrapper.analyze(false);
-		// 10 active, 5 pre, 5 post
-		CHECK(wrapper.getAvailableChunks() == 20);
+		// must indicate the whole buffer available
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
 		
-		// check that the next run is corect again
+		// try to read out all frames
+		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> frame;
+		for (unsigned int i = 0; i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		{
+			CHECK(wrapper.getAvailableChunks() > 0);
+			frame = wrapper.getNextChunk();
+			CHECK(frame->currFrameCtr == i);
+		}
+		CHECK(wrapper.getAvailableChunks() == 0);
+
+		// std::cout << "adding 2nd utterance now!" << std::endl;
+		
 		WebRtcVad_Mock_reset(wrapper.getRtcVadInst());
-		for (int i = 0; i < 10; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
 		WebRtcVad_Mock_set_result(1);
-		for (int i = 10; i < 20; i++)
+		for (unsigned int i = 0; i < vadHystheresisFramesOn; i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
-		WebRtcVad_Mock_set_result(0);
-		for (int i = 20; i < 40; i++)
-		{
-			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
-		}
+		
 		wrapper.analyze(false);
-		// 10 active, 5 pre, 5 post
-		CHECK(wrapper.getAvailableChunks() == 20);		
+		// must indicate prebuf+active frames available
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
+		
+		// try to read out all frames and check frame order / copying
+		for (unsigned int i = 0; i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		{
+			CHECK(wrapper.getAvailableChunks() > 0);
+			frame = wrapper.getNextChunk();
+			CHECK(frame->currFrameCtr == (i + audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff));
+		}
+		CHECK(wrapper.getAvailableChunks() == 0);
 	}
-	
-	*/
 	
 
 }

@@ -146,7 +146,7 @@ unsigned int VADWrapper::getAvailableChunks(void)
 			if (m_unbufferedStopChunks > 0)
 			{
 				// read chunks until the end of utterance was analyzed
-				return m_unbufferedStopChunks;
+				return std::min((m_unbufferedStopChunks + m_bufferedStopChunks), (unsigned int) chunks.size());
 			}
 			else
 			{
@@ -319,7 +319,9 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 		
 		if (chunkUttStopCtr >= m_vadHystheresisFramesOff)
 		{
-			VADWrapperState::POSTBUF;
+			std::cout << "+++ Utterance stop at chunk " << i << ", framectr " << chunks[i]->currFrameCtr << std::endl; 
+			
+			state = VADWrapperState::POSTBUF;
 			chunkUttEnd = i;
 			break;
 		}
@@ -346,7 +348,7 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 	///////////////////////////////////////////////////
 	if (state == VADWrapperState::POSTBUF)
 	{
-		m_unbufferedStopChunks = frameCtrStop;
+		m_unbufferedStopChunks = (chunkUttEnd + 1);
 		m_bufferedStopChunks   = m_audioPostBufferFrames;
 	}
 }
@@ -376,6 +378,8 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 		{
 			// this moves the element to the local var but keeps an invalid (maybe null) entry in the deque
 			chunk = std::move(chunks.front());
+			
+			std::cout << "Unbuffered stop chunk, frame ctr = " << chunk->currFrameCtr << "." << std::endl;
 			
 			// the invalid entry needs to be deleted
 			chunks.pop_front();
