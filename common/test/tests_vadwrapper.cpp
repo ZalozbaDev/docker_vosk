@@ -85,7 +85,16 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
 		
 		WebRtcVad_Mock_set_result(0);
-		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// must indicate the whole buffer available
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff));
+
+		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
 		{
 			fill_buffer(buf, i * 160, 160);
 			processBuffer(wrapper, buf);
@@ -93,6 +102,47 @@ TEST_CASE("test utterance start/stop computations")
 		wrapper.analyze(false);
 		// must indicate the whole buffer available
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
+	}
+	
+	SUBCASE("test limit of prebuffer frames, analysis only after all frames supplied") {
+		unsigned int skippedEmptyFrames = 23;
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = 0; i < (audioPreBufferFrames + skippedEmptyFrames); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (unsigned int i = (audioPreBufferFrames + skippedEmptyFrames); i < (audioPreBufferFrames + skippedEmptyFrames + vadHystheresisFramesOn); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// excess frames removed
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
+	}
+	
+	SUBCASE("test limit of prebuffer frames, analysis after each step") {
+		unsigned int skippedEmptyFrames = 17;
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = 0; i < (audioPreBufferFrames + skippedEmptyFrames); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		WebRtcVad_Mock_set_result(1);
+		for (unsigned int i = (audioPreBufferFrames + skippedEmptyFrames); i < (audioPreBufferFrames + skippedEmptyFrames + vadHystheresisFramesOn); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// excess frames removed
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
 	}
 	
 	

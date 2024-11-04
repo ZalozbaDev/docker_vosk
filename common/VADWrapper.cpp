@@ -262,7 +262,7 @@ bool VADWrapper::findUtteranceStart(void)
 		// keep prebuf frames before utterance start, remove older
 		if (chunkUttStart > m_audioPreBufferFrames)
 		{
-			chunksChopOffIdx = chunkUttStart - m_audioPreBufferFrames;
+			chunksChopOffIdx = chunkUttStart - m_audioPreBufferFrames + 1;
 		}
 	}
 	
@@ -272,7 +272,8 @@ bool VADWrapper::findUtteranceStart(void)
 	
 	if (chunksChopOffIdx > 0)
 	{
-		chunks.erase(chunks.begin(), chunks.begin() + (chunksChopOffIdx - 1));	
+		std::cout << "Erasing " << chunksChopOffIdx << " frames from buffer start." << std::endl;
+		chunks.erase(chunks.begin(), chunks.begin() + chunksChopOffIdx);	
 	}
 	
 	///////////////////////////////////////////////////
