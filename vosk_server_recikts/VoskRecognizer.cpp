@@ -394,10 +394,13 @@ void VoskRecognizer::workerThreadFunc(void)
 			while (noMoreData == false)
 			{
 				unsigned int availableChunks = vad->getAvailableChunks();
-				VADWrapperState uttStatus = vad->getUtteranceStatus();
+				VADWrapperState uttStatus;
+				bool detectedUttFinished = false;
 				
 				while (availableChunks > 0)
 				{
+					uttStatus = vad->getUtteranceStatus();
+					
 					std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk = vad->getNextChunk();
 					
 					status = recikts_audio(chunk->samples, VADWrapper::nrVADSamples);
@@ -407,14 +410,17 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					availableChunks--;
 					
+					// once the last postbuf chunk is read, state goes back to idle and we have a complete utterance
+					if ((uttStatus == VADWrapperState::POSTBUF) && (vad->getUtteranceStatus() == VADWrapperState::IDLE))
+					{
+						detectedUttFinished = true;	
+					}
+					
 					// std::cout << "Push chunks to recognizer, remaining = " << availableChunks << std::endl;
 				}
 		
-				// whenever we were in state "COMPLETE" before reading all data, this means that one final
-				// result shall be available
-				//
-				// by this we assume that all callbacks from recikts have happened and there is nothing pending
-				if (uttStatus == VADWrapperState::COMPLETE)
+				// here we assume that all callbacks from recikts have happened and there is nothing pending
+				if (detectedUttFinished == true)
 				{
 					// flush results, but don't indicate new speaker yet
 					recikts_restart(0);
