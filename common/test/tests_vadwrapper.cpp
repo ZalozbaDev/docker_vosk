@@ -219,7 +219,7 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
 		
 		// try to read out all frames and check frame order / copying
-		for (unsigned int i = 0; i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		for (unsigned int i = 0; i < (audioPreBufferFrames + vadHystheresisFramesOn); i++)
 		{
 			CHECK(wrapper.getAvailableChunks() > 0);
 			frame = wrapper.getNextChunk();

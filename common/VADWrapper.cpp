@@ -361,49 +361,47 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 	assert(state != VADWrapperState::IDLE);
 	assert(chunks.size() > 0);
 
-	// return whatever is in queue in active state
-	if (state == VADWrapperState::BUFFERING)
+	// supply the rest of the active part of the utterance (no copying)
+	if ((state == VADWrapperState::BUFFERING) || ((state == VADWrapperState::POSTBUF) && (m_unbufferedStopChunks > 0)))
 	{
-		// this moves the element to the local var but keeps an invalid (maybe null) entry in the deque
+		// read & remove the first element
 		chunk = std::move(chunks.front());
 		
 		// the invalid entry needs to be deleted
 		chunks.pop_front();
-	}
-	
-	if (state == VADWrapperState::POSTBUF)
-	{
-		// supply audio until end-of-utterance and remove from queue
-		if (m_unbufferedStopChunks > 0)
+
+		if (state == VADWrapperState::POSTBUF)
 		{
-			// this moves the element to the local var but keeps an invalid (maybe null) entry in the deque
-			chunk = std::move(chunks.front());
-			
 			std::cout << "Unbuffered stop chunk, frame ctr = " << chunk->currFrameCtr << "." << std::endl;
-			
-			// the invalid entry needs to be deleted
-			chunks.pop_front();
 			
 			m_unbufferedStopChunks--;
 		}
-		else
-		{
-			// copy the buffered chunks only, they shall be analyzed for a next possible start
-			assert(m_bufferedStopChunks > 0);
-	
-			memcpy(chunk->samples, chunks[0]->samples, sizeof(chunk->samples));
+	}
+	else
+	{
+		// copy the buffered chunks only, they shall be analyzed for a next possible start
+		assert(m_bufferedStopChunks > 0);
+		
+		chunk = std::move(*(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunks)));
+		chunks.erase(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunks));
+		
+		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunkCopy = std::make_unique<VADFrame<VADWrapper::nrVADSamples>>();;
+		
+		chunkCopy->state         = chunk->state;
+		chunkCopy->currFrameCtr  = chunk->currFrameCtr;
+		chunkCopy->currFrameTime = chunk->currFrameTime;
+
+		memcpy(chunkCopy->samples, chunk->samples, sizeof(chunk->samples));
 #ifdef VAD_FRAME_CONVERT_FLOAT	
-			memcpy(chunk->fsamples, chunks[0]->fsamples, sizeof(chunk->fsamples));
+		memcpy(chunkCopy->fsamples, chunk->fsamples, sizeof(chunk->fsamples));
 #endif
-			chunk->state         = chunks[0]->state;
-			chunk->currFrameCtr  = chunks[0]->currFrameCtr;
-			chunk->currFrameTime = chunks[0]->currFrameTime;
-			
-			m_bufferedStopChunks--;
-			if (m_bufferedStopChunks == 0)
-			{
-				state = VADWrapperState::IDLE;	
-			}
+
+		chunks.insert(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunks), std::move(chunkCopy));
+		
+		m_bufferedStopChunks--;
+		if (m_bufferedStopChunks == 0)
+		{
+			state = VADWrapperState::IDLE;	
 		}
 	}
 	
