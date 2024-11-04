@@ -23,9 +23,9 @@ void fill_buffer(int16_t* buf, size_t valOffset, size_t len)
 	}
 }
 
-void processBuffer(VADWrapper &wrapper, int16_t * buf)
+void processBuffer(VADWrapper &wrapper, int16_t * buf, std::uint64_t frameCtr = 0)
 {
-	wrapper.process(16000, buf, 160, 0, std::chrono::system_clock::now());	
+	wrapper.process(16000, buf, 160, frameCtr, std::chrono::system_clock::now());	
 }
 
 TEST_CASE("test utterance start/stop computations")
@@ -64,11 +64,12 @@ TEST_CASE("test utterance start/stop computations")
 	
 	SUBCASE("test normal start and stop computation with default pre- and postbuffer values, analysis after each step") {
 		int16_t buf[160];
+		std::uint64_t frameCtr = 0;
 		WebRtcVad_Mock_set_result(0);
 		for (unsigned int i = 0; i < audioPreBufferFrames; i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		wrapper.analyze(false);
 		// no frames announced when idle
@@ -78,7 +79,7 @@ TEST_CASE("test utterance start/stop computations")
 		for (unsigned int i = audioPreBufferFrames; i < (audioPreBufferFrames + vadHystheresisFramesOn); i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		wrapper.analyze(false);
 		// announce all frames incl prebuffer
@@ -88,7 +89,7 @@ TEST_CASE("test utterance start/stop computations")
 		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff); i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		wrapper.analyze(false);
 		// must indicate the whole buffer available
@@ -97,11 +98,23 @@ TEST_CASE("test utterance start/stop computations")
 		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		wrapper.analyze(false);
 		// must indicate the whole buffer available
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
+		
+		// try to read out all frames
+		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> frame;
+		for (unsigned int i = 0; i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		{
+			CHECK(wrapper.getAvailableChunks() > 0);
+			frame = wrapper.getNextChunk();
+			CHECK(frame->currFrameCtr == i);
+		}
+		CHECK(wrapper.getAvailableChunks() == 0);
+		// for code coverage
+		wrapper.analyze();
 	}
 	
 	SUBCASE("test limit of prebuffer frames, analysis only after all frames supplied") {
@@ -126,23 +139,34 @@ TEST_CASE("test utterance start/stop computations")
 	
 	SUBCASE("test limit of prebuffer frames, analysis after each step") {
 		unsigned int skippedEmptyFrames = 17;
+		std::uint64_t frameCtr = 0;
 		int16_t buf[160];
 		WebRtcVad_Mock_set_result(0);
 		for (unsigned int i = 0; i < (audioPreBufferFrames + skippedEmptyFrames); i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		wrapper.analyze(false);
 		WebRtcVad_Mock_set_result(1);
 		for (unsigned int i = (audioPreBufferFrames + skippedEmptyFrames); i < (audioPreBufferFrames + skippedEmptyFrames + vadHystheresisFramesOn); i++)
 		{
 			fill_buffer(buf, i * 160, 160);
-			processBuffer(wrapper, buf);
+			processBuffer(wrapper, buf, frameCtr++);
 		}
 		wrapper.analyze(false);
 		// excess frames removed
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
+		
+		// try to read out all frames
+		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> frame;
+		for (unsigned int i = 0; i < (audioPreBufferFrames + vadHystheresisFramesOn); i++)
+		{
+			CHECK(wrapper.getAvailableChunks() > 0);
+			frame = wrapper.getNextChunk();
+			CHECK(frame->currFrameCtr == i + skippedEmptyFrames);
+		}
+		CHECK(wrapper.getAvailableChunks() == 0);
 	}
 	
 	
