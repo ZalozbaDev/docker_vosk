@@ -42,7 +42,7 @@ int WebRtcVad_Process(VadInst* handle,
                       const int16_t* audio_frame,
                       size_t frame_length)
 {
-	printf("WebRtcVad_Process(frame_length=%ld)\n", frame_length);
+	// printf("WebRtcVad_Process(frame_length=%ld)\n", frame_length);
 	for (size_t index = 0; index < frame_length; index++)
 	{
 		if (audio_frame[index] != dummy.sample_ctr)

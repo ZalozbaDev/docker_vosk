@@ -30,7 +30,74 @@ void processBuffer(VADWrapper &wrapper, int16_t * buf)
 
 TEST_CASE("test utterance start/stop computations")
 {
-	VADWrapper wrapper(3, 16000);
+	unsigned int audioPreBufferFrames  = 15;
+	unsigned int audioPostBufferFrames = 15; 
+	unsigned int vadHystheresisFramesOn = 5;
+	unsigned int vadHystheresisFramesOff = 5;
+	
+	VADWrapper wrapper(3, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
+	
+	SUBCASE("test normal start and stop computation with default pre- and postbuffer values, analysis only after all frames supplied") {
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = 0; i < audioPreBufferFrames; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (unsigned int i = audioPreBufferFrames; i < (audioPreBufferFrames + vadHystheresisFramesOn); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// must indicate the whole buffer available
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
+	}
+	
+	SUBCASE("test normal start and stop computation with default pre- and postbuffer values, analysis after each step") {
+		int16_t buf[160];
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = 0; i < audioPreBufferFrames; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// no frames announced when idle
+		CHECK(wrapper.getAvailableChunks() == 0);
+		
+		WebRtcVad_Mock_set_result(1);
+		for (unsigned int i = audioPreBufferFrames; i < (audioPreBufferFrames + vadHystheresisFramesOn); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// announce all frames incl prebuffer
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
+		
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// must indicate the whole buffer available
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
+	}
+	
+	
+	
+	/*
 	
 	SUBCASE("check normal start/stop behaviour") {
 		int16_t buf[160];
@@ -136,6 +203,8 @@ TEST_CASE("test utterance start/stop computations")
 		// 10 active, 5 pre, 5 post
 		CHECK(wrapper.getAvailableChunks() == 20);		
 	}
+	
+	*/
 	
 
 }
