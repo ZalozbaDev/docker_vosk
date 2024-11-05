@@ -68,8 +68,13 @@ private:
 	
 	unsigned int m_analyzeStopOffset;
 	
-	unsigned int m_unbufferedStopChunks;
-	unsigned int m_bufferedStopChunks;
+	// offset in the chunks queue until the end of the current utterance
+	// chunks until here are removed when read (and offset decreased)
+	unsigned int m_unbufferedStopChunksOffset;
+	
+	// counter for frames that must be kept in queue when being read out
+	// this cannot be an offset because the frames might not be available yet
+	unsigned int m_bufferedStopChunksCountDown;
 	
 	// for live recognition use
 	int64_t uStartTime;

@@ -56,7 +56,6 @@ VADWrapper::~VADWrapper(void)
 int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime)
 {
 	int result, retVal;
-	size_t frame_ptr;
 	
 	// leftover samples handling done at upper layer, can assume one full frame per call
 	assert(frame_length == nrVADSamples);
@@ -143,14 +142,33 @@ unsigned int VADWrapper::getAvailableChunks(void)
 			// all chunks can be read
 			return chunks.size();
 		case VADWrapperState::POSTBUF:
-			if (m_unbufferedStopChunks > 0)
+			if (m_unbufferedStopChunksOffset > 0)
 			{
-				// read chunks until the end of utterance was analyzed
-				return std::min((m_unbufferedStopChunks + m_bufferedStopChunks), (unsigned int) chunks.size());
+				// existing chunks until the end of utterance was analyzed
+				unsigned int availableChunks = m_unbufferedStopChunksOffset;
+				// expected additional chunks, might not yet be present 
+				availableChunks += m_audioPostBufferFrames;
+				availableChunks = std::min(availableChunks, (unsigned int) chunks.size());
+				// std::cout << "POSTBUF read UNbuffered: available=" << availableChunks << ", deque size=" << chunks.size() << "." << std::endl;
+				return availableChunks;
 			}
 			else
 			{
-				return std::min(m_bufferedStopChunks, (unsigned int) chunks.size());
+				// compute the offset from where the next chunk would be read
+				// (buffered chunks are not erased)
+				unsigned int nextChunkOffset = m_audioPostBufferFrames - m_bufferedStopChunksCountDown;
+				unsigned int availableChunks = (unsigned int) chunks.size();
+				unsigned int announcedChunks;
+				if (nextChunkOffset >= availableChunks)
+				{
+					announcedChunks = 0;	
+				}
+				else
+				{
+					announcedChunks = availableChunks - nextChunkOffset;					
+				}
+				// std::cout << "POSTBUF read buffered: offset=" << nextChunkOffset << ", deque size=" << chunks.size() << ", returning " << announcedChunks << "." << std::endl;
+				return announcedChunks;
 			}
 	}
 	
@@ -348,8 +366,8 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 	///////////////////////////////////////////////////
 	if (state == VADWrapperState::POSTBUF)
 	{
-		m_unbufferedStopChunks = (chunkUttEnd + 1);
-		m_bufferedStopChunks   = m_audioPostBufferFrames;
+		m_unbufferedStopChunksOffset  = (chunkUttEnd + 1);
+		m_bufferedStopChunksCountDown = m_audioPostBufferFrames;
 	}
 }
 
@@ -362,7 +380,7 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 	assert(chunks.size() > 0);
 
 	// supply the rest of the active part of the utterance (no copying)
-	if ((state == VADWrapperState::BUFFERING) || ((state == VADWrapperState::POSTBUF) && (m_unbufferedStopChunks > 0)))
+	if ((state == VADWrapperState::BUFFERING) || ((state == VADWrapperState::POSTBUF) && (m_unbufferedStopChunksOffset > 0)))
 	{
 		// read & remove the first element
 		chunk = std::move(chunks.front());
@@ -372,20 +390,22 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 
 		if (state == VADWrapperState::POSTBUF)
 		{
-			std::cout << "Unbuffered stop chunk, frame ctr = " << chunk->currFrameCtr << "." << std::endl;
+			// std::cout << "Unbuffered stop chunk, frame ctr = " << chunk->currFrameCtr << "." << std::endl;
 			
-			m_unbufferedStopChunks--;
+			m_unbufferedStopChunksOffset--;
 		}
 	}
 	else
 	{
 		// copy the buffered chunks only, they shall be analyzed for a next possible start
-		assert(m_bufferedStopChunks > 0);
+		assert(m_bufferedStopChunksCountDown > 0);
 		
-		chunk = std::move(*(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunks)));
-		chunks.erase(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunks));
+		// std::cout << "Reading chunk " << (m_audioPostBufferFrames - m_bufferedStopChunksCountDown) << " from deque size " << chunks.size() << "." << std::endl;
 		
-		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunkCopy = std::make_unique<VADFrame<VADWrapper::nrVADSamples>>();;
+		chunk = std::move(chunks.at(m_audioPostBufferFrames - m_bufferedStopChunksCountDown));
+		chunks.erase(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunksCountDown));
+		
+		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunkCopy = std::make_unique<VADFrame<VADWrapper::nrVADSamples>>();
 		
 		chunkCopy->state         = chunk->state;
 		chunkCopy->currFrameCtr  = chunk->currFrameCtr;
@@ -396,10 +416,10 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 		memcpy(chunkCopy->fsamples, chunk->fsamples, sizeof(chunk->fsamples));
 #endif
 
-		chunks.insert(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunks), std::move(chunkCopy));
+		chunks.insert(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunksCountDown), std::move(chunkCopy));
 		
-		m_bufferedStopChunks--;
-		if (m_bufferedStopChunks == 0)
+		m_bufferedStopChunksCountDown--;
+		if (m_bufferedStopChunksCountDown == 0)
 		{
 			state = VADWrapperState::IDLE;	
 		}

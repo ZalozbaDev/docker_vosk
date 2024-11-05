@@ -37,7 +37,7 @@ TEST_CASE("test utterance start/stop computations")
 	
 	VADWrapper wrapper(3, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
 	
-	SUBCASE("test normal start and stop computation with default pre- and postbuffer values, analysis only after all frames supplied") {
+	SUBCASE("1. test normal start and stop computation with default pre- and postbuffer values, analysis only after all frames supplied") {
 		int16_t buf[160];
 		WebRtcVad_Mock_set_result(0);
 		for (unsigned int i = 0; i < audioPreBufferFrames; i++)
@@ -62,7 +62,71 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
 	}
 	
-	SUBCASE("test normal start and stop computation with default pre- and postbuffer values, analysis after each step") {
+	SUBCASE("2. test normal start and stop computation with default pre- and postbuffer values, with frames missing during readout") {
+		int16_t buf[160];
+		std::uint64_t frameCtr = 0;
+		unsigned int missingPostBufferFrames = 5;
+		
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = 0; i < audioPreBufferFrames; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf, frameCtr++);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (unsigned int i = audioPreBufferFrames; i < (audioPreBufferFrames + vadHystheresisFramesOn); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf, frameCtr++);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames - missingPostBufferFrames); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf, frameCtr++);
+		}
+		wrapper.analyze(false);
+		
+		// must indicate the whole buffer available
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames - missingPostBufferFrames));
+		
+		// try to read out all frames
+		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> frame;
+		unsigned int availableFrameCtr = audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames - missingPostBufferFrames;
+		for (unsigned int i = 0; i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames - missingPostBufferFrames); i++)
+		{
+			CHECK(wrapper.getAvailableChunks() == availableFrameCtr);
+			frame = wrapper.getNextChunk();
+			CHECK(frame->currFrameCtr == i);
+			availableFrameCtr--;
+		}
+		CHECK(wrapper.getAvailableChunks() == 0);
+		
+		// supply missing postbuf frames
+		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames - missingPostBufferFrames); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf, frameCtr++);
+		}
+		wrapper.analyze(false);
+		
+		// must indicate the whole buffer available
+		CHECK(wrapper.getAvailableChunks() == missingPostBufferFrames);
+		
+		// try to read out all frames
+		availableFrameCtr = missingPostBufferFrames;
+		for (unsigned int i = 0; i < missingPostBufferFrames; i++)
+		{
+			CHECK(wrapper.getAvailableChunks() == availableFrameCtr);
+			frame = wrapper.getNextChunk();
+			CHECK(frame->currFrameCtr == (i + audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames - missingPostBufferFrames));
+			availableFrameCtr--;
+		}
+		CHECK(wrapper.getAvailableChunks() == 0);
+		
+	}
+	
+	SUBCASE("3. test normal start and stop computation with default pre- and postbuffer values, analysis after each step") {
 		int16_t buf[160];
 		std::uint64_t frameCtr = 0;
 		WebRtcVad_Mock_set_result(0);
@@ -117,7 +181,7 @@ TEST_CASE("test utterance start/stop computations")
 		wrapper.analyze();
 	}
 	
-	SUBCASE("test limit of prebuffer frames, analysis only after all frames supplied") {
+	SUBCASE("4. test limit of prebuffer frames, analysis only after all frames supplied") {
 		unsigned int skippedEmptyFrames = 23;
 		int16_t buf[160];
 		WebRtcVad_Mock_set_result(0);
@@ -137,7 +201,7 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
 	}
 	
-	SUBCASE("test limit of prebuffer frames, analysis after each step") {
+	SUBCASE("5. test limit of prebuffer frames, analysis after each step") {
 		unsigned int skippedEmptyFrames = 17;
 		std::uint64_t frameCtr = 0;
 		int16_t buf[160];
@@ -169,7 +233,7 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == 0);
 	}
 	
-	SUBCASE("test postbuffer logic with second utterance directly after postbuffer, read-out all before filling 2nd utterance") {
+	SUBCASE("6. test postbuffer logic with second utterance directly after postbuffer, read-out all before filling 2nd utterance") {
 		int16_t buf[160];
 		std::uint64_t frameCtr = 0;
 		WebRtcVad_Mock_set_result(0);
@@ -228,7 +292,7 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == 0);
 	}
 	
-	SUBCASE("test postbuffer logic with second utterance shortly after postbuffer, read-out all before filling 2nd utterance") {
+	SUBCASE("7. test postbuffer logic with second utterance shortly after postbuffer, read-out all before filling 2nd utterance") {
 		int16_t buf[160];
 		std::uint64_t frameCtr = 0;
 		unsigned int firstUttLength = 35;
@@ -300,7 +364,7 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == 0);
 	}
 	
-	SUBCASE("test postbuffer logic with second utterance with distance from postbuffer, read-out all before filling 2nd utterance") {
+	SUBCASE("8. test postbuffer logic with second utterance with distance from postbuffer, read-out all before filling 2nd utterance") {
 		int16_t buf[160];
 		std::uint64_t frameCtr = 0;
 		unsigned int firstUttLength = 35;
@@ -372,7 +436,7 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == 0);
 	}
 	
-	SUBCASE("test postbuffer logic with second utterance shortly after postbuffer, analyze and read-out after 2nd utterance") {
+	SUBCASE("9. test postbuffer logic with second utterance shortly after postbuffer, analyze and read-out after 2nd utterance") {
 		int16_t buf[160];
 		std::uint64_t frameCtr = 0;
 		unsigned int firstUttLength = 35;
@@ -453,7 +517,7 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == 0);
 	}
 	
-	SUBCASE("test toggling for start computation with default pre- and postbuffer values") {
+	SUBCASE("10. test toggling for start computation with default pre- and postbuffer values") {
 		int16_t buf[160];
 		std::uint64_t frameCtr = 0;
 		unsigned int nrToggles = 5;
@@ -520,7 +584,7 @@ TEST_CASE("test timestamps")
 {
 	VADWrapper wrapper(3, 16000);
 	
-	SUBCASE("check C/C++ computations") {
+	SUBCASE("1. check C/C++ computations") {
 		time_t stamp = time(NULL);
 		std::chrono::time_point newStamp = std::chrono::system_clock::now();
 		
