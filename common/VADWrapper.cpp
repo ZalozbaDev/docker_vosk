@@ -126,8 +126,8 @@ bool VADWrapper::analyze(bool hintShortAudio)
 			break;
 	}
 	
-	// either we are still idle or all audio has been consumed
-	return ((state == VADWrapperState::IDLE) || (chunks.size() == 0)) ? true : false;
+	// must use the more complex computation due to postbuffering (chunks in queue != available chunks)
+	return (getAvailableChunks() == 0) ? true : false;
 }
 
 //////////////////////////////////////////////

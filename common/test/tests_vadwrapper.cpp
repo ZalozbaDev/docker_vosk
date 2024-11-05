@@ -62,7 +62,7 @@ TEST_CASE("test utterance start/stop computations")
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
 	}
 	
-	SUBCASE("2. test normal start and stop computation with default pre- and postbuffer values, with frames missing during readout") {
+	SUBCASE("2. test normal start and stop computation with default pre- and postbuffer values, with frames missing during readout, check analyze(bool) return value") {
 		int16_t buf[160];
 		std::uint64_t frameCtr = 0;
 		unsigned int missingPostBufferFrames = 5;
@@ -85,7 +85,7 @@ TEST_CASE("test utterance start/stop computations")
 			fill_buffer(buf, i * 160, 160);
 			processBuffer(wrapper, buf, frameCtr++);
 		}
-		wrapper.analyze(false);
+		CHECK(wrapper.analyze(false) == false);
 		
 		// must indicate the whole buffer available
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames - missingPostBufferFrames));
@@ -100,6 +100,7 @@ TEST_CASE("test utterance start/stop computations")
 			CHECK(frame->currFrameCtr == i);
 			availableFrameCtr--;
 		}
+		CHECK(wrapper.analyze(false) == true);
 		CHECK(wrapper.getAvailableChunks() == 0);
 		
 		// supply missing postbuf frames
@@ -108,7 +109,7 @@ TEST_CASE("test utterance start/stop computations")
 			fill_buffer(buf, i * 160, 160);
 			processBuffer(wrapper, buf, frameCtr++);
 		}
-		wrapper.analyze(false);
+		CHECK(wrapper.analyze(false) == false);
 		
 		// must indicate the whole buffer available
 		CHECK(wrapper.getAvailableChunks() == missingPostBufferFrames);
@@ -123,10 +124,11 @@ TEST_CASE("test utterance start/stop computations")
 			availableFrameCtr--;
 		}
 		CHECK(wrapper.getAvailableChunks() == 0);
+		CHECK(wrapper.analyze(false) == true);
 		
 	}
 	
-	SUBCASE("3. test normal start and stop computation with default pre- and postbuffer values, analysis after each step") {
+	SUBCASE("3. test normal start and stop computation with default pre- and postbuffer values, analysis after each step, check analyze(bool) return value") {
 		int16_t buf[160];
 		std::uint64_t frameCtr = 0;
 		WebRtcVad_Mock_set_result(0);
@@ -135,7 +137,7 @@ TEST_CASE("test utterance start/stop computations")
 			fill_buffer(buf, i * 160, 160);
 			processBuffer(wrapper, buf, frameCtr++);
 		}
-		wrapper.analyze(false);
+		CHECK(wrapper.analyze(false) == true);
 		// no frames announced when idle
 		CHECK(wrapper.getAvailableChunks() == 0);
 		
@@ -145,7 +147,7 @@ TEST_CASE("test utterance start/stop computations")
 			fill_buffer(buf, i * 160, 160);
 			processBuffer(wrapper, buf, frameCtr++);
 		}
-		wrapper.analyze(false);
+		CHECK(wrapper.analyze(false) == false);
 		// announce all frames incl prebuffer
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn));
 		
@@ -155,7 +157,7 @@ TEST_CASE("test utterance start/stop computations")
 			fill_buffer(buf, i * 160, 160);
 			processBuffer(wrapper, buf, frameCtr++);
 		}
-		wrapper.analyze(false);
+		CHECK(wrapper.analyze(false) == false);
 		// must indicate the whole buffer available
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff));
 
@@ -164,7 +166,7 @@ TEST_CASE("test utterance start/stop computations")
 			fill_buffer(buf, i * 160, 160);
 			processBuffer(wrapper, buf, frameCtr++);
 		}
-		wrapper.analyze(false);
+		CHECK(wrapper.analyze(false) == false);
 		// must indicate the whole buffer available
 		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
 		
@@ -177,8 +179,7 @@ TEST_CASE("test utterance start/stop computations")
 			CHECK(frame->currFrameCtr == i);
 		}
 		CHECK(wrapper.getAvailableChunks() == 0);
-		// for code coverage
-		wrapper.analyze();
+		CHECK(wrapper.analyze(false) == true);
 	}
 	
 	SUBCASE("4. test limit of prebuffer frames, analysis only after all frames supplied") {
