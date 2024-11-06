@@ -654,6 +654,43 @@ TEST_CASE("test timestamps")
 	
 }
 
+TEST_CASE("test different VAD aggressiveness (simulated)")
+{
+	unsigned int audioPreBufferFrames  = 15;
+	unsigned int audioPostBufferFrames = 15; 
+	unsigned int vadHystheresisFramesOn = 5;
+	unsigned int vadHystheresisFramesOff = 5;
+	int vad_aggressiveness = 1;
+	
+	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
+	
+	SUBCASE("1. test with all frames active from beginning") {
+		int16_t buf[160];
+		
+		WebRtcVad_Mock_set_result(1);
+		for (unsigned int i = 0; i < audioPreBufferFrames; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(1);
+		for (unsigned int i = audioPreBufferFrames; i < (audioPreBufferFrames + vadHystheresisFramesOn); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = (audioPreBufferFrames + vadHystheresisFramesOn); i < (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames); i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		wrapper.analyze(false);
+		// must indicate the whole buffer available
+		CHECK(wrapper.getAvailableChunks() == (audioPreBufferFrames + vadHystheresisFramesOn + vadHystheresisFramesOff + audioPostBufferFrames));
+	}
+}
+
 // leftover samples functionality removed from VAD wrapper
 /*
 TEST_CASE("test handling of leftover samples")

@@ -234,20 +234,41 @@ bool VADWrapper::findUtteranceStart(void)
 		// check criteria for "start found": enough active frames
 		if (numberActiveFrames >= m_vadHystheresisFramesOn)
 		{
-			assert(i >= m_vadHystheresisFramesOn);
+			// "best" case all frames are active frames, thus i can be one less than the min hystheresis 
+			assert((i + 1) >= m_vadHystheresisFramesOn);
 			
 			state = VADWrapperState::BUFFERING;
-			chunkUttStart = i - m_vadHystheresisFramesOn;
+			
+			// handle the case where there is an immediate start
+			if (i >= m_vadHystheresisFramesOn)
+			{
+				chunkUttStart = i - m_vadHystheresisFramesOn;
+			}
+			else
+			{
+				chunkUttStart = 0;
+			}
+			
 			chunksAnalyzedStart = i;
 			break;
 		}
 		// or: heavy toggling
 		if ((numberActiveFrames > 0) && (numberToggles > vadMaxNrToggles))
 		{
-			assert(i >= vadMaxNrToggles);
+			// "best" case all frames were toggling, thus i can be one less than the min hystheresis 
+			assert((i + 1) >= vadMaxNrToggles);
 			
 			state = VADWrapperState::BUFFERING;
-			chunkUttStart = i - vadMaxNrToggles;
+			
+			// handle the case where there is an immediate start
+			if (i >= vadMaxNrToggles)
+			{
+				chunkUttStart = i - vadMaxNrToggles;
+			}
+			else
+			{
+				chunkUttStart = 0;	
+			}
 			chunksAnalyzedStart = i;
 			break;
 		}
