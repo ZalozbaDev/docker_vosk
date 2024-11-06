@@ -34,8 +34,9 @@ TEST_CASE("test utterance start/stop computations")
 	unsigned int audioPostBufferFrames = 15; 
 	unsigned int vadHystheresisFramesOn = 5;
 	unsigned int vadHystheresisFramesOff = 5;
+	int vad_aggressiveness = 3;
 	
-	VADWrapper wrapper(3, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
+	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
 	
 	SUBCASE("1. test normal start and stop computation with default pre- and postbuffer values, analysis only after all frames supplied") {
 		int16_t buf[160];
