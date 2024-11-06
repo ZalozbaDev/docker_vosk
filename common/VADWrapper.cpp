@@ -157,15 +157,22 @@ unsigned int VADWrapper::getAvailableChunks(void)
 				// compute the offset from where the next chunk would be read
 				// (buffered chunks are not erased)
 				unsigned int nextChunkOffset = m_audioPostBufferFrames - m_bufferedStopChunksCountDown;
-				unsigned int availableChunks = (unsigned int) chunks.size();
+				
+				// how many chunks are in buffer
+				unsigned int availableChunksUtterance = (unsigned int) chunks.size();
+				// but use no more than what belongs to the current utterance (max buffered)
+				availableChunksUtterance = std::min(availableChunksUtterance, m_audioPostBufferFrames); 
+					
 				unsigned int announcedChunks;
-				if (nextChunkOffset >= availableChunks)
+				if (nextChunkOffset >= availableChunksUtterance)
 				{
+					// would like to read a chunk that is not yet in buffer
 					announcedChunks = 0;	
 				}
 				else
 				{
-					announcedChunks = availableChunks - nextChunkOffset;					
+					// this many buffered chunks can be read
+					announcedChunks = availableChunksUtterance - nextChunkOffset;					
 				}
 				// std::cout << "POSTBUF read buffered: offset=" << nextChunkOffset << ", deque size=" << chunks.size() << ", returning " << announcedChunks << "." << std::endl;
 				return announcedChunks;
