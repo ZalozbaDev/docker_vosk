@@ -397,6 +397,10 @@ void VoskRecognizer::workerThreadFunc(void)
 				VADWrapperState uttStatus;
 				bool detectedUttFinished = false;
 				
+				assert(availableChunks > 0);
+				
+				// std::cout << "Processing " << availableChunks << " announced chunks." << std::endl;
+				
 				while (availableChunks > 0)
 				{
 					uttStatus = vad->getUtteranceStatus();
