@@ -21,7 +21,7 @@
 int VoskRecognizer::voskRecognizerInstanceId = 1;
 
 //////////////////////////////////////////////
-VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath)
+VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness)
 {
 	char status;
 	
@@ -52,7 +52,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 
     // init static parts already here
 
-    vad = new VADWrapper(3, m_processingSampleRate, 15, 15, 5, 5);
+    vad = new VADWrapper(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
 	m_vadFrameCounter = 0;
     
     audioLogger = new AudioLogger(std::string(PREFIX "logs/"), m_instanceId);

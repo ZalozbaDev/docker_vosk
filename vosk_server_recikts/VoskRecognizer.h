@@ -65,7 +65,7 @@ public:
 class VoskRecognizer
 {
 public:
-	VoskRecognizer(int modelId, float sample_rate, const char *configPath);
+	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=3);
 	~VoskRecognizer(void);
 	int getInstanceId(void) { return m_instanceId; }
 	int getModelInstanceId(void) { return m_modelInstanceId; }

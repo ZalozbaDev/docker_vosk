@@ -54,11 +54,25 @@ int main(int argc, char **argv)
 	sf_count_t index;
 	// int logsize;
 	int subtitle_index;
+	int vad_aggressiveness = 3;
 	
 	if (argc < 4)
 	{
-		std::cout << "Error! Need to specify model path, .wav file and destination path!" << std::endl;
+		std::cout << "Error! Need to specify at least model path, .wav file and destination path! [vad_aggressiveness]" << std::endl;
+		std::cout << "Example: ./main ./model/data/merged_47_nnet_v3.cfg ./testdata/0001_citanje.wav testresults/" << std::endl;
+		std::cout << "Example: ./main ./model/data/merged_47_nnet_v3.cfg ./testdata/0001_citanje.wav testresults/ 2" << std::endl;
 		return 1;
+	}
+	
+	if (argc >= 5)
+	{
+		vad_aggressiveness = std::stoi(argv[4]);
+		if ((vad_aggressiveness < 1) || (vad_aggressiveness > 3))
+		{
+			std::cout << "VAD aggressiveness " << vad_aggressiveness << " out of range 1..3!" << std::endl;
+			return 1;
+		}
+		std::cout << "Setting custom VAD aggressiveness=" << vad_aggressiveness << "." << std::endl;
 	}
 	
 	file = SndfileHandle(argv[2]) ;
@@ -99,7 +113,7 @@ int main(int argc, char **argv)
 	// not part of C++
 	setenv("VOSK_SUBWORD_REGEX", "# #", 1);
 	
-	VoskRecognizer v(1, 48000, argv[1]);
+	VoskRecognizer v(1, 48000, argv[1], vad_aggressiveness);
 	
 	v.setDetailedResult(true);
 	
