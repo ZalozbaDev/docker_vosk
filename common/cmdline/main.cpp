@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 	sf_count_t index;
 	// int logsize;
 	int subtitle_index;
-	int vad_aggressiveness = 3;
+	int vad_aggressiveness = 2;
 	
 	if (argc < 4)
 	{
