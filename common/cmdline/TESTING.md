@@ -25,6 +25,22 @@ LD_LIBRARY_PATH=$RECIKTSTOOLING recikts_out/recikts_main ~/docker_compose_files_
 diff testdata/0001_citanje_vadaggr_1.srt testresults/subtitles.srt
 ```
 
+### testdata/0002_poswjecenje.wav
+
+```code
+LD_LIBRARY_PATH=$RECIKTSTOOLING recikts_out/recikts_main ~/docker_compose_files_private/hetzner_serwer/webcaptioner-ng/data/merged_47_nnet_v3.cfg testdata/0002_poswjecenje.wav testresults/ 3
+diff testdata/0002_poswjecenje_vadaggr_3.srt testresults/subtitles.srt
+```
+
+```code
+LD_LIBRARY_PATH=$RECIKTSTOOLING recikts_out/recikts_main ~/docker_compose_files_private/hetzner_serwer/webcaptioner-ng/data/merged_47_nnet_v3.cfg testdata/0002_poswjecenje.wav testresults/ 2
+diff testdata/0002_poswjecenje_vadaggr_2.srt testresults/subtitles.srt
+```
+
+```code
+LD_LIBRARY_PATH=$RECIKTSTOOLING recikts_out/recikts_main ~/docker_compose_files_private/hetzner_serwer/webcaptioner-ng/data/merged_47_nnet_v3.cfg testdata/0002_poswjecenje.wav testresults/ 1
+diff testdata/0002_poswjecenje_vadaggr_1.srt testresults/subtitles.srt
+```
 
 
 TBD
