@@ -1,10 +1,10 @@
 #ifndef VOSK_RECOGNIZER_H
 #define VOSK_RECOGNIZER_H
 
+#include "RecognizerBase.h"
+
 #include <iostream>
 #include <vector>
-
-#include <cstdint>
 
 #include <queue>
 
@@ -36,8 +36,6 @@ extern "C" {
 #include <HunspellPostProc.h>
 #include <CustomPostProc.h>
 
-enum VoskRecognizerState {UNINIT, INIT};
-
 // command-line parameters from stream example
 struct whisper_params {
     int32_t n_threads  = 8; // TODO hard-coded
@@ -66,44 +64,11 @@ struct whisper_params {
     std::string fname_out;
 };
 
-class FinalResult
-{
-public:
-	
-	std::string text;
-	uint64_t frameCounterStart;
-	uint64_t frameCounterEnd;
-    int64_t  uStartTime;
-    int64_t  uStartTimeMs;
-    int64_t  uStopTime;
-    int64_t  uStopTimeMs;
-};
-
-class AudioPacket
-{
-public:
-	std::chrono::time_point<std::chrono::system_clock> arrivalTime;
-	char *data;
-	int length;
-	
-	AudioPacket() {
-		data = nullptr;
-		length = 0;
-	}
-	
-	~AudioPacket() {
-		if (length > 0) {
-			delete[] data;
-		}
-		length = 0;
-	}
-};
-
 //////////////////////////////////////////////
-class VoskRecognizer
+class VoskRecognizer:public RecognizerBase
 {
 public:
-	VoskRecognizer(int modelId, float sample_rate, const char *configPath);
+	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=2);
 	~VoskRecognizer(void);
 	int getInstanceId(void) { return m_instanceId; }
 	int getModelInstanceId(void) { return m_modelInstanceId; }

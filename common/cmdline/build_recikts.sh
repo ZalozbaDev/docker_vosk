@@ -18,6 +18,7 @@ cp ../../vosk_server_recikts/recikts.h ../../vosk_server_recikts/VoskRecognizer.
 
 g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -fPIC -o recikts_out/recikts_main -DPREFIX="" \
 -Irecikts_out/ -I. -Iwebrtc-audio-processing/webrtc/ \
+recikts_out/RecognizerBase.cpp \
 recikts_out/vosk_api_wrapper.cpp recikts_out/VoskRecognizer.cpp recikts_out/VADWrapper.cpp recikts_out/AudioLogger.cpp \
 recikts_out/HunspellPostProc.cpp recikts_out/CustomPostProc.cpp \
 main.cpp \

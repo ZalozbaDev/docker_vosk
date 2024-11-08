@@ -27,6 +27,7 @@ cp ../../vosk_server_whisper/VoskRecognizer.cpp ../../vosk_server_whisper/VoskRe
 g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -O3 -fPIC -o whisper_out/whisper_main \
 -DVAD_FRAME_CONVERT_FLOAT \
 -Iwhisper_out/ -I. -Iwebrtc-audio-processing/webrtc/ -Iwhisper.cpp/ -Iwhisper.cpp/examples/ \
+whisper_out/RecognizerBase.cpp \
 whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADWrapper.cpp whisper_out/AudioLogger.cpp \
 whisper_out/HunspellPostProc.cpp whisper_out/CustomPostProc.cpp \
 whisper.cpp/examples/common.cpp whisper.cpp/examples/common-ggml.cpp whisper.cpp/ggml.o whisper.cpp/whisper.o \

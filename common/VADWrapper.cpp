@@ -441,7 +441,7 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 
 		memcpy(chunkCopy->samples, chunk->samples, sizeof(chunk->samples));
 #ifdef VAD_FRAME_CONVERT_FLOAT	
-		memcpy(chunkCopy->fsamples, chunk->fsamples, sizeof(chunk->fsamples));
+		memcpy(chunkCopy->fSamples, chunk->fSamples, sizeof(chunk->fSamples));
 #endif
 
 		chunks.insert(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunksCountDown), std::move(chunkCopy));

@@ -1,9 +1,9 @@
 #ifndef VOSK_RECOGNIZER_H
 #define VOSK_RECOGNIZER_H
 
-#include <iostream>
+#include "RecognizerBase.h"
 
-#include <cstdint>
+#include <iostream>
 
 #include <queue>
 
@@ -26,43 +26,8 @@ extern "C" {
 #include <HunspellPostProc.h>
 #include <CustomPostProc.h>
 
-enum VoskRecognizerState {UNINIT, INIT};
-
-class FinalResult
-{
-public:
-	
-	std::string text;
-	uint64_t frameCounterStart;
-	uint64_t frameCounterEnd;
-    int64_t  uStartTime;
-    int64_t  uStartTimeMs;
-    int64_t  uStopTime;
-    int64_t  uStopTimeMs;
-};
-
-class AudioPacket
-{
-public:
-	std::chrono::time_point<std::chrono::system_clock> arrivalTime;
-	char *data;
-	int length;
-	
-	AudioPacket() {
-		data = nullptr;
-		length = 0;
-	}
-	
-	~AudioPacket() {
-		if (length > 0) {
-			delete[] data;
-		}
-		length = 0;
-	}
-};
-
 //////////////////////////////////////////////
-class VoskRecognizer
+class VoskRecognizer:public RecognizerBase
 {
 public:
 	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=2);
