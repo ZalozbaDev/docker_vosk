@@ -68,6 +68,13 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     }
     cpp = new CustomPostProc(true, replacement_file);
     
+    // TBD more config options needed for newer models:
+    //
+    // - --language            ("en", "czech", ...)
+    // - -mc / --max-context   (a.k.a. "n_max_text_ctx":   default = 16384, some models need this to be 0)
+    // - -nt / --no-timestamps (a.k.a. "print_timestamps": avoid filling t0/t1 [do not call whisper_full_get_segment_tX], 
+    //                                                     some models seem to be picky about this - to be investigated)
+    
     threadRunning = true;
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
