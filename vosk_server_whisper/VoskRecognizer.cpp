@@ -326,10 +326,15 @@ void VoskRecognizer::workerThreadFunc(void)
 			while (noMoreData == false)
 			{
 				unsigned int availableChunks = vad->getAvailableChunks();
-				VADWrapperState uttStatus = vad->getUtteranceStatus();
+				VADWrapperState uttStatus;
+				bool detectedUttFinished = false;
+				
+				assert(availableChunks > 0);
 				
 				while (availableChunks > 0)
 				{
+					uttStatus = vad->getUtteranceStatus();
+					
 					std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk = vad->getNextChunk();
 					
 					pcmf32.insert(pcmf32.cend(), std::begin(chunk->fSamples), std::end(chunk->fSamples));
@@ -337,14 +342,15 @@ void VoskRecognizer::workerThreadFunc(void)
 					audioLogger->addChunk(std::move(chunk));
 					
 					availableChunks--;
+					
+					// once the last postbuf chunk is read, state goes back to idle and we have a complete utterance
+					if ((uttStatus == VADWrapperState::POSTBUF) && (vad->getUtteranceStatus() == VADWrapperState::IDLE))
+					{
+						detectedUttFinished = true;	
+					}
 				}
 				
-				// whenever we were in state "COMPLETE" before reading all data, this means that one final
-				// result shall be available
-				
-				// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TBD fix logic !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-				
-				if ((uttStatus == VADWrapperState::POSTBUF) || (pcmf32.size() > pcm_buffer_max))
+				if ((detectedUttFinished == true) || (pcmf32.size() > pcm_buffer_max))
 				{
 					runWhisper();
 					promoteToFinalResult();
