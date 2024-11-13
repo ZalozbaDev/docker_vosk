@@ -58,9 +58,10 @@ int main(int argc, char **argv)
 	
 	if (argc < 4)
 	{
-		std::cout << "Error! Need to specify at least model path, .wav file and destination path! [vad_aggressiveness]" << std::endl;
+		std::cout << "Error! Need to specify at least model path, .wav file and destination path! [vad_aggressiveness] [whisper_lang] [whisper_max_ctx] [whisper_no_timestamps]" << std::endl;
 		std::cout << "Example: ./main ./model/data/merged_47_nnet_v3.cfg ./testdata/0001_citanje.wav testresults/" << std::endl;
 		std::cout << "Example: ./main ./model/data/merged_47_nnet_v3.cfg ./testdata/0001_citanje.wav testresults/ 2" << std::endl;
+		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true" << std::endl;
 		return 1;
 	}
 	
@@ -73,6 +74,23 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		std::cout << "Setting custom VAD aggressiveness=" << vad_aggressiveness << "." << std::endl;
+	}
+	
+	// handle additional envvars
+	
+	setenv("VOSK_SUBWORD_REGEX", "# #", 1); // API not part of C++
+	
+	if (argc >= 6)
+	{
+		setenv("VOSK_MODEL_LANGUAGE", argv[5], 1);
+	}
+	if (argc >= 7)
+	{
+		setenv("VOSK_WHISPER_MAX_CONTEXT", argv[6], 1);
+	}
+	if (argc >= 8)
+	{
+		setenv("VOSK_WHISPER_DISABLE_TIMESTAMPS", argv[7], 1);
 	}
 	
 	file = SndfileHandle(argv[2]) ;
@@ -109,9 +127,6 @@ int main(int argc, char **argv)
 		std::cout << "Error in .wav file format!" << std::endl;	
 		return 1;
 	}
-	
-	// not part of C++
-	setenv("VOSK_SUBWORD_REGEX", "# #", 1);
 	
 	VoskRecognizer v(1, 48000, argv[1], vad_aggressiveness);
 	
