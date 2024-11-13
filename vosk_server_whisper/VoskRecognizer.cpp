@@ -68,12 +68,43 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     }
     cpp = new CustomPostProc(true, replacement_file);
     
-    // TBD more config options needed for newer models:
-    //
+    // optional environment var
     // - --language            ("en", "czech", ...)
+    if (const char *env_p = std::getenv("VOSK_MODEL_LANGUAGE"))
+    {
+    	env_vosk_model_language = env_p;
+    }    
+    else
+    {
+    	env_vosk_model_language = "auto";
+    }
+    std::cout << "ENV setting language to '" << env_vosk_model_language << "'." << std::endl;
+    
+    // optional environment var
     // - -mc / --max-context   (a.k.a. "n_max_text_ctx":   default = 16384, some models need this to be 0)
+    if (const char *env_p = std::getenv("VOSK_WHISPER_MAX_CONTEXT"))
+    {
+    	env_whisper_max_context = std::atoi(env_p);
+    }
+    else
+    {
+    	// use -1 for "don't change default"
+    	env_whisper_max_context = -1;
+    }
+    std::cout << "ENV setting whisper max context to " << env_whisper_max_context << "." << std::endl;
+    
+    // optional environment var
     // - -nt / --no-timestamps (a.k.a. "print_timestamps": avoid filling t0/t1 [do not call whisper_full_get_segment_tX], 
     //                                                     some models seem to be picky about this - to be investigated)
+    env_whisper_no_timestamps = false;
+    if (const char *env_p = std::getenv("VOSK_WHISPER_DISABLE_TIMESTAMPS"))
+    {
+    	if (strcasecmp(env_p, "True") == 0)
+    	{
+    		env_whisper_no_timestamps = true;
+    	}
+    }    
+    std::cout << "ENV setting whisper no timestamps option to '" << env_whisper_no_timestamps << "'." << std::endl;
     
     threadRunning = true;
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
@@ -546,7 +577,14 @@ void VoskRecognizer::runWhisper(void)
 	wparams.translate        = params.translate;
 	wparams.single_segment   = false; // !use_vad;
 	wparams.max_tokens       = params.max_tokens;
-	wparams.language         = params.language.c_str();
+	if (env_vosk_model_language == "auto")
+	{
+		wparams.language         = params.language.c_str();
+	}
+	else
+	{
+		wparams.language         = env_vosk_model_language.c_str();
+	}
 	wparams.n_threads        = params.n_threads;
 
 	wparams.audio_ctx        = params.audio_ctx;
@@ -561,6 +599,12 @@ void VoskRecognizer::runWhisper(void)
 	wparams.prompt_tokens    = nullptr; // params.no_context ? nullptr : prompt_tokens.data();
 	wparams.prompt_n_tokens  = 0;       // params.no_context ? 0       : prompt_tokens.size();
 
+	if (env_whisper_max_context != -1)
+	{
+		wparams.n_max_text_ctx = env_whisper_max_context;
+	}
+	
+	// TBD optimize!!!
 	if (pcmf32.size() < pcm_buffer_min)
 	{
 		pcmf32.insert(pcmf32.cend(), WHISPER_SAMPLE_RATE, 0.0f);
@@ -577,10 +621,16 @@ void VoskRecognizer::runWhisper(void)
 	const int n_segments = whisper_full_n_segments(ctx);
 	for (int i = 0; i < n_segments; ++i) {
 		const char * text = whisper_full_get_segment_text(ctx, i);
+		int64_t t0 = 0;
+		int64_t t1 = 0;
 
-		const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-		const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
+		// timestamps currently unused anyway?
+		if (env_whisper_no_timestamps == false)
+		{
+			t0 = whisper_full_get_segment_t0(ctx, i);
+			t1 = whisper_full_get_segment_t1(ctx, i);
+		}
+		
 		std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, 1.0f);
 		partialResult.push_back(std::move(newResult));
 	}

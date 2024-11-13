@@ -140,6 +140,11 @@ private:
 	
 	HunspellPostProc *hpp;
 	CustomPostProc *cpp;
+	
+	// additional options from envvars
+	std::string env_vosk_model_language;
+	int         env_whisper_max_context;
+	bool        env_whisper_no_timestamps;
 };
 
 #endif // VOSK_RECOGNIZER_H
