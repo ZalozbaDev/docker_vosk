@@ -576,10 +576,12 @@ void VoskRecognizer::runWhisper(void)
 	whisper_params params;
 	whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
+	wparams.strategy         = WHISPER_SAMPLING_GREEDY;
+	
+    wparams.print_realtime   = false;
 	wparams.print_progress   = false;
-	wparams.print_special    = params.print_special;
-	wparams.print_realtime   = false;
 	wparams.print_timestamps = !params.no_timestamps;
+	wparams.print_special    = params.print_special;
 	wparams.translate        = params.translate;
 	wparams.single_segment   = false; // !use_vad;
 	wparams.max_tokens       = params.max_tokens;
@@ -594,7 +596,6 @@ void VoskRecognizer::runWhisper(void)
 	wparams.n_threads        = params.n_threads;
 
 	wparams.audio_ctx        = params.audio_ctx;
-	wparams.speed_up         = params.speed_up;
 
 	wparams.tdrz_enable      = params.tinydiarize; // [TDRZ]
 

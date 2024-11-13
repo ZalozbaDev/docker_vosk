@@ -49,7 +49,7 @@ RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -
 RUN apt install -y nvidia-cuda-toolkit 
 
 # try to force a fixed version
-RUN apt install -y nvidia-utils-535-server=535.183.01-0ubuntu0.22.04.1
+RUN apt install -y nvidia-utils-535-server=535.216.01-0ubuntu0.22.04.1
 
 # get boost source code for some boost header files 
 RUN wget -q https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
@@ -71,37 +71,35 @@ RUN touch AAA
 
 # get whisper.cpp files
 RUN git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
-RUN cd whisper.cpp && git checkout v1.6.2
+RUN cd whisper.cpp && git checkout v1.7.1
 
 # use this line to test other commits
 # RUN cd whisper.cpp && git checkout f9ca90256bf6
 
-# prepare whisper dependencies
-RUN cd whisper.cpp/ && WHISPER_CUDA=1 make ggml.o
-RUN cd whisper.cpp/ && WHISPER_CUDA=1 make whisper.o
-RUN cd whisper.cpp/ && WHISPER_CUDA=1 make ggml-cuda.o
-RUN cd whisper.cpp/ && WHISPER_CUDA=1 make ggml-alloc.o
-RUN cd whisper.cpp/ && WHISPER_CUDA=1 make ggml-backend.o
-RUN cd whisper.cpp/ && WHISPER_CUDA=1 make ggml-quants.o
-# assure all other cuda dependencies are built
-RUN cd whisper.cpp/ && WHISPER_CUDA=1 make main
+# assure all cuda dependencies are built
+RUN cd whisper.cpp/ && GGML_CUDA=1 CUDA_DOCKER_ARCH=sm_61 make main
 
 RUN apt install -y libhunspell-dev  libicu-dev
 
-COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognitionResult.h  common/VADFrame.h  \
+COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognizerBase.cpp \
+common/RecognizerBase.h common/RecognitionResult.h  common/VADFrame.h  \
 common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp \
 common/HunspellPostProc.h common/HunspellPostProc.cpp common/CustomPostProc.cpp \
 common/CustomPostProc.h /
 COPY vosk_server_whisper/VoskRecognizer.cpp vosk_server_whisper/VoskRecognizer.h /
 
-RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -DGGML_USE_CUDA -o vosk_whisper_server \
--pthread -msse3 -mssse3 -mavx -mf16c -mfma -mavx2 \
+# RUN find /whisper.cpp/ -name "*.o"
+
+RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
+-Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-unused-parameter -Wno-missing-declarations -Wmissing-noreturn -Wno-write-strings -Wno-array-bounds -Wno-format-truncation -Wextra-semi \
+-D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DNDEBUG -DGGML_USE_OPENMP -DGGML_USE_CUDA \
+-pthread -fopenmp -fPIC -march=native -mtune=native \ 
 -DVAD_FRAME_CONVERT_FLOAT \
--I/boost_1_76_0/ -I. -I/whisper.cpp/ -I/whisper.cpp/examples/ -I/webrtc-audio-processing/webrtc/ \
-asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogger.cpp HunspellPostProc.cpp CustomPostProc.cpp \
-whisper.cpp/examples/common.cpp whisper.cpp/examples/common-ggml.cpp  whisper.cpp/ggml.o whisper.cpp/whisper.o \
-whisper.cpp/ggml-cuda.o whisper.cpp/ggml-alloc.o whisper.cpp/ggml-backend.o whisper.cpp/ggml-quants.o \
-whisper.cpp/ggml-cuda/*.o \
+-I/boost_1_76_0/ -I. -I/whisper.cpp/ -I/whisper.cpp/examples/ -I/whisper.cpp/include/ -I/whisper.cpp/ggml/include/ -I/webrtc-audio-processing/webrtc/ \
+asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
+whisper.cpp/examples/common.cpp whisper.cpp/examples/common-ggml.cpp  whisper.cpp/ggml/src/ggml.o whisper.cpp/src/whisper.o \
+whisper.cpp/ggml/src/ggml-cuda.o whisper.cpp/ggml/src/ggml-alloc.o whisper.cpp/ggml/src/ggml-backend.o whisper.cpp/ggml/src/ggml-quants.o whisper.cpp/ggml/src/ggml-aarch64.o \
+whisper.cpp/ggml/src/ggml-cuda/*.o whisper.cpp/ggml/src/ggml-cuda/template-instances/*.o \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -lpthread -lhunspell  -licuio -licuuc -lcuda -lcublas -lculibos -lcudart -lcublasLt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64
 
