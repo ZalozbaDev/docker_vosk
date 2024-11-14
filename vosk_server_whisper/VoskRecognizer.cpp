@@ -105,6 +105,15 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     	}
     }    
     std::cout << "ENV setting whisper no timestamps option to '" << env_whisper_no_timestamps << "'." << std::endl;
+
+    if (const char *env_p = std::getenv("VOSK_WHISPER_USE_CPU"))
+    {
+        if (strcasecmp(env_p, "True") == 0)
+        {
+        	default_params.use_gpu = false;
+        }
+    }
+    std::cout << "ENV setting whisper use CPU to  " << default_params.use_gpu << "." << std::endl;
     
     threadRunning = true;
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
@@ -223,7 +232,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 	audioPacketLock.unlock();
 	audioPacketNotify.notify_one();
 	
-	std::cout << "acceptWaveform push -->" << std::endl;
+	// std::cout << "acceptWaveform push -->" << std::endl;
 			
 	// access final results queue to compute return value
     finalResultMutex.lock();
@@ -252,6 +261,9 @@ void VoskRecognizer::workerThreadFunc(void)
 	int status;
 	bool noMoreData;
 	
+	struct whisper_context_params cparams;
+	struct whisper_context* ctx;
+
 	// splitting audio into chunks & resampling to 16kHz
 	const int framelen48=480;
 	const int framelen16=160;
@@ -259,7 +271,12 @@ void VoskRecognizer::workerThreadFunc(void)
 	int16_t buf[framelen16];
 
 	// whisper init
-	cparams.use_gpu = true;
+	cparams = whisper_context_default_params();
+	
+	cparams.use_gpu = default_params.use_gpu;
+	
+	cparams.flash_attn = false;
+	cparams.dtw_token_timestamps = false;
 	
 	ctx = whisper_init_from_file_with_params(m_configPath.c_str(), cparams);
 
@@ -287,7 +304,7 @@ void VoskRecognizer::workerThreadFunc(void)
 
 			audioPacketLock.unlock();
 		
-			std::cout << "RECO_THREAD <-- pop" << std::endl;
+			// std::cout << "RECO_THREAD <-- pop" << std::endl;
 
 			char *data = packet->data;
 			int length = packet->length;
@@ -352,7 +369,7 @@ void VoskRecognizer::workerThreadFunc(void)
 				
 				if ((detectedUttFinished == true) || (pcmf32.size() > pcm_buffer_max))
 				{
-					runWhisper();
+					runWhisper(ctx);
 					promoteToFinalResult();
 					pcmf32.clear();
 				}
@@ -570,38 +587,37 @@ void VoskRecognizer::promoteToFinalResult(void)
 }
 
 //////////////////////////////////////////////
-void VoskRecognizer::runWhisper(void)
+void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 {
 	// run whisper on the current state of audio buffer
-	whisper_params params;
 	whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
 	wparams.strategy         = WHISPER_SAMPLING_GREEDY;
 	
     wparams.print_realtime   = false;
 	wparams.print_progress   = false;
-	wparams.print_timestamps = !params.no_timestamps;
-	wparams.print_special    = params.print_special;
-	wparams.translate        = params.translate;
+	wparams.print_timestamps = !default_params.no_timestamps;
+	wparams.print_special    = default_params.print_special;
+	wparams.translate        = default_params.translate;
 	wparams.single_segment   = false; // !use_vad;
-	wparams.max_tokens       = params.max_tokens;
+	wparams.max_tokens       = default_params.max_tokens;
 	if (env_vosk_model_language == "auto")
 	{
-		wparams.language         = params.language.c_str();
+		wparams.language         = default_params.language.c_str();
 	}
 	else
 	{
 		wparams.language         = env_vosk_model_language.c_str();
 	}
-	wparams.n_threads        = params.n_threads;
+	wparams.n_threads        = default_params.n_threads;
 
-	wparams.audio_ctx        = params.audio_ctx;
+	wparams.audio_ctx        = default_params.audio_ctx;
 
-	wparams.tdrz_enable      = params.tinydiarize; // [TDRZ]
+	wparams.tdrz_enable      = default_params.tinydiarize; // [TDRZ]
 
 	// disable temperature fallback
 	//wparams.temperature_inc  = -1.0f;
-	wparams.temperature_inc  = params.no_fallback ? 0.0f : wparams.temperature_inc;
+	wparams.temperature_inc  = default_params.no_fallback ? 0.0f : wparams.temperature_inc;
 
 	wparams.prompt_tokens    = nullptr; // params.no_context ? nullptr : prompt_tokens.data();
 	wparams.prompt_n_tokens  = 0;       // params.no_context ? 0       : prompt_tokens.size();

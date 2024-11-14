@@ -105,8 +105,7 @@ private:
 
 	std::string m_configPath;
 
-	struct whisper_context_params cparams;
-	struct whisper_context* ctx;
+	whisper_params default_params;
 	const int n_samples_30s  = (1e-3 * 30000.0) * WHISPER_SAMPLE_RATE;
     
 	std::vector<float> pcmf32;
@@ -134,7 +133,7 @@ private:
 	bool detailedResults;
 	
 	void promoteToFinalResult(void);
-	void runWhisper(void);
+	void runWhisper(struct whisper_context* ctx);
 	
 	AudioLogger *audioLogger;
 	
