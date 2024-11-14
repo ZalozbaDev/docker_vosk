@@ -274,7 +274,6 @@ void VoskRecognizer::workerThreadFunc(void)
 	cparams = whisper_context_default_params();
 	
 	cparams.use_gpu = default_params.use_gpu;
-	
 	cparams.flash_attn = false;
 	cparams.dtw_token_timestamps = false;
 	
@@ -596,11 +595,9 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 	
     wparams.print_realtime   = false;
 	wparams.print_progress   = false;
-	wparams.print_timestamps = !default_params.no_timestamps;
+	wparams.print_timestamps = env_whisper_no_timestamps; // !default_params.no_timestamps;
 	wparams.print_special    = default_params.print_special;
 	wparams.translate        = default_params.translate;
-	wparams.single_segment   = false; // !use_vad;
-	wparams.max_tokens       = default_params.max_tokens;
 	if (env_vosk_model_language == "auto")
 	{
 		wparams.language         = default_params.language.c_str();
@@ -609,32 +606,49 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 	{
 		wparams.language         = env_vosk_model_language.c_str();
 	}
-	wparams.n_threads        = default_params.n_threads;
-
-	wparams.audio_ctx        = default_params.audio_ctx;
-
-	wparams.tdrz_enable      = default_params.tinydiarize; // [TDRZ]
-
-	// disable temperature fallback
-	//wparams.temperature_inc  = -1.0f;
-	wparams.temperature_inc  = default_params.no_fallback ? 0.0f : wparams.temperature_inc;
-
-	wparams.prompt_tokens    = nullptr; // params.no_context ? nullptr : prompt_tokens.data();
-	wparams.prompt_n_tokens  = 0;       // params.no_context ? 0       : prompt_tokens.size();
-
+    wparams.detect_language  = default_params.detect_language;
+    wparams.n_threads        = default_params.n_threads;
+    wparams.n_max_text_ctx   = default_params.max_context >= 0 ? default_params.max_context : wparams.n_max_text_ctx;
 	if (env_whisper_max_context != -1)
 	{
 		wparams.n_max_text_ctx = env_whisper_max_context;
 	}
-	
-	// TBD optimize!!!
+    wparams.offset_ms        = default_params.offset_t_ms;
+    wparams.duration_ms      = default_params.duration_ms;
+
+    wparams.token_timestamps = default_params.output_wts || default_params.output_jsn_full || default_params.max_len > 0;
+    wparams.thold_pt         = default_params.word_thold;
+    wparams.max_len          = default_params.output_wts && default_params.max_len == 0 ? 60 : default_params.max_len;
+    wparams.split_on_word    = default_params.split_on_word;
+    wparams.audio_ctx        = default_params.audio_ctx;
+
+    wparams.debug_mode       = default_params.debug_mode;
+
+    wparams.tdrz_enable      = default_params.tinydiarize; // [TDRZ]
+
+    wparams.suppress_regex   = default_params.suppress_regex.empty() ? nullptr : default_params.suppress_regex.c_str();
+
+    wparams.initial_prompt   = default_params.prompt.c_str();
+
+    wparams.greedy.best_of        = default_params.best_of;
+    wparams.beam_search.beam_size = default_params.beam_size;
+
+    wparams.temperature_inc  = default_params.no_fallback ? 0.0f : default_params.temperature_inc;
+    wparams.temperature      = default_params.temperature;
+
+    wparams.entropy_thold    = default_params.entropy_thold;
+    wparams.logprob_thold    = default_params.logprob_thold;
+
+    wparams.no_timestamps    = default_params.no_timestamps;
+	    
+	// need minimum audio length
 	if (pcmf32.size() < pcm_buffer_min)
 	{
-		pcmf32.insert(pcmf32.cend(), WHISPER_SAMPLE_RATE, 0.0f);
+		pcmf32.insert(pcmf32.cend(), pcm_buffer_min - pcmf32.size() + 1, 0.0f);
 	}
 	
 	std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
-	if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
+	if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors) != 0) {
 		fprintf(stderr, "whisper_full(): failed to process audio\n");
 		assert(false);
 	}
