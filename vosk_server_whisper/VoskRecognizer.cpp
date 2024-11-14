@@ -644,7 +644,7 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 	// need minimum audio length
 	if (pcmf32.size() < pcm_buffer_min)
 	{
-		pcmf32.insert(pcmf32.cend(), pcm_buffer_min - pcmf32.size() + 1, 0.0f);
+		pcmf32.insert(pcmf32.cend(), pcm_buffer_min - pcmf32.size(), 0.0f);
 	}
 	
 	std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
