@@ -6,6 +6,7 @@
 
 struct wc_substr
 {
+	bool valid;
 	size_t beginTag;
 	size_t beginExpr;
 	size_t endExpr;
@@ -31,7 +32,7 @@ private:
 
 	std::unique_ptr<wc_substr> findTags(std::string line, std::string tagName);
 	
-	std::string evalMathExpr(std::string input);
+	std::string evalMathExpr(std::string input, int precision);
 	
 	std::string replaceWordClass(std::string line, std::unique_ptr<wc_substr> substr, std::string replacer);
 };
