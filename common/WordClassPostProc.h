@@ -23,18 +23,19 @@ public:
 private:
 	bool passThrough;
 	
-//	std::regex unwantedChars = std::regex(",|\\.|;|:|\\!|\\?|-");
+	const std::string dateTimeDelimiter = "<->";	
+	const std::string evalErrorRes = "???";
 	
-//	std::regex severalSpaces = std::regex("[' ']{2,}");
+	const int notComputedDateOffset = -20000;
+	const int invalidDateOffset = -10000;
 	
-	// regex for any word class match in XML style
-	std::regex wordClassRegexBegin = std::regex("<[A-Z]*>");
-
 	std::unique_ptr<wc_substr> findTags(std::string line, std::string tagName);
 	
 	std::string evalMathExpr(std::string input, int precision);
 	
 	std::string replaceWordClass(std::string line, std::unique_ptr<wc_substr> substr, std::string replacer);
+	
+	std::string evalDateOffset(int dateOffset);
 };
 
 #endif // WORD_CLASS_POSTPROC

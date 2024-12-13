@@ -62,3 +62,37 @@ TEST_CASE("test percentage parser")
 
 }
 
+TEST_CASE("test date parser")
+{
+	WordClassPostProc wcpp(true);
+	
+	SUBCASE("check negative date without delimiter") {
+		CHECK(wcpp.processLine("dnja <DATE>+1-61+0</DATE> zemrě") == "dnja 01.11. zemrě");
+	}
+
+	SUBCASE("check negative dates with delimiter") {
+		CHECK(wcpp.processLine("mjez <DATE>+1-61+0<->+10-61+0</DATE> njejsu") == "mjez 01.11.-10.11. njejsu");
+	}
+
+	SUBCASE("check positive date without delimiter") {
+		CHECK(wcpp.processLine("dnja <DATE>+1+0+0</DATE> zemrě") == "dnja 01.01. zemrě");
+	}
+
+	SUBCASE("check negative dates with delimiter") {
+		CHECK(wcpp.processLine("mjez <DATE>+1+31+0<->+10+31+0</DATE> njejsu") == "mjez 01.02.-10.02. njejsu");
+	}
+
+	SUBCASE("check date error without delimiter") {
+		CHECK(wcpp.processLine("dnja <DATE>+1sfdhsteh+0+0</DATE> zemrě") == "dnja ??? zemrě");
+	}
+
+	SUBCASE("check date error with delimiter first part") {
+		CHECK(wcpp.processLine("mjez <DATE>+1-61shfdjghjgd+0<->+10-61+0</DATE> njejsu") == "mjez ???-10.11. njejsu");
+	}
+
+	SUBCASE("check date error with delimiter second part") {
+		CHECK(wcpp.processLine("mjez <DATE>+1-61+0<->+10-61$%&+0</DATE> njejsu") == "mjez 01.11.-??? njejsu");
+	}
+
+}
+

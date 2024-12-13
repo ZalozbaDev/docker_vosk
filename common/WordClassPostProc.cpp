@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <ctime>
 
 #include <unicode/unistr.h>
 #include <unicode/ustream.h>
@@ -49,13 +50,7 @@ std::string WordClassPostProc::processLine(std::string line)
 		
 		if (searchFinished == false)
 		{
-		
-			// std::cout << "Try to match CURRENCY: " << substr->beginExpr << "-" << substr->endExpr << "." << std::endl;
-			
 			std::string result = evalMathExpr(retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr), 2);
-			
-			// std::cout << "Formatted currency is " << result << "." << std::endl;
-			
 			retVal = replaceWordClass(retVal, std::move(substr), result + "€");
 		}
 	}
@@ -76,17 +71,103 @@ std::string WordClassPostProc::processLine(std::string line)
 		
 		if (searchFinished == false)
 		{
-		
-			std::cout << "Try to match PERCENT: " << substr->beginExpr << "-" << substr->endExpr << "." << std::endl;
-			
 			std::string result = evalMathExpr(retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr), 1);
-			
-			std::cout << "Formatted percentage is " << result << "." << std::endl;
-			
 			retVal = replaceWordClass(retVal, std::move(substr), result + "%");
 		}
 	}
 	
+	searchFinished = false;
+	
+	//////////////////////////////
+	//
+	// DATE
+	//
+	//////////////////////////////
+	while(searchFinished == false)
+	{
+		std::unique_ptr<wc_substr> substr;
+		
+		substr = findTags(retVal, "DATE");
+		searchFinished = !substr->valid;
+		
+		if (searchFinished == false)
+		{
+			std::string result1;
+			int date1offset;
+			std::string result2 = evalErrorRes;
+			int date2offset = notComputedDateOffset;
+			size_t delimiter_pos;
+			
+			std::cout << "Try to match DATE: " << substr->beginExpr << "-" << substr->endExpr << "." << std::endl;
+
+			delimiter_pos = retVal.find(dateTimeDelimiter, substr->beginExpr);
+			
+			if ((delimiter_pos == std::string::npos) || (delimiter_pos >= substr->endExpr))
+			{
+				result1 = evalMathExpr(retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr), 0);
+				if (result1.compare(evalErrorRes) != 0)
+				{
+					date1offset = std::stoi(result1);	
+				}
+				else
+				{
+					date1offset = invalidDateOffset;	
+				}
+			}
+			else
+			{
+				result1 = evalMathExpr(retVal.substr(substr->beginExpr, delimiter_pos - substr->beginExpr), 0);
+				result2 = evalMathExpr(retVal.substr(delimiter_pos + dateTimeDelimiter.length(), substr->endExpr - delimiter_pos - dateTimeDelimiter.length()), 0);
+				
+				if (result1.compare(evalErrorRes) != 0)
+				{
+					date1offset = std::stoi(result1);	
+				}
+				else
+				{
+					date1offset = invalidDateOffset;	
+				}
+				
+				if (result2.compare(evalErrorRes) != 0)
+				{
+					date2offset = std::stoi(result2);	
+				}
+				else
+				{
+					date2offset = invalidDateOffset;	
+				}
+			}
+
+			std::cout << "Date parser result1=" << result1 << "(" << date1offset << "), result2=" << result2 << "(" << date2offset << ")." << std::endl;
+			
+			std::string formatted;
+			
+			if (date1offset != invalidDateOffset)
+			{
+				formatted = evalDateOffset(date1offset);
+			}
+			else
+			{
+				formatted = evalErrorRes;	
+			}
+			
+			if (date2offset != notComputedDateOffset)
+			{
+				if (date2offset != invalidDateOffset)
+				{
+					formatted += "-" + evalDateOffset(date2offset);
+				}
+				else
+				{
+					formatted += "-" + evalErrorRes;
+				}
+			}
+			
+			std::cout << "Formatted date is " << formatted << std::endl;
+			
+			retVal = replaceWordClass(retVal, std::move(substr), formatted);
+		}
+	}
 	
 	
 	std::cout << "Orig: '" << line << "' changed to '" << retVal << "'" << std::endl;
@@ -120,7 +201,7 @@ std::string WordClassPostProc::evalMathExpr(std::string input, int precision)
 	if (!parser.compile(input, expression))
 	{
 		std::cout << "Error compiling expression:" << input << "." << std::endl;
-		return "???";
+		return evalErrorRes;
 	}
 	
 	float result = expression.value();
@@ -143,4 +224,53 @@ std::string WordClassPostProc::replaceWordClass(std::string line, std::unique_pt
 	retVal += line.substr(substr->endTag);
 	
 	return retVal;
+}
+
+//////////////////////////////////////////////
+std::string WordClassPostProc::evalDateOffset(int dateOffset)
+{
+	tm start_date = {};
+	
+	std::stringstream strs;
+	
+	if (dateOffset <= 0)
+	{
+		start_date.tm_year = 2024-1900; // year since 1900
+		start_date.tm_mon  = 11;        // December
+		start_date.tm_mday = 31;
+		
+		time_t start_time = mktime(&start_date);
+		if (start_time == -1)
+		{
+			return evalErrorRes;
+		}
+		
+		time_t offset_time = start_time + (dateOffset * 24 * 3600); // offset in seconds
+		
+		tm* target_date = localtime(&offset_time);
+		
+		strs << std::setw(2) << std::setfill('0') << target_date->tm_mday << "." 
+		     << std::setw(2) << std::setfill('0') << (target_date->tm_mon + 1) << ".";
+	}
+	else
+	{
+		start_date.tm_year = 2024-1900; // year since 1900
+		start_date.tm_mon  = 0;         // January
+		start_date.tm_mday = 1;
+		
+		time_t start_time = mktime(&start_date);
+		if (start_time == -1)
+		{
+			return evalErrorRes;
+		}
+		
+		time_t offset_time = start_time + ((dateOffset - 1) * 24 * 3600); // offset in seconds
+		
+		tm* target_date = localtime(&offset_time);
+		
+		strs << std::setw(2) << std::setfill('0') << target_date->tm_mday << "." 
+		     << std::setw(2) << std::setfill('0') << (target_date->tm_mon + 1) << ".";
+	}
+	
+	return strs.str();
 }
