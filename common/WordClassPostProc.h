@@ -31,7 +31,7 @@ private:
 	
 	const int maxLoopCounter = 100;
 	
-	const std::vector<std::string> weekdays = {"pón.", "wut.", "srj.", "ŝtw.", "pja.", "sob.", "nje."};
+	const std::vector<std::string> weekdays = {"pón.", "wut.", "srj.", "štw.", "pja.", "sob.", "nje."};
 	
 	std::unique_ptr<wc_substr> findTags(std::string line, std::string tagName);
 	
