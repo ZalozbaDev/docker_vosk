@@ -691,6 +691,43 @@ TEST_CASE("test different VAD aggressiveness (simulated)")
 	}
 }
 
+TEST_CASE("test handling with empty buffer")
+{
+	unsigned int audioPreBufferFrames  = 15;
+	unsigned int audioPostBufferFrames = 15; 
+	unsigned int vadHystheresisFramesOn = 5;
+	unsigned int vadHystheresisFramesOff = 5;
+	int vad_aggressiveness = 1;
+	
+	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
+	
+	SUBCASE("1. test with inactive frames") {
+		int16_t buf[160];
+		
+		WebRtcVad_Mock_set_result(0);
+		for (unsigned int i = 0; i < 8; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		CHECK(wrapper.analyze(false) == true);
+	}
+	
+	SUBCASE("2. test with active frames") {
+		int16_t buf[160];
+		
+		WebRtcVad_Mock_set_result(1);
+		for (unsigned int i = 0; i < 8; i++)
+		{
+			fill_buffer(buf, i * 160, 160);
+			processBuffer(wrapper, buf);
+		}
+		CHECK(wrapper.analyze(false) == false);
+	}
+}
+		
+
+
 // leftover samples functionality removed from VAD wrapper
 /*
 TEST_CASE("test handling of leftover samples")

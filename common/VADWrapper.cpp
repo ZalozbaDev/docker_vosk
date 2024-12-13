@@ -335,7 +335,8 @@ bool VADWrapper::findUtteranceStart(void)
 	}
 	else
 	{
-		assert(chunks.size() == m_audioPreBufferFrames);
+		// must be at max the amount of buffered frames
+		assert(chunks.size() <= m_audioPreBufferFrames);
 		return false;	
 	}
 }

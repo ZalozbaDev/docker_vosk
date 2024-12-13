@@ -7,3 +7,5 @@ gcov -o tests_vadwrapper-VADWrapper -s ../ VADWrapper.cpp
 gcovr --html-details --output index.html --root ../
 
 echo "open index.html for browsing results!"
+
+rm -f ./*.gcda ./*.gcno ./*.gcov
