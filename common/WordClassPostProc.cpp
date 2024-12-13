@@ -200,7 +200,7 @@ std::string WordClassPostProc::processLine(std::string line)
 			int time2offset = notComputedValueOffset;
 			size_t delimiter_pos;
 			
-			std::cout << "Try to match TIME: " << substr->beginExpr << "-" << substr->endExpr << "." << std::endl;
+			// std::cerr << "Try to match TIME: " << substr->beginExpr << "-" << substr->endExpr << "." << std::endl;
 
 			delimiter_pos = retVal.find(dateTimeDelimiter, substr->beginExpr);
 			
@@ -240,7 +240,7 @@ std::string WordClassPostProc::processLine(std::string line)
 				}
 			}
 
-			std::cout << "Time parser result1=" << result1 << "(" << time1offset << "), result2=" << result2 << "(" << time2offset << ")." << std::endl;
+			// std::cerr << "Time parser result1=" << result1 << "(" << time1offset << "), result2=" << result2 << "(" << time2offset << ")." << std::endl;
 			
 			std::string formatted;
 			
@@ -265,7 +265,7 @@ std::string WordClassPostProc::processLine(std::string line)
 				}
 			}
 			
-			std::cout << "Formatted time is " << formatted << std::endl;
+			// std::cout << "Formatted time is " << formatted << std::endl;
 			
 			retVal = replaceWordClass(retVal, std::move(substr), formatted);
 		}
@@ -427,7 +427,7 @@ std::string WordClassPostProc::processLine(std::string line)
 	}
 	
 	
-	std::cout << "Orig: '" << line << "' changed to '" << retVal << "'" << std::endl;
+	// std::cerr << "Orig: '" << line << "' changed to '" << retVal << "'" << std::endl;
 	
 	return retVal;
 }
@@ -457,13 +457,13 @@ std::string WordClassPostProc::evalMathExpr(std::string input, int precision)
 	
 	if (!parser.compile(input, expression))
 	{
-		std::cout << "Error compiling expression:" << input << "." << std::endl;
+		std::cerr << "Error compiling expression:" << input << "." << std::endl;
 		return evalErrorRes;
 	}
 	
 	float result = expression.value();
 	
-	std::cout << "Expression result is " << result << "." << std::endl;
+	// std::cerr << "Expression result is " << result << "." << std::endl;
 	
 	std::stringstream strs;
 	strs << std::fixed << std::setprecision(precision) << result;
