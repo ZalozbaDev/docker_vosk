@@ -121,3 +121,76 @@ TEST_CASE("test time parser")
 	}
 
 }
+
+TEST_CASE("test weekday parser")
+{
+	WordClassPostProc wcpp(true);
+	
+	SUBCASE("check first weekday") {
+		CHECK(wcpp.processLine("w <WEEKDAY>+1</WEEKDAY> zetkamy so") == "w pón. zetkamy so");
+	}
+
+	SUBCASE("check last weekday") {
+		CHECK(wcpp.processLine("w <WEEKDAY>+7</WEEKDAY> zetkamy so") == "w nje. zetkamy so");
+	}
+
+	SUBCASE("check invalid weekday") {
+		CHECK(wcpp.processLine("w <WEEKDAY>+0</WEEKDAY> zetkamy so") == "w ??? zetkamy so");
+	}
+
+	SUBCASE("check invalid weekday") {
+		CHECK(wcpp.processLine("w <WEEKDAY>+8</WEEKDAY> zetkamy so") == "w ??? zetkamy so");
+	}
+
+}
+
+TEST_CASE("test other numbers (ORDINAL/CARDINAL)")
+{
+	WordClassPostProc wcpp(true);
+	
+	SUBCASE("check simple number") {
+		CHECK(wcpp.processLine("čisło <CARDINAL>+200+9+50</CARDINAL>") == "čisło 259");
+	}
+
+	SUBCASE("check bigger number") {
+		CHECK(wcpp.processLine("čisło <CARDINAL>(+3+20)*1000+400+7+30</CARDINAL>") == "čisło 23437");
+	}
+
+	SUBCASE("check simple ordinal") {
+		CHECK(wcpp.processLine("na <ORDINAL>+20+3</ORDINAL> městnje") == "na 23. městnje");
+	}
+
+}
+
+TEST_CASE("test other strings (NAME/SNAME/GPE)")
+{
+	WordClassPostProc wcpp(true);
+	
+	SUBCASE("check simple name") {
+		CHECK(wcpp.processLine("kapłan <NAME>markus</NAME> je") == "kapłan markus je");
+	}
+
+	SUBCASE("check simple sname") {
+		CHECK(wcpp.processLine("zemrětoho <NAME>jakuba</NAME> <SNAME>zarjenka</SNAME> a") == "zemrětoho jakuba zarjenka a");
+	}
+
+	SUBCASE("check simple location") {
+		CHECK(wcpp.processLine("z <GPE>njedźichow</GPE> na") == "z njedźichow na");
+	}
+
+}
+
+TEST_CASE("test corrupted input strings")
+{
+	WordClassPostProc wcpp(true);
+
+	SUBCASE("check wrong closing tag") {
+		CHECK(wcpp.processLine("zemrětoho <NAME>jakuba</NAME> <SNAME>zarjenka</NAME> a") == "zemrětoho jakuba <SNAME>zarjenka</NAME> a");
+	}
+
+	SUBCASE("check another wrong closing tag") {
+		CHECK(wcpp.processLine("z <GPE>njedźichow</NAME> na") == "z <GPE>njedźichow</NAME> na");
+	}
+
+	
+}

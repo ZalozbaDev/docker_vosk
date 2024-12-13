@@ -29,6 +29,10 @@ private:
 	const int notComputedValueOffset = -20000;
 	const int invalidValueOffset = -10000;
 	
+	const int maxLoopCounter = 100;
+	
+	const std::vector<std::string> weekdays = {"pón.", "wut.", "srj.", "ŝtw.", "pja.", "sob.", "nje."};
+	
 	std::unique_ptr<wc_substr> findTags(std::string line, std::string tagName);
 	
 	std::string evalMathExpr(std::string input, int precision);

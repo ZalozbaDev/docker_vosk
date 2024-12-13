@@ -35,6 +35,7 @@ std::string WordClassPostProc::processLine(std::string line)
 	
 	std::string retVal = line;
 	bool searchFinished = false;
+	int endlessLoopAbort = 0;
 	
 	//////////////////////////////
 	//
@@ -53,6 +54,8 @@ std::string WordClassPostProc::processLine(std::string line)
 			std::string result = evalMathExpr(retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr), 2);
 			retVal = replaceWordClass(retVal, std::move(substr), result + "€");
 		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
 	}
 	
 	searchFinished = false;
@@ -74,6 +77,8 @@ std::string WordClassPostProc::processLine(std::string line)
 			std::string result = evalMathExpr(retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr), 1);
 			retVal = replaceWordClass(retVal, std::move(substr), result + "%");
 		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
 	}
 	
 	searchFinished = false;
@@ -167,6 +172,8 @@ std::string WordClassPostProc::processLine(std::string line)
 			
 			retVal = replaceWordClass(retVal, std::move(substr), formatted);
 		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
 	}
 	
 	
@@ -262,6 +269,161 @@ std::string WordClassPostProc::processLine(std::string line)
 			
 			retVal = replaceWordClass(retVal, std::move(substr), formatted);
 		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
+	}
+	
+	searchFinished = false;
+	
+	//////////////////////////////
+	//
+	// ORDINAL
+	//
+	//////////////////////////////
+	while(searchFinished == false)
+	{
+		std::unique_ptr<wc_substr> substr;
+		
+		substr = findTags(retVal, "ORDINAL");
+		searchFinished = !substr->valid;
+		
+		if (searchFinished == false)
+		{
+			std::string result = evalMathExpr(retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr), 0);
+			retVal = replaceWordClass(retVal, std::move(substr), result + ".");
+		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
+	}
+	
+	searchFinished = false;
+	
+	//////////////////////////////
+	//
+	// CARDINAL
+	//
+	//////////////////////////////
+	while(searchFinished == false)
+	{
+		std::unique_ptr<wc_substr> substr;
+		
+		substr = findTags(retVal, "CARDINAL");
+		searchFinished = !substr->valid;
+		
+		if (searchFinished == false)
+		{
+			std::string result = evalMathExpr(retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr), 0);
+			retVal = replaceWordClass(retVal, std::move(substr), result);
+		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
+	}
+	
+	searchFinished = false;
+	
+	//////////////////////////////
+	//
+	// NAME
+	//
+	//////////////////////////////
+	while(searchFinished == false)
+	{
+		std::unique_ptr<wc_substr> substr;
+		
+		substr = findTags(retVal, "NAME");
+		searchFinished = !substr->valid;
+		
+		if (searchFinished == false)
+		{
+			std::string result = retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr);
+			retVal = replaceWordClass(retVal, std::move(substr), result);
+			// std::cout << "Orig: '" << line << "' changed to '" << retVal.substr(0, 100) << "'" << std::endl;
+		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
+	}
+	
+	searchFinished = false;
+	
+	//////////////////////////////
+	//
+	// SNAME
+	//
+	//////////////////////////////
+	while(searchFinished == false)
+	{
+		std::unique_ptr<wc_substr> substr;
+		
+		substr = findTags(retVal, "SNAME");
+		searchFinished = !substr->valid;
+		
+		if (searchFinished == false)
+		{
+			std::string result = retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr);
+			retVal = replaceWordClass(retVal, std::move(substr), result);
+			// std::cout << "Orig: '" << line << "' changed to '" << retVal.substr(0, 100) << "'" << std::endl;
+		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
+	}
+	
+	searchFinished = false;
+	
+	//////////////////////////////
+	//
+	// GPE
+	//
+	//////////////////////////////
+	while(searchFinished == false)
+	{
+		std::unique_ptr<wc_substr> substr;
+		
+		substr = findTags(retVal, "GPE");
+		searchFinished = !substr->valid;
+		
+		if (searchFinished == false)
+		{
+			std::string result = retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr);
+			retVal = replaceWordClass(retVal, std::move(substr), result);
+			// std::cout << "Orig: '" << line << "' changed to '" << retVal.substr(0, 100) << "'" << std::endl;
+		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
+	}
+	
+	searchFinished = false;
+	
+	//////////////////////////////
+	//
+	// WEEKDAY
+	//
+	//////////////////////////////
+	while(searchFinished == false)
+	{
+		std::unique_ptr<wc_substr> substr;
+		
+		substr = findTags(retVal, "WEEKDAY");
+		searchFinished = !substr->valid;
+		
+		if (searchFinished == false)
+		{
+			std::string result = evalMathExpr(retVal.substr(substr->beginExpr, substr->endExpr - substr->beginExpr), 0);
+			
+			int weekdayIndex = std::stoi(result);
+			
+			if ((weekdayIndex > 0) && (weekdayIndex < 8))
+			{
+				result = weekdays[weekdayIndex - 1];	
+			}
+			else
+			{
+				result = evalErrorRes;
+			}
+						
+			retVal = replaceWordClass(retVal, std::move(substr), result);
+		}
+		
+		if ((endlessLoopAbort++) > maxLoopCounter) return retVal;
 	}
 	
 	
@@ -282,7 +444,7 @@ std::unique_ptr<wc_substr> WordClassPostProc::findTags(std::string line, std::st
 	substr->endExpr   = line.find(endTag);
 	substr->endTag    = line.find(endTag) + endTag.length();
 
-	substr->valid = (substr->beginTag == std::string::npos) ? false : true;
+	substr->valid = ((substr->beginTag == std::string::npos) || (substr->endExpr == std::string::npos)) ? false : true;
 	
 	return substr;
 }
