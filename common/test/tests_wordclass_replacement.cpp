@@ -96,3 +96,28 @@ TEST_CASE("test date parser")
 
 }
 
+TEST_CASE("test time parser")
+{
+	WordClassPostProc wcpp(true);
+	
+	SUBCASE("check simple time") {
+		CHECK(wcpp.processLine("w <TIME>+840+0+0</TIME> hodźin") == "w 14:00 hodźin");
+	}
+
+	SUBCASE("check time with minutes") {
+		CHECK(wcpp.processLine("w <TIME>+840+15+0</TIME> hodźin") == "w 14:15 hodźin");
+	}
+
+	SUBCASE("check time range") {
+		CHECK(wcpp.processLine("w <TIME>+720+5+40<->+780+30</TIME> hodźin") == "w 12:45-13:30 hodźin");
+	}
+
+	SUBCASE("check eval error first time") {
+		CHECK(wcpp.processLine("w <TIME>+720+sfdhsg5+40<->+780+30</TIME> hodźin") == "w ???-13:30 hodźin");
+	}
+
+	SUBCASE("check eval error second time") {
+		CHECK(wcpp.processLine("w <TIME>+720+5+40<->+78sdghsfdh0+30</TIME> hodźin") == "w 12:45-??? hodźin");
+	}
+
+}

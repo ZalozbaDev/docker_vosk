@@ -26,8 +26,8 @@ private:
 	const std::string dateTimeDelimiter = "<->";	
 	const std::string evalErrorRes = "???";
 	
-	const int notComputedDateOffset = -20000;
-	const int invalidDateOffset = -10000;
+	const int notComputedValueOffset = -20000;
+	const int invalidValueOffset = -10000;
 	
 	std::unique_ptr<wc_substr> findTags(std::string line, std::string tagName);
 	
@@ -36,6 +36,8 @@ private:
 	std::string replaceWordClass(std::string line, std::unique_ptr<wc_substr> substr, std::string replacer);
 	
 	std::string evalDateOffset(int dateOffset);
+
+	std::string evalTimeOffset(int timeOffset);
 };
 
 #endif // WORD_CLASS_POSTPROC
