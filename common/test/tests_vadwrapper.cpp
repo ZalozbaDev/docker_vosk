@@ -36,6 +36,8 @@ TEST_CASE("test utterance start/stop computations")
 	unsigned int vadHystheresisFramesOff = 10;
 	int vad_aggressiveness = 3;
 	
+	error with these settings VAD is never turned off!!!
+	
 	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
 	
 	SUBCASE("1. test normal start and stop computation with default pre- and postbuffer values, analysis only after all frames supplied") {
