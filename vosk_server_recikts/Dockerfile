@@ -44,8 +44,10 @@ RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -
 ############################################
 
 # get boost source code for some boost header files 
-RUN wget -q https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
-  && tar xzf boost_1_76_0.tar.gz
+#RUN wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
+#  && tar xzf boost_1_76_0.tar.gz
+# alternative: use the debian packages, reduces external dependencies
+RUN apt install -y libboost-all-dev
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
@@ -72,11 +74,12 @@ COPY vosk_server_recikts/recikts.h vosk_server_recikts/VoskRecognizer.cpp vosk_s
 
 RUN mkdir -p /data/
 
-RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -o recikts_server -I/boost_1_76_0/ -I. \
+RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -o recikts_server -I. \
 -I/webrtc-audio-processing/webrtc/ -DPREFIX=\"/data/\" \
 asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapper.cpp AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -ldl -lpthread -lhunspell -licuio -licuuc
+# -I/boost_1_76_0/ 
 
 RUN mkdir -p /logs/
 
