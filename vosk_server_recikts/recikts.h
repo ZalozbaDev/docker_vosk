@@ -295,6 +295,7 @@ struct recikts_callback_dat {
   float sigmax;    /* Max. signal amplitude (-1.f: no value) */
   float trgmax;    /* Max. trigger value (-1.f: no value) */
   int8_t trgchg;   /* Trigger change (-1: no change, 0: off, 1: on) */
+  int8_t dlgchg;   /* Dialog change (-1: no change, >=0: new dialog idx) */
 };
 /* Callback function
  *   dat:      Callback data
