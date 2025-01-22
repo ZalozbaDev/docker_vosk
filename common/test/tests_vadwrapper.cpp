@@ -30,10 +30,10 @@ void processBuffer(VADWrapper &wrapper, int16_t * buf, std::uint64_t frameCtr = 
 
 TEST_CASE("test utterance start/stop computations")
 {
-	unsigned int audioPreBufferFrames  = 15;
-	unsigned int audioPostBufferFrames = 15; 
+	unsigned int audioPreBufferFrames  = 3;
+	unsigned int audioPostBufferFrames = 3; 
 	unsigned int vadHystheresisFramesOn = 5;
-	unsigned int vadHystheresisFramesOff = 5;
+	unsigned int vadHystheresisFramesOff = 10;
 	int vad_aggressiveness = 3;
 	
 	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
