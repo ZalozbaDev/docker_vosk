@@ -12,9 +12,9 @@
 
 
 # git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
-# cd whisper.cpp && git checkout v1.6.2
 
-# make main
+# cd whisper.cpp && git checkout v1.7.4
+# cmake -B build && cmake --build build --config Release
 
 
 rm -rf whisper_out/
@@ -24,6 +24,12 @@ cp ../*.h ../*.cpp whisper_out/
 
 cp ../../vosk_server_whisper/VoskRecognizer.cpp ../../vosk_server_whisper/VoskRecognizer.h whisper_out/
 
+cp whisper.cpp/build/src/libwhisper.so.1 whisper_out/
+cp whisper.cpp/build/ggml/src/*.so       whisper_out/
+pushd whisper_out
+ln -s libwhisper.so.1 libwhisper.so
+popd
+
 g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -O3 -fPIC -o whisper_out/whisper_main \
 -DVAD_FRAME_CONVERT_FLOAT \
 -Iwhisper_out/ -I. -Iwebrtc-audio-processing/webrtc/ -Iwhisper.cpp/ -Iwhisper.cpp/examples/ \
@@ -31,9 +37,7 @@ g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -O3 -fPIC -o whisper_out/whisper
 whisper_out/RecognizerBase.cpp \
 whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADWrapper.cpp whisper_out/AudioLogger.cpp \
 whisper_out/HunspellPostProc.cpp whisper_out/CustomPostProc.cpp \
-whisper.cpp/examples/common.cpp whisper.cpp/examples/common-ggml.cpp whisper.cpp/ggml.o whisper.cpp/whisper.o \
-whisper.cpp/ggml-alloc.o whisper.cpp/ggml-backend.o whisper.cpp/ggml-quants.o \
 main.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--ldl -lpthread -lhunspell -licuio -licuuc -lsndfile
+-ldl -lpthread -lhunspell -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -Lwhisper_out/ 
 

@@ -42,6 +42,9 @@ LD_LIBRARY_PATH=$RECIKTSTOOLING recikts_out/recikts_main ~/docker_compose_files_
 diff testdata/0002_poswjecenje_vadaggr_1.srt testresults/subtitles.srt
 ```
 
+## whisper tests
 
-TBD
-
+```code
+LD_LIBRARY_PATH=./whisper_out/ ./whisper_out/whisper_main ~/whisper_models/Korla/whisper_large_v3_turbo_hsb/ggml-model.bin testdata/0001_citanje.wav testresults/ 2
+diff testdata/0001_citanje_vadaggr_2_whisper.srt testresults/subtitles.srt
+```
