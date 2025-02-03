@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM ubuntu:noble
 MAINTAINER Daniel Sobe <daniel.sobe@sorben.com>
 
 # normal call
@@ -35,7 +35,7 @@ RUN apt install -y g++ wget git make nano
 ###################################
 
 RUN git clone https://github.com/ZalozbaDev/webrtc-audio-processing.git webrtc-audio-processing
-RUN cd webrtc-audio-processing && git checkout 6e37f37c4ea8790760b4c55d9ce9024a7e7bf260
+RUN cd webrtc-audio-processing && git checkout 001d483d0c761f004e1888307acccc87d3520ec8
 
 RUN apt install -y meson libabsl-dev
 
@@ -49,11 +49,12 @@ RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -
 RUN apt install -y nvidia-cuda-toolkit 
 
 # try to force a fixed version
-RUN apt install -y nvidia-utils-535-server=535.216.01-0ubuntu0.22.04.1
+RUN apt install -y nvidia-utils-535-server=535.216.03-0ubuntu0.24.04.1
 
 # get boost source code for some boost header files 
-RUN wget -q https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
-  && tar xzf boost_1_76_0.tar.gz
+#RUN wget -q https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
+#  && tar xzf boost_1_76_0.tar.gz
+RUN apt install -y libboost-all-dev
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
@@ -66,18 +67,17 @@ RUN cd vosk-server && git checkout 21147c33e383f45b942846c9f713789d8bca41d1
 RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /
 
-# dummy to trigger re-fetch
-RUN touch AAA
-
 # get whisper.cpp files
 RUN git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
-RUN cd whisper.cpp && git checkout v1.7.1
+RUN cd whisper.cpp && git checkout v1.7.4
 
 # use this line to test other commits
 # RUN cd whisper.cpp && git checkout f9ca90256bf6
 
 # assure all cuda dependencies are built
-RUN cd whisper.cpp/ && GGML_CUDA=1 CUDA_DOCKER_ARCH=sm_61 make main
+# -DCUDA_DOCKER_ARCH=sm_61 
+# TBD how to specify???
+RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 && cmake --build build -j --config Release
 
 RUN apt install -y libhunspell-dev  libicu-dev
 
@@ -90,18 +90,19 @@ COPY vosk_server_whisper/VoskRecognizer.cpp vosk_server_whisper/VoskRecognizer.h
 
 # RUN find /whisper.cpp/ -name "*.o"
 
+RUN cp whisper.cpp/build/src/libwhisper.so.1 /
+RUN cp whisper.cpp/build/ggml/src/*.so       /
+RUN ln -s libwhisper.so.1 libwhisper.so
+
 RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-unused-parameter -Wno-missing-declarations -Wmissing-noreturn -Wno-write-strings -Wno-array-bounds -Wno-format-truncation -Wextra-semi \
 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DNDEBUG -DGGML_USE_OPENMP -DGGML_USE_CUDA \
 -pthread -fopenmp -fPIC -march=native -mtune=native \ 
 -DVAD_FRAME_CONVERT_FLOAT \
--I/boost_1_76_0/ -I. -I/whisper.cpp/ -I/whisper.cpp/examples/ -I/whisper.cpp/include/ -I/whisper.cpp/ggml/include/ -I/webrtc-audio-processing/webrtc/ \
+-I. -I/whisper.cpp/ -I/whisper.cpp/examples/ -I/whisper.cpp/include/ -I/whisper.cpp/ggml/include/ -I/webrtc-audio-processing/webrtc/ \
 asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
-whisper.cpp/examples/common.cpp whisper.cpp/examples/common-ggml.cpp  whisper.cpp/ggml/src/ggml.o whisper.cpp/src/whisper.o \
-whisper.cpp/ggml/src/ggml-cuda.o whisper.cpp/ggml/src/ggml-alloc.o whisper.cpp/ggml/src/ggml-backend.o whisper.cpp/ggml/src/ggml-quants.o whisper.cpp/ggml/src/ggml-aarch64.o \
-whisper.cpp/ggml/src/ggml-cuda/*.o whisper.cpp/ggml/src/ggml-cuda/template-instances/*.o \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--lpthread -lhunspell  -licuio -licuuc -lcuda -lcublas -lculibos -lcudart -lcublasLt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64
+-lpthread -lhunspell  -licuio -licuuc -lwhisper -lggml -lggml-cpu -lggml-base -L/
 
 RUN mkdir -p /logs/
 RUN mkdir -p /whisper/

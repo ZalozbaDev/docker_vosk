@@ -2,7 +2,7 @@
 
 nvidia-smi
 
-/vosk_whisper_server 0.0.0.0 2700 1 ${MODEL_PATH_FULL}
+LD_LIBRARY_PATH=/ /vosk_whisper_server 0.0.0.0 2700 1 ${MODEL_PATH_FULL}
 
 while /bin/true; do sleep 1 ; done
 
