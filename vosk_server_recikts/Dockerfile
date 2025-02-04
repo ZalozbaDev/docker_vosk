@@ -51,11 +51,13 @@ RUN apt install -y libboost-all-dev
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
-RUN cd vosk-api && git checkout 1053cfa0f80039d2956de7e05a05c0b8db90c3c0
+RUN cd vosk-api && git checkout dabe784434fd44e00b6b4d95598649495a854e23
+
+RUN touch ab
 
 # get VOSK server implementation
 RUN git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
-RUN cd vosk-server && git checkout 21147c33e383f45b942846c9f713789d8bca41d1
+RUN cd vosk-server && git checkout 7eecd9ff457ec5ae0f7d80de8864fca7fa7e9fb0
 
 RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /

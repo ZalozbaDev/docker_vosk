@@ -36,6 +36,7 @@ public:
 	int getModelInstanceId(void) { return m_modelInstanceId; }
 	float getSampleRate(void) { return m_inputSampleRate; }
 	void setDetailedResult(bool detailsOn);
+	void setTimeStamp(int64_t seconds, int64_t uSeconds);
 	int acceptWaveform(const char *data, int length);
 	bool getRecognizerBusy(bool audioQueueOnly = false);
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);

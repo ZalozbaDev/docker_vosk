@@ -224,6 +224,12 @@ void VoskRecognizer::setDetailedResult(bool detailsOn)
 }
 
 //////////////////////////////////////////////
+void VoskRecognizer::setTimeStamp(int64_t seconds, int64_t uSeconds)
+{
+	std::cout << "TIMESTAMP: " << seconds << "." << uSeconds << "s" << std::endl;
+}
+
+//////////////////////////////////////////////
 int VoskRecognizer::acceptWaveform(const char *data, int length)
 {
 	int retVal;

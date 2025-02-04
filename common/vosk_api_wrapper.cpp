@@ -115,6 +115,17 @@ void vosk_recognizer_set_words(VoskRecognizer *recognizer, int words)
 }
 
 ///////////////////////////////////////////////
+void vosk_recognizer_set_timestamp(VoskRecognizer *recognizer, struct timeval *timestamp)
+{
+	
+#ifdef VERBOSE_API_USAGE
+	printf("vosk_recognizer_set_timestamp, seconds=%ld, uSeconds=%ld.\n", recognizer->getInstanceId(), timestamp->tv_sec, timestamp->tv_usec);
+#endif
+
+	recognizer->setTimeStamp((int64_t) timestamp->tv_sec, (int64_t) timestamp->tv_usec);
+}
+
+///////////////////////////////////////////////
 //
 // "main" function that handles almost everything 
 // 
