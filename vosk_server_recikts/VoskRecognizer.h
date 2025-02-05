@@ -111,6 +111,8 @@ private:
 	char leftOverData[480*2] = {0};
 	int leftOverDataLen = 0;
 	
+	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
+	
 	std::vector<std::unique_ptr<RecognitionResult>> partialResult;
 	std::mutex partialResultMutex;
 	

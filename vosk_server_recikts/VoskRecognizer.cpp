@@ -89,6 +89,8 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     
     lastUttStopTime = 0;
     longPauseBetweenUtterances = true;
+    
+    clientTimeStamp = std::chrono::system_clock::now();
 }
 
 //////////////////////////////////////////////
@@ -226,7 +228,10 @@ void VoskRecognizer::setDetailedResult(bool detailsOn)
 //////////////////////////////////////////////
 void VoskRecognizer::setTimeStamp(int64_t seconds, int64_t uSeconds)
 {
-	std::cout << "TIMESTAMP: " << seconds << "." << uSeconds << "s" << std::endl;
+	// std::cout << "TIMESTAMP: " << seconds << "." << uSeconds << "s" << std::endl;
+	clientTimeStamp = std::chrono::system_clock::from_time_t(seconds) + std::chrono::microseconds(uSeconds);
+	auto timeStampPrint = std::chrono::system_clock::to_time_t(clientTimeStamp);
+	std::cout << "TIMESTAMP: " << std::ctime(&timeStampPrint) << std::endl;
 }
 
 //////////////////////////////////////////////
@@ -246,7 +251,8 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 	std::unique_ptr packet = std::make_unique<AudioPacket>();
 	packet->length      = length;
 	packet->data        = new char[length];
-	packet->arrivalTime = std::chrono::system_clock::now();
+	// packet->arrivalTime = std::chrono::system_clock::now();
+	packet->arrivalTime = clientTimeStamp;
 	memcpy(packet->data, data, length);
 	
 	// push to queue and notify worker
