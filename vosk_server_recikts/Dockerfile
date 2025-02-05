@@ -47,25 +47,20 @@ RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -
 #RUN wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
 #  && tar xzf boost_1_76_0.tar.gz
 # alternative: use the debian packages, reduces external dependencies
-RUN apt install -y libboost-all-dev
+RUN apt install -y libboost-all-dev libhunspell-dev libicu-dev gdb
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
 RUN cd vosk-api && git checkout dabe784434fd44e00b6b4d95598649495a854e23
 
-RUN touch ab
+# RUN touch abcde
 
 # get VOSK server implementation
 RUN git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
-RUN cd vosk-server && git checkout 7eecd9ff457ec5ae0f7d80de8864fca7fa7e9fb0
+RUN cd vosk-server && git checkout 7ff1b2e24dad77dfa06b5878b9bdbc1583f5a2c5
 
 RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /
-
-RUN apt install -y libhunspell-dev libicu-dev
-
-# for a possible debugging session
-RUN apt install -y gdb
 
 COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognizerBase.cpp \
 common/RecognizerBase.h common/RecognitionResult.h  common/VADFrame.h  \
