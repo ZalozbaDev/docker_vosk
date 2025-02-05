@@ -53,11 +53,11 @@ RUN apt install -y libboost-all-dev libhunspell-dev libicu-dev gdb
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
 RUN cd vosk-api && git checkout dabe784434fd44e00b6b4d95598649495a854e23
 
-# RUN touch abcde
+RUN touch abcde
 
 # get VOSK server implementation
 RUN git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
-RUN cd vosk-server && git checkout 7ff1b2e24dad77dfa06b5878b9bdbc1583f5a2c5
+RUN cd vosk-server && git checkout b909a48e9701fe5440902d5eea69bd6e512f4a6e
 
 RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /
