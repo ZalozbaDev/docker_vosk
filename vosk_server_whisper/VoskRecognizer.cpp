@@ -162,6 +162,15 @@ void VoskRecognizer::setDetailedResult(bool detailsOn)
 }
 
 //////////////////////////////////////////////
+void VoskRecognizer::setTimeStamp(int64_t seconds, int64_t uSeconds)
+{
+	// std::cout << "TIMESTAMP: " << seconds << "." << uSeconds << "s" << std::endl;
+	clientTimeStamp = std::chrono::system_clock::from_time_t(seconds) + std::chrono::microseconds(uSeconds);
+	auto timeStampPrint = std::chrono::system_clock::to_time_t(clientTimeStamp);
+	std::cout << "TIMESTAMP: " << std::ctime(&timeStampPrint) << std::endl;
+}
+
+//////////////////////////////////////////////
 bool VoskRecognizer::getRecognizerBusy(bool audioQueueOnly)
 {
 	bool busy = false;
