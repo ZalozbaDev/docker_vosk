@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	// handle additional envvars
 	
 	setenv("VOSK_SUBWORD_REGEX", "# #", 1); // API not part of C++
-	setenv("VOSK_WHISPER_USE_CPU", "true", 1);
+	setenv("VOSK_WHISPER_USE_CPU", "false", 1);
 	
 	if (argc >= 6)
 	{
