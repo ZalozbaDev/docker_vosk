@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <ios>
 #include <fstream>
+#include <sstream>
 #include <string>
 
 //////////////////////////////////////////////
