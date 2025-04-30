@@ -18,4 +18,35 @@ git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
 cd whisper.cpp && git checkout v1.7.4
 cmake -B build -DWHISPER_COREML=1 && cmake --build build -j --config Release
 
+## VOSK dependencies
 
+git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
+cd vosk-api && git checkout 1053cfa0f80039d2956de7e05a05c0b8db90c3c0
+
+git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
+cd vosk-server && git checkout 21147c33e383f45b942846c9f713789d8bca41d1
+
+## VOSK server binary
+
+brew install boost
+
+rm -rf standalone_out && mkdir -p standalone_out
+
+cp vosk-api/src/vosk_api.h vosk-server/websocket-cpp/asr_server.cpp standalone_out
+cp whisper.cpp/build/src/*.dylib whisper.cpp/build/ggml/src/*.dylib standalone_out
+cp ../common/*.h ../common/*.cpp *.h *.cpp standalone_out
+
+cd standalone_out
+
+# TBD what is the correct fix?
+sed -i -e s/boost::asio::buffer_cast/static_cast/g asr_server.cpp
+
+g++ -std=c++17 -O3 -o vosk_whisper_server \
+-DVAD_FRAME_CONVERT_FLOAT \
+-DGGML_BACKEND_SHARED -DGGML_SHARED -DGGML_USE_BLAS -DGGML_USE_CPU -DGGML_USE_METAL \
+-I. -I../ -I../whisper.cpp/ -I../whisper.cpp/examples/ -I../whisper.cpp/include/ -I../whisper.cpp/ggml/include/ -I../webrtc-audio-processing/webrtc/ \
+-I/opt/homebrew/opt/icu4c@77/include -I/opt/homebrew/opt/hunspell/include/hunspell -I/opt/homebrew/Cellar/boost/1.88.0/include/ \
+asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
+../webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
+-ldl -lpthread -lhunspell-1.7 -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -Lwhisper_out/ \
+-L /opt/homebrew/opt/hunspell/lib/ -L/opt/homebrew/opt/icu4c@77/lib/ -L/opt/homebrew/opt/libsndfile/lib/
