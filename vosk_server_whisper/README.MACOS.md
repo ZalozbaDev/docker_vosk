@@ -47,3 +47,8 @@ asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogge
 ../webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -ldl -lpthread -lhunspell-1.7 -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -L. \
 -L /opt/homebrew/opt/hunspell/lib/ -L/opt/homebrew/opt/icu4c@77/lib/ -L/opt/homebrew/opt/libsndfile/lib/
+
+## run the server with the proper "model" path
+
+DYLD_LIBRARY_PATH=. ./vosk_whisper_server 0.0.0.0 2700 1 ./models/ggml-large-v3-turbo.bin
+
