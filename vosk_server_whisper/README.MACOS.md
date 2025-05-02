@@ -50,5 +50,5 @@ asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogge
 
 ## run the server with the proper "model" path
 
-DYLD_LIBRARY_PATH=. ./vosk_whisper_server 0.0.0.0 2700 1 ./models/ggml-large-v3-turbo.bin
+DYLD_LIBRARY_PATH=. VOSK_SAMPLE_RATE=48000 ./vosk_whisper_server 0.0.0.0 2700 1 ./models/ggml-large-v3-turbo.bin
 
