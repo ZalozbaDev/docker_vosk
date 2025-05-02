@@ -24,7 +24,7 @@ git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
 cd vosk-api && git checkout 1053cfa0f80039d2956de7e05a05c0b8db90c3c0
 
 git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
-cd vosk-server && git checkout 21147c33e383f45b942846c9f713789d8bca41d1
+cd vosk-server && git checkout 3d4ecb85bf5a8f39ead3749f49e7726fed3eed42
 
 ## VOSK server binary
 
@@ -38,9 +38,6 @@ cp ../common/*.h ../common/*.cpp *.h *.cpp standalone_out
 
 cd standalone_out
 
-# TBD what is the correct fix?
-sed -i -e s/boost::asio::buffer_cast/static_cast/g asr_server.cpp
-
 g++ -std=c++17 -O3 -o vosk_whisper_server \
 -DVAD_FRAME_CONVERT_FLOAT \
 -DGGML_BACKEND_SHARED -DGGML_SHARED -DGGML_USE_BLAS -DGGML_USE_CPU -DGGML_USE_METAL \
@@ -48,5 +45,5 @@ g++ -std=c++17 -O3 -o vosk_whisper_server \
 -I/opt/homebrew/opt/icu4c@77/include -I/opt/homebrew/opt/hunspell/include/hunspell -I/opt/homebrew/Cellar/boost/1.88.0/include/ \
 asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
 ../webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--ldl -lpthread -lhunspell-1.7 -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -Lwhisper_out/ \
+-ldl -lpthread -lhunspell-1.7 -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -L. \
 -L /opt/homebrew/opt/hunspell/lib/ -L/opt/homebrew/opt/icu4c@77/lib/ -L/opt/homebrew/opt/libsndfile/lib/
