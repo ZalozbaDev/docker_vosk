@@ -153,7 +153,7 @@ void VoskRecognizer::setDetailedResult(bool detailsOn)
 {
 	if (detailsOn == true)
 	{
-		detailedResults = true;	
+		detailedResults = false;	
 	}
 	else
 	{
