@@ -2,16 +2,12 @@ FROM ubuntu:noble
 MAINTAINER Daniel Sobe <daniel.sobe@sorben.com>
 
 # normal call
-# docker build -f vosk_server_whisper/Dockerfile --build-arg NVIDIA_DRIVER_PACKAGE_VERSION_STRING=$(dpkg -l nvidia-utils-535-server | grep nvidia-utils-535-server | awk '{ printf("%s", $3) }') --progress=plain -t vosk_server_whisper .
+# docker build -f vosk_server_whisper/Dockerfile --build-arg NVIDIA_DRIVER_PACKAGE= --build-arg NVIDIA_DRIVER_VERSION= --build-arg NVIDIA_CUDA_ARCHITECTURE= --progress=plain -t vosk_server_whisper .
 
 # rebuild from scratch
-# docker build -f vosk_server_whisper/Dockerfile --build-arg NVIDIA_DRIVER_PACKAGE_VERSION_STRING=$(dpkg -l nvidia-utils-535-server | grep nvidia-utils-535-server | awk '{ printf("%s", $3) }') --progress=plain -t vosk_server_whisper . --no-cache
+# docker build -f vosk_server_whisper/Dockerfile --build-arg NVIDIA_DRIVER_PACKAGE= --build-arg NVIDIA_DRIVER_VERSION= --build-arg NVIDIA_CUDA_ARCHITECTURE= --progress=plain -t vosk_server_whisper . --no-cache
 
 # RUN sed -i 's/ main/ main contrib non-free/' /etc/apt/sources.list
-
-ARG NVIDIA_DRIVER_PACKAGE_VERSION_STRING=535.216.03-0ubuntu0.24.04.1
-
-ARG WHISPER_CPP_CUDA_ARCHITECTURES=61
 
 RUN apt update
 
@@ -52,8 +48,12 @@ RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -
 
 RUN apt install -y nvidia-cuda-toolkit 
 
+ARG NVIDIA_DRIVER_PACKAGE
+ARG NVIDIA_DRIVER_VERSION
+ARG NVIDIA_CUDA_ARCHITECTURE 
+
 # try to force a fixed version
-RUN apt install -y nvidia-utils-535-server=$NVIDIA_DRIVER_PACKAGE_VERSION_STRING
+RUN apt install -y $NVIDIA_DRIVER_PACKAGE=$NVIDIA_DRIVER_VERSION
 
 # get boost source code for some boost header files 
 #RUN wget -q https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
@@ -81,7 +81,7 @@ RUN cd whisper.cpp && git checkout v1.7.4
 # assure all cuda dependencies are built
 # -DCUDA_DOCKER_ARCH=sm_61 
 # TBD how to specify???
-RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=$WHISPER_CPP_CUDA_ARCHITECTURES && cmake --build build -j --config Release
+RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=$NVIDIA_CUDA_ARCHITECTURE && cmake --build build -j --config Release
 
 RUN apt install -y libhunspell-dev  libicu-dev
 

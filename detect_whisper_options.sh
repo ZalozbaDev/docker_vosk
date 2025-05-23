@@ -13,3 +13,8 @@ echo "=========================================================="
 nvcc detect_arch.cu -o detect_arch
 ./detect_arch
 echo
+
+echo "fill values into this build cmdline"
+echo "==================================="
+head -n 5 vosk_server_whisper/Dockerfile
+
