@@ -42,6 +42,27 @@ RUN apt install -y meson libabsl-dev
 RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -C build
 
 ############################################
+# Create environment for building with CUDA10
+############################################
+
+RUN wget https://ftp.gnu.org/gnu/gcc/gcc-8.5.0/gcc-8.5.0.tar.xz
+RUN tar xJf gcc-8.5.0.tar.xz
+RUN apt install -y libgmp-dev libmpfr-dev libmpc-dev
+RUN cd gcc-8.5.0/ && ./configure --disable-multilib --disable-bootstrap --enable-languages=c,c++ --prefix=/opt/gcc-8/
+RUN cd gcc-8.5.0/ && make -j 4 && make install
+
+
+RUN wget https://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run
+RUN wget https://developer.download.nvidia.com/compute/cuda/10.2/Prod/patches/1/cuda_10.2.1_linux.run
+RUN wget https://developer.download.nvidia.com/compute/cuda/10.2/Prod/patches/2/cuda_10.2.2_linux.run
+
+RUN chmod 755 cuda_10.2.89_440.33.01_linux.run && sh cuda_10.2.89_440.33.01_linux.run --silent --toolkit --override --no-drm
+RUN chmod 755 cuda_10.2.1_linux.run && sh cuda_10.2.1_linux.run --silent --toolkit --override --no-drm
+RUN chmod 755 cuda_10.2.2_linux.run && sh cuda_10.2.2_linux.run --silent --toolkit --override --no-drm
+
+RUN cd /usr/local/cuda-10.2/bin/ && ln -s /opt/gcc-8/bin/gcc gcc && ln -s /opt/gcc-8/bin/g++ g++
+
+############################################
 # Build vosk server wrapper and whisper glue code
 ############################################
 
@@ -72,8 +93,8 @@ RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /
 
 # get whisper.cpp files
-RUN git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
-RUN cd whisper.cpp && git checkout v1.7.4
+RUN git clone https://github.com/danielzoba/whisper.cpp.git whisper.cpp
+RUN cd whisper.cpp && git checkout v1.7.4_CUDA10
 
 # use this line to test other commits
 # RUN cd whisper.cpp && git checkout f9ca90256bf6
@@ -81,7 +102,8 @@ RUN cd whisper.cpp && git checkout v1.7.4
 # assure all cuda dependencies are built
 # -DCUDA_DOCKER_ARCH=sm_61 
 # TBD how to specify???
-RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=$NVIDIA_CUDA_ARCHITECTURE && cmake --build build -j --config Release
+RUN cd whisper.cpp/ && export PATH=/usr/local/cuda-10.2/bin/:$PATH && export LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64/:$LD_LIBRARY_PATH && \
+cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=$NVIDIA_CUDA_ARCHITECTURE -DCMAKE_CUDA_STANDARD=14 -DCMAKE_CUDA_STANDARD_REQUIRED=true && cmake --build build -j 4 --config Release
 
 RUN apt install -y libhunspell-dev  libicu-dev
 
