@@ -37,12 +37,26 @@ This implementation uses common code, so it needs to be built from the root dire
 docker build -f vosk_server_whisper/Dockerfile --progress=plain -t vosk_server_whisper .
 
 ```
+## vosk_server_wav2vec2
+
+This implementation uses a finetuned wav2vec2 model plus an n-gram language model.
+
+To build the example, change into the directory and build the container from there.
+
+```code
+
+cd vosk_server_wav2vec2
+docker build --progress=plain -t vosk_server_wav2vec2 .
+
+```
 
 ## Authors
 
 - Dr. Frank Duckhorn (Fraunhofer Institute for Ceramic Technologies and Systems IKTS, Dresden, Germany)
 
 - Daniel Sobe (Foundation for the Sorbian people)
+
+- Korla Baier
 
 ## License
 
