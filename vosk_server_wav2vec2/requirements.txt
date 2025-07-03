@@ -1,0 +1,7 @@
+torch
+transformers
+websockets
+numpy
+soundfile
+pyctcdecode
+silero-vad
