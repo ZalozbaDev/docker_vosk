@@ -11,6 +11,7 @@ import soundfile as sf
 from pyctcdecode import build_ctcdecoder
 from transformers import pipeline, AutoProcessor, Wav2Vec2ProcessorWithLM
 from silero_vad import load_silero_vad
+import time
 
 
 model = load_silero_vad()
@@ -35,17 +36,17 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
         else:
             silence_dur["value"] = 0
             speech_dur["value"] += len(audio) / sample_rate
-        print("Silence duration:", silence_dur["value"])
         audio = np.concatenate(buffer).astype(np.float32) / 32768.0
         model_out = model.audio_forward(torch.Tensor(audio), sr=int(sample_rate))
-        print(model_out.mean(), model_out.max(), len(audio), len(buffer))
         if silence_dur["value"] > 0.75 and speech_dur["value"] > 0.25:
             buffer.clear()
+            t1 = time.time()
             transcription = asr_pipeline(audio)["text"]
-            print("Transcription:", transcription)
+            t2 = time.time()
+            print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
             silence_dur["value"] = 0
             speech_dur["value"] = 0
-            return json.dumps({"partial": transcription}, ensure_ascii=False), False
+            return json.dumps({"text": transcription}, ensure_ascii=False), False
         elif silence_dur["value"] > 0.75:
             silence_dur["value"] = 0
         return json.dumps({"partial": ""}), False
