@@ -1,3 +1,7 @@
+# System improvements
+
+* support more sample rates, not just 16 kHz
+
 # Container improvements
 
 * wav2vec2 and LM outside container
