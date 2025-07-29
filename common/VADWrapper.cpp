@@ -8,6 +8,9 @@
 
 #include <chrono>
 
+// define the memory for the constant
+const unsigned int VADWrapper::nrVADSamples;
+
 //////////////////////////////////////////////
 VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int audioPreBufferFrames,
 	unsigned int audioPostBufferFrames, unsigned int vadHystheresisFramesOn, unsigned int vadHystheresisFramesOff) :
@@ -62,12 +65,12 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 	
 	retVal = 0;
 
-	std::unique_ptr<VADFrame<nrVADSamples>> chunk = std::make_unique<VADFrame<nrVADSamples>>();
+	std::unique_ptr<VADFrame> chunk = std::make_unique<VADFrame>(VADWrapper::nrVADSamples);
 
 	chunk->currFrameCtr  = frameCtr;
 	chunk->currFrameTime = frameTime; 
 		
-	memcpy(chunk->samples, audio_frame, sizeof(chunk->samples));
+	memcpy(chunk->samples, audio_frame, (chunk->m_numberSamples * sizeof(short)));
 
 	// actual VAD processing
 	result = WebRtcVad_Process(rtcVadInst, samplingFrequency, chunk->samples, nrVADSamples);
@@ -403,9 +406,9 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 }
 
 //////////////////////////////////////////////
-std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(void)
+std::unique_ptr<VADFrame> VADWrapper::getNextChunk(void)
 {
-	std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk;
+	std::unique_ptr<VADFrame> chunk;
 	
 	assert(state != VADWrapperState::IDLE);
 	assert(chunks.size() > 0);
@@ -436,15 +439,15 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 		chunk = std::move(chunks.at(m_audioPostBufferFrames - m_bufferedStopChunksCountDown));
 		chunks.erase(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunksCountDown));
 		
-		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunkCopy = std::make_unique<VADFrame<VADWrapper::nrVADSamples>>();
+		std::unique_ptr<VADFrame> chunkCopy = std::make_unique<VADFrame>(nrVADSamples);
 		
 		chunkCopy->state         = chunk->state;
 		chunkCopy->currFrameCtr  = chunk->currFrameCtr;
 		chunkCopy->currFrameTime = chunk->currFrameTime;
 
-		memcpy(chunkCopy->samples, chunk->samples, sizeof(chunk->samples));
+		memcpy(chunkCopy->samples, chunk->samples, (chunk->m_numberSamples * sizeof(short)));
 #ifdef VAD_FRAME_CONVERT_FLOAT	
-		memcpy(chunkCopy->fSamples, chunk->fSamples, sizeof(chunk->fSamples));
+		memcpy(chunkCopy->fSamples, chunk->fSamples, (chunk->m_numberSamples * sizeof(float)));
 #endif
 
 		chunks.insert(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunksCountDown), std::move(chunkCopy));

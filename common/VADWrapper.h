@@ -44,7 +44,7 @@ public:
 	bool analyze(bool hintShortAudio = false);
 	unsigned int getAvailableChunks(void);
 	VADWrapperState getUtteranceStatus(void) { return state; }
-	std::unique_ptr<VADFrame<nrVADSamples>> getNextChunk(void);
+	std::unique_ptr<VADFrame> getNextChunk(void);
 	int64_t getUtteranceStart(void)   { return uStartTime;   }
 	int64_t getUtteranceStartMs(void) { return uStartTimeMs; }
 	int64_t getUtteranceStop(void)    { return uStopTime;    }
@@ -56,7 +56,7 @@ public:
 private:
 	VadInst* rtcVadInst;
 	
-	std::deque<std::unique_ptr<VADFrame<nrVADSamples>>> chunks;
+	std::deque<std::unique_ptr<VADFrame>> chunks;
 	
 	const unsigned int m_audioPreBufferFrames;
 	const unsigned int m_audioPostBufferFrames;

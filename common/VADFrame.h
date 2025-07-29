@@ -7,15 +7,32 @@
 
 enum VADState {OFF, ACTIVE};
 
-template<std::size_t numberSamples>
 class VADFrame
 {
 public:
-	short    samples[numberSamples];
+	short*    samples;
 #ifdef VAD_FRAME_CONVERT_FLOAT	
-	float    fSamples[numberSamples];
+	float*    fSamples;
 #endif
+	std::size_t m_numberSamples;
 	VADState state;
 	std::uint64_t currFrameCtr;
 	std::chrono::time_point<std::chrono::system_clock> currFrameTime;
+
+	VADFrame(std::size_t numberSamples)
+	{
+		m_numberSamples = numberSamples;
+		samples = new short[numberSamples];
+#ifdef VAD_FRAME_CONVERT_FLOAT	
+		fSamples = new float[numberSamples]		
+#endif
+	}
+	
+	~VADFrame(void)
+	{
+#ifdef VAD_FRAME_CONVERT_FLOAT	
+		delete[] fSamples;
+#endif
+		delete[] samples;
+	}
 };
