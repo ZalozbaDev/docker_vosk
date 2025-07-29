@@ -274,8 +274,11 @@ void VoskRecognizer::workerThreadFunc(void)
 	struct whisper_context* ctx;
 
 	// splitting audio into chunks & resampling to 16kHz
-	const int framelen48=480;
-	const int framelen16=160;
+	// make this depend on the required framelength for VAD
+	const int framelen16 = vad->getRequiredFrameLength();
+	const int framelen48 = framelen16 * 3;
+	// according to webrtc-audio-processing/webrtc/common_audio/resampler/resampler.cc it looks
+	// like tmpbuf must be 16 entries longer than the 48kHz buffer, so 256 is some overhead but save
 	int32_t tmp[framelen48 + 256] = { 0 };
 	int16_t buf[framelen16];
 

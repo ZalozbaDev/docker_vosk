@@ -23,10 +23,6 @@ extern "C" {
 class VADWrapperWebRTC : public VADWrapper
 {
 public:
-	static const unsigned int nrVADSamples = 160;
-	
-	static const unsigned int vadMaxNrToggles = 10;
-	
 	VADWrapperWebRTC(int aggressiveness, 
 		       size_t frequencyHz, 
 		       unsigned int audioPreBufferFrames  = 15,
@@ -51,7 +47,13 @@ public:
 	virtual uint64_t getUtteranceStartFrameCtr(void)  override { return frameCtrStart;  }
 	virtual uint64_t getUtteranceStopFrameCtr(void)   override { return frameCtrStop;  }
 	
+	virtual const int getRequiredFrameLength(void) const override { return nrVADSamples; }
+	
 private:
+	static const unsigned int nrVADSamples = 160;
+	
+	static const unsigned int vadMaxNrToggles = 10;
+	
 	VadInst* rtcVadInst;
 	
 	std::deque<std::unique_ptr<VADFrame>> chunks;
