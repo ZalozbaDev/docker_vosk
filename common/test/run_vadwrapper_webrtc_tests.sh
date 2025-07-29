@@ -1,7 +1,7 @@
 #!/bin/bash
 
 rm -f ./tests_vadwrapper ./*.gcda ./*.gcno ./*.gcov
-g++ -o tests_vadwrapper -fprofile-arcs -ftest-coverage -g3 -Wall -Wextra -Wno-unused -DWEBRTC_VAD_MOCK -DTEST_VADWRAPPER -I. -I.. test_support.cpp tests_vadwrapper.cpp webrtc_vad_mock.c ../VADWrapper.cpp
+g++ -o tests_vadwrapper -fprofile-arcs -ftest-coverage -g3 -Wall -Wextra -Wno-unused -DWEBRTC_VAD_MOCK -DTEST_VADWRAPPER -I. -I.. test_support.cpp tests_vadwrapper_webrtc.cpp webrtc_vad_mock.c ../VADWrapperWebRTC.cpp
 ./tests_vadwrapper
 
 

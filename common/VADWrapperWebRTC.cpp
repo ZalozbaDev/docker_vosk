@@ -1,5 +1,5 @@
 
-#include <VADWrapper.h>
+#include <VADWrapperWebRTC.h>
 
 #include <iostream>
 
@@ -9,10 +9,10 @@
 #include <chrono>
 
 // define the memory for the constant
-const unsigned int VADWrapper::nrVADSamples;
+const unsigned int VADWrapperWebRTC::nrVADSamples;
 
 //////////////////////////////////////////////
-VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int audioPreBufferFrames,
+VADWrapperWebRTC::VADWrapperWebRTC(int aggressiveness, size_t frequencyHz, unsigned int audioPreBufferFrames,
 	unsigned int audioPostBufferFrames, unsigned int vadHystheresisFramesOn, unsigned int vadHystheresisFramesOff) :
 	m_audioPreBufferFrames(audioPreBufferFrames), m_audioPostBufferFrames(audioPostBufferFrames), 
 	m_vadHystheresisFramesOn(vadHystheresisFramesOn), m_vadHystheresisFramesOff(vadHystheresisFramesOff)
@@ -43,7 +43,7 @@ VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int audi
 }
 
 //////////////////////////////////////////////
-VADWrapper::~VADWrapper(void)
+VADWrapperWebRTC::~VADWrapperWebRTC(void)
 {
 	chunks.clear();
 	
@@ -56,7 +56,7 @@ VADWrapper::~VADWrapper(void)
 // all data is VAD analyzed and stored in the "chunks" vector
 //
 //////////////////////////////////////////////
-int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime)
+int VADWrapperWebRTC::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime)
 {
 	int result, retVal;
 	
@@ -65,7 +65,7 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 	
 	retVal = 0;
 
-	std::unique_ptr<VADFrame> chunk = std::make_unique<VADFrame>(VADWrapper::nrVADSamples);
+	std::unique_ptr<VADFrame> chunk = std::make_unique<VADFrame>(nrVADSamples);
 
 	chunk->currFrameCtr  = frameCtr;
 	chunk->currFrameTime = frameTime; 
@@ -106,7 +106,7 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 // returns true if there is no data to fetch for recognition
 //
 //////////////////////////////////////////////
-bool VADWrapper::analyze(bool hintShortAudio)
+bool VADWrapperWebRTC::analyze(bool hintShortAudio)
 {
 	switch (state)
 	{
@@ -134,7 +134,7 @@ bool VADWrapper::analyze(bool hintShortAudio)
 }
 
 //////////////////////////////////////////////
-unsigned int VADWrapper::getAvailableChunks(void)
+unsigned int VADWrapperWebRTC::getAvailableChunks(void)
 {
 	switch (state)
 	{
@@ -188,7 +188,7 @@ unsigned int VADWrapper::getAvailableChunks(void)
 }
 
 //////////////////////////////////////////////
-bool VADWrapper::findUtteranceStart(void)
+bool VADWrapperWebRTC::findUtteranceStart(void)
 {
 	assert(state == VADWrapperState::IDLE);
 	
@@ -345,7 +345,7 @@ bool VADWrapper::findUtteranceStart(void)
 }
 
 //////////////////////////////////////////////
-void VADWrapper::findUtteranceStop(bool hintShortAudio)
+void VADWrapperWebRTC::findUtteranceStop(bool hintShortAudio)
 {
 	assert(state == VADWrapperState::BUFFERING);
 	
@@ -406,7 +406,7 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 }
 
 //////////////////////////////////////////////
-std::unique_ptr<VADFrame> VADWrapper::getNextChunk(void)
+std::unique_ptr<VADFrame> VADWrapperWebRTC::getNextChunk(void)
 {
 	std::unique_ptr<VADFrame> chunk;
 	

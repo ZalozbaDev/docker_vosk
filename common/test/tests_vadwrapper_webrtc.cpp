@@ -1,7 +1,7 @@
 
 #include "doctest.h"
 
-#include <VADWrapper.h>
+#include <VADWrapperWebRTC.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -36,7 +36,7 @@ TEST_CASE("test utterance start/stop computations --> successful configuration")
 	unsigned int vadHystheresisFramesOff = 5;
 	int vad_aggressiveness = 3;
 	
-	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
+	VADWrapperWebRTC wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
 	
 	SUBCASE("1. test normal start and stop computation with default pre- and postbuffer values, analysis only after all frames supplied") {
 		int16_t buf[160];
@@ -633,7 +633,7 @@ TEST_CASE("test utterance start/stop computations --> failed configuration")
 	
 	// FIXME: error with these settings VAD is never turned off!!!
 	
-	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
+	VADWrapperWebRTC wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
 	
 	SUBCASE("1. test normal start and stop computation with default pre- and postbuffer values, analysis only after all frames supplied") {
 		int16_t buf[160];
@@ -1222,7 +1222,7 @@ TEST_CASE("test utterance start/stop computations --> failed configuration")
 
 TEST_CASE("test timestamps")
 {
-	VADWrapper wrapper(3, 16000);
+	VADWrapperWebRTC wrapper(3, 16000);
 	
 	SUBCASE("1. check C/C++ computations") {
 		time_t stamp = time(NULL);
@@ -1259,7 +1259,7 @@ TEST_CASE("test different VAD aggressiveness (simulated)")
 	unsigned int vadHystheresisFramesOff = 5;
 	int vad_aggressiveness = 1;
 	
-	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
+	VADWrapperWebRTC wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
 	
 	SUBCASE("1. test with all frames active from beginning") {
 		int16_t buf[160];
@@ -1296,7 +1296,7 @@ TEST_CASE("test handling with empty buffer")
 	unsigned int vadHystheresisFramesOff = 5;
 	int vad_aggressiveness = 1;
 	
-	VADWrapper wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
+	VADWrapperWebRTC wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
 	
 	SUBCASE("1. test with inactive frames") {
 		int16_t buf[160];
