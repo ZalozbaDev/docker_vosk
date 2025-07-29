@@ -24,7 +24,7 @@ public:
 		m_numberSamples = numberSamples;
 		samples = new short[numberSamples];
 #ifdef VAD_FRAME_CONVERT_FLOAT	
-		fSamples = new float[numberSamples]		
+		fSamples = new float[numberSamples];	
 #endif
 	}
 	

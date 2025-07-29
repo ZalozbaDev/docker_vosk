@@ -37,7 +37,7 @@ g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -O3 -fPIC -o whisper_out/whisper
 -Iwhisper_out/ -I. -Iwebrtc-audio-processing/webrtc/ -Iwhisper.cpp/ -Iwhisper.cpp/examples/ \
 -Iwhisper.cpp/include/ -Iwhisper.cpp/ggml/include/ \
 whisper_out/RecognizerBase.cpp \
-whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADWrapper.cpp whisper_out/AudioLogger.cpp \
+whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADWrapperWebRTC.cpp whisper_out/AudioLogger.cpp \
 whisper_out/HunspellPostProc.cpp whisper_out/CustomPostProc.cpp \
 main.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \

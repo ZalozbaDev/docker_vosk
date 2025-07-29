@@ -16,7 +16,7 @@ extern "C" {
 #include "vosk_api.h"
 }
 
-#include <VADWrapper.h>
+#include <VADWrapperWebRTC.h>
 #include <RecognitionResult.h>
 #include <AudioLogger.h>
 #ifndef SIGNAL_PROCESSING_MOCK

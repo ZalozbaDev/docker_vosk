@@ -46,7 +46,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	// init static parts already here
 	
 	// adjust pre/post buffers here if needed
-	vad = new VADWrapper(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
+	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
 	m_vadFrameCounter = 0;
 	
 	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
@@ -360,9 +360,9 @@ void VoskRecognizer::workerThreadFunc(void)
 				{
 					uttStatus = vad->getUtteranceStatus();
 					
-					std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk = vad->getNextChunk();
+					std::unique_ptr<VADFrame> chunk = vad->getNextChunk();
 					
-					pcmf32.insert(pcmf32.cend(), std::begin(chunk->fSamples), std::end(chunk->fSamples));
+					pcmf32.insert(pcmf32.cend(), chunk->fSamples, chunk->fSamples + chunk->m_numberSamples);
 					
 					audioLogger->addChunk(std::move(chunk));
 					
