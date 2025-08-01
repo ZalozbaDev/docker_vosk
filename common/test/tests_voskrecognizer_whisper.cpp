@@ -90,3 +90,74 @@ TEST_CASE("partial and full result format output options")
 
 
 }
+
+TEST_CASE("Test timestamp functionality")
+{	
+	SUBCASE("simple API test") {
+		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
+		std::string stamp = vosk.getLocalTimeStamp();
+		std::cout << "Time stamp: " << stamp << std::endl;
+		CAPTURE(stamp);
+		CHECK(stamp.length() > 0);
+	}
+		
+}
+
+TEST_CASE("Test overload announcement")
+{	
+	SUBCASE("alloc overload test") {
+		char dummyData[48000] = {127};
+		WebRtcVad_Mock_disable_verify(true);
+		whisper_mock_set_overload(true, false);
+		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
+		vosk.setDetailedResult(true);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData));
+		fill_buffer((int16_t *) &dummyData, 0, sizeof(dummyData) / 2);
+		WebRtcVad_Mock_set_result(1);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		fill_buffer((int16_t *) &dummyData, 4000, sizeof(dummyData) / 2);
+		WebRtcVad_Mock_set_result(0);
+		whisper_mock_set_text("myresult", 1);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		vosk.getFinalResult();
+		vosk.getFinalResult();
+		vosk.getFinalResult();
+		// need to wait until enough processed before checking
+		while (vosk.getRecognizerBusy(true) == true)
+		{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+		CHECK(std::string(vosk.getFinalResult()).find_first_of("System") != std::string::npos);
+		whisper_mock_set_overload(false, false);
+	}
+		
+	SUBCASE("exec overload test") {
+		char dummyData[48000] = {127};
+		WebRtcVad_Mock_disable_verify(true);
+		whisper_mock_set_overload(false, true);
+		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
+		vosk.setDetailedResult(true);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData));
+		fill_buffer((int16_t *) &dummyData, 0, sizeof(dummyData) / 2);
+		WebRtcVad_Mock_set_result(1);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		fill_buffer((int16_t *) &dummyData, 4000, sizeof(dummyData) / 2);
+		WebRtcVad_Mock_set_result(0);
+		whisper_mock_set_text("myresult", 1);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		vosk.getFinalResult();
+		vosk.getFinalResult();
+		vosk.getFinalResult();
+		// need to wait until enough processed before checking
+		while (vosk.getRecognizerBusy(true) == true)
+		{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+		CHECK(std::string(vosk.getFinalResult()).find_first_of("Zmylk") != std::string::npos);
+		whisper_mock_set_overload(false, false);
+	}
+		
+}
+

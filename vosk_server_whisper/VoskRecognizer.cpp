@@ -659,22 +659,22 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 	// we have a valid instance --> run recognition
 	if (ctx)
 	{
+		partialResult.clear();
+		
 		std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
 		if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors) != 0) 
 		{
 			// announce the error instead of crashing
-			// const char * text = (getLocalTimeStamp() + ": Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.").c_str();
-			const char * text = "Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.";
+			std::string errorText = getLocalTimeStamp().append(": Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.");
+			// const char * text = "Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.";
 			int64_t t0 = 0;
 			int64_t t1 = 0;
 			
-			std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, 1.0f);
+			std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(errorText.c_str()), (unsigned int) t0, (unsigned int) t1, 1.0f);
 			partialResult.push_back(std::move(newResult));
 		}
 		else
 		{
-			partialResult.clear();
-			
 			const int n_segments = whisper_full_n_segments(ctx);
 			for (int i = 0; i < n_segments; ++i) {
 				const char * text = whisper_full_get_segment_text(ctx, i);
@@ -695,13 +695,15 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 	}
 	else
 	{
+		partialResult.clear();
+		
 		// supply a dummy result
-		// const char * text = (getLocalTimeStamp() + ": System je přećežene. Spytajće prošu pozdźišo hišće raz.").c_str();
-		const char * text = "System je přećežene. Spytajće prošu pozdźišo hišće raz.";
+		std::string errorText = (getLocalTimeStamp().append(": System je přećežene. Spytajće prošu pozdźišo hišće raz."));
+		// const char * text = "System je přećežene. Spytajće prošu pozdźišo hišće raz.";
 		int64_t t0 = 0;
 		int64_t t1 = 0;
 		
-		std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, 1.0f);
+		std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(errorText.c_str()), (unsigned int) t0, (unsigned int) t1, 1.0f);
 		partialResult.push_back(std::move(newResult));
 	}
 }

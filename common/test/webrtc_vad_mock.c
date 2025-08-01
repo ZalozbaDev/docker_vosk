@@ -58,7 +58,7 @@ int WebRtcVad_Process(VadInst* handle,
 		}
 	}
 	
-	printf("Frame result: %d.\n", WebRtcVad_resultValue);
+	// printf("Frame result: %d.\n", WebRtcVad_resultValue);
 	
 	return WebRtcVad_resultValue;	
 }

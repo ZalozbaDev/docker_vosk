@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <iostream>
 
 // implementation-specific struct
 struct whisper_context
@@ -14,6 +15,9 @@ struct whisper_full_params default_params;
 char resultText[1000];
 int resultSegments = 0;
 
+bool allocOverload = false;
+bool execOverload = false;
+
 void whisper_free(struct whisper_context *ctx)
 {
 	free(ctx);
@@ -21,8 +25,17 @@ void whisper_free(struct whisper_context *ctx)
 
 struct whisper_context *whisper_init_from_file_with_params(const char * path_model, struct whisper_context_params params)
 {
-	whisper_context *ctx = (whisper_context*) malloc(sizeof(struct whisper_context));
-	return ctx;
+	if (allocOverload == false)
+	{
+		std::cout << "<<<< Whisper mock alloc ok!" << std::endl;
+		whisper_context *ctx = (whisper_context*) malloc(sizeof(struct whisper_context));
+		return ctx;
+	}
+	else
+	{
+		std::cout << ">>>> Whisper mock alloc overload!" << std::endl;
+		return nullptr;	
+	}
 }
 
 int whisper_full(
@@ -31,7 +44,16 @@ int whisper_full(
                            const float * samples,
                                    int   n_samples)
 {
-	return 0;	
+	if (execOverload == false)
+	{
+		std::cout << "<<<< Whisper mock exec overload!" << std::endl;
+		return 0;
+	}
+	else
+	{
+		std::cout << ">>>> Whisper mock exec overload!" << std::endl;
+		return -1;
+	}
 }
 
 int whisper_full_parallel(
@@ -41,7 +63,7 @@ int whisper_full_parallel(
                                    int   n_samples,
                                    int   n_processors)
 {
-	return 0;	
+	return whisper_full(ctx, params, samples, n_samples);
 }
 
 int whisper_full_n_segments(struct whisper_context * ctx)
@@ -92,4 +114,10 @@ void whisper_mock_set_text(const char *text, int segments)
 	resultText[0] = 0;
 	strcat(resultText, text);
 	resultSegments = segments;
+}
+
+void whisper_mock_set_overload(bool enableAllocOverload, bool enableExecOverload)
+{
+	allocOverload = enableAllocOverload;	
+	execOverload = enableExecOverload;	
 }

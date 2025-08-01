@@ -157,4 +157,6 @@ struct whisper_context_params whisper_context_default_params();
 
 void whisper_mock_set_text(const char *text, int segments);
 
+void whisper_mock_set_overload(bool enableAllocOverload, bool enableExecOverload);
+
 #endif  // WHISPER_MOCK_H_
