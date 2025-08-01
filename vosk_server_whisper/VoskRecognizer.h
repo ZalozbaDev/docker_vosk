@@ -17,6 +17,7 @@ extern "C" {
 }
 
 #include <VADWrapperWebRTC.h>
+#include <VADWrapperSilero.h>
 #include <RecognitionResult.h>
 #include <AudioLogger.h>
 #ifndef SIGNAL_PROCESSING_MOCK

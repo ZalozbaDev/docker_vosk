@@ -25,6 +25,7 @@ public:
     VADWrapper& operator=(VADWrapper&&)      = delete;    
 	
     virtual const int getRequiredFrameLength(void) const = 0;
+    virtual const int getFrameTimeMs(void) const = 0;
 	virtual int process(int samplingFrequency, 
 		        const int16_t* audio_frame, 
 		        size_t frame_length, 

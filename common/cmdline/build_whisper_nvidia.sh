@@ -36,10 +36,11 @@ g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -O3 -fPIC -o whisper_out/whisper
 -DVAD_FRAME_CONVERT_FLOAT \
 -Iwhisper_out/ -I. -Iwebrtc-audio-processing/webrtc/ -Iwhisper.cpp/ -Iwhisper.cpp/examples/ \
 -Iwhisper.cpp/include/ -Iwhisper.cpp/ggml/include/ \
+-Ionnxruntime-linux-x64-1.12.1/include/ \
 whisper_out/RecognizerBase.cpp \
-whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADWrapperWebRTC.cpp whisper_out/AudioLogger.cpp \
+whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADWrapperWebRTC.cpp whisper_out/VADWrapperSilero.cpp whisper_out/SileroVadIterator.cpp whisper_out/AudioLogger.cpp \
 whisper_out/HunspellPostProc.cpp whisper_out/CustomPostProc.cpp \
 main.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--ldl -lpthread -lhunspell -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -Lwhisper_out/ 
+-ldl -lpthread -lhunspell -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -lonnxruntime  -Lwhisper_out/ -Lonnxruntime-linux-x64-1.12.1/lib/
 

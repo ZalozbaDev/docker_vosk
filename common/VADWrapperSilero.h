@@ -1,6 +1,6 @@
 
-#ifndef VAD_WRAPPER_WEBRTC_H
-#define VAD_WRAPPER_WEBRTC_H
+#ifndef VAD_WRAPPER_SILERO_H
+#define VAD_WRAPPER_SILERO_H
 
 #include <stdint.h>
 
@@ -11,25 +11,18 @@
 
 #include <VADWrapper.h>
 
-#ifndef WEBRTC_VAD_MOCK
-extern "C" {
-#include "webrtc-audio-processing/webrtc/common_audio/vad/include/webrtc_vad.h"
-}
-#else
-#include "webrtc_vad_mock.h"
-#endif
+#include <SileroVadIterator.h>
 
 //////////////////////////////////////////////
-class VADWrapperWebRTC : public VADWrapper
+class VADWrapperSilero : public VADWrapper
 {
 public:
-	VADWrapperWebRTC(int aggressiveness, 
-		       size_t frequencyHz, 
-		       unsigned int audioPreBufferFrames  = 15,
+	VADWrapperSilero(size_t frequencyHz, const std::string model_path,
+				unsigned int audioPreBufferFrames  = 15,
 	           unsigned int audioPostBufferFrames = 15, 
 	           unsigned int vadHystheresisFramesOn = 5,
 	           unsigned int vadHystheresisFramesOff = 5);
-	virtual ~VADWrapperWebRTC(void);
+	virtual ~VADWrapperSilero(void);
 	virtual int process(int samplingFrequency, 
 		        const int16_t* audio_frame, 
 		        size_t frame_length, 
@@ -48,15 +41,17 @@ public:
 	virtual uint64_t getUtteranceStopFrameCtr(void)   override { return frameCtrStop;  }
 	
 	virtual const int getRequiredFrameLength(void) const override { return nrVADSamples; }
-	
-	virtual const int getFrameTimeMs(void) const override { return 10; }
-	
+
+	virtual const int getFrameTimeMs(void) const override { return 32; }
+
 private:
-	static const unsigned int nrVADSamples = 160;
+	
+	// silero default
+	static const unsigned int nrVADSamples = 512;
 	
 	static const unsigned int vadMaxNrToggles = 10;
 	
-	VadInst* rtcVadInst;
+	VadIterator* sileroVadInst;
 	
 	std::deque<std::unique_ptr<VADFrame>> chunks;
 	
@@ -91,11 +86,6 @@ private:
 	bool findUtteranceStart(void);
 	void findUtteranceStop(bool hintShortAudio);
 
-#ifdef TEST_VADWRAPPER
-
-public:
-	VadInst* getRtcVadInst(void) { return rtcVadInst; }
-#endif	
 };
 
 #endif
