@@ -663,6 +663,7 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 		if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors) != 0) 
 		{
 			// announce the error instead of crashing
+			// const char * text = (getLocalTimeStamp() + ": Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.").c_str();
 			const char * text = "Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.";
 			int64_t t0 = 0;
 			int64_t t1 = 0;
@@ -695,6 +696,7 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 	else
 	{
 		// supply a dummy result
+		// const char * text = (getLocalTimeStamp() + ": System je přećežene. Spytajće prošu pozdźišo hišće raz.").c_str();
 		const char * text = "System je přećežene. Spytajće prošu pozdźišo hišće raz.";
 		int64_t t0 = 0;
 		int64_t t1 = 0;

@@ -55,7 +55,7 @@ public:
 	virtual bool getPartialStatus(void) = 0;
 	virtual std::unique_ptr<FinalResult> getFinalResultData(void) = 0;
 	virtual ~RecognizerBase();
-
+	std::string getLocalTimeStamp(void);
 };
 
 #endif // RECOGNIZER_BASE_H
