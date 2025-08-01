@@ -656,26 +656,48 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 		pcmf32.insert(pcmf32.cend(), pcm_buffer_min - pcmf32.size(), 0.0f);
 	}
 	
-	std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
-	if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors) != 0) {
-		fprintf(stderr, "whisper_full(): failed to process audio\n");
-		assert(false);
+	// we have a valid instance --> run recognition
+	if (ctx)
+	{
+		std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
+		if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors) != 0) 
+		{
+			// announce the error instead of crashing
+			const char * text = "Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.";
+			int64_t t0 = 0;
+			int64_t t1 = 0;
+			
+			std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, 1.0f);
+			partialResult.push_back(std::move(newResult));
+		}
+		else
+		{
+			partialResult.clear();
+			
+			const int n_segments = whisper_full_n_segments(ctx);
+			for (int i = 0; i < n_segments; ++i) {
+				const char * text = whisper_full_get_segment_text(ctx, i);
+				int64_t t0 = 0;
+				int64_t t1 = 0;
+		
+				// timestamps currently unused anyway?
+				if (env_whisper_no_timestamps == false)
+				{
+					t0 = whisper_full_get_segment_t0(ctx, i);
+					t1 = whisper_full_get_segment_t1(ctx, i);
+				}
+				
+				std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, 1.0f);
+				partialResult.push_back(std::move(newResult));
+			}
+		}
 	}
-
-	partialResult.clear();
-	
-	const int n_segments = whisper_full_n_segments(ctx);
-	for (int i = 0; i < n_segments; ++i) {
-		const char * text = whisper_full_get_segment_text(ctx, i);
+	else
+	{
+		// supply a dummy result
+		const char * text = "System je přećežene. Spytajće prošu pozdźišo hišće raz.";
 		int64_t t0 = 0;
 		int64_t t1 = 0;
-
-		// timestamps currently unused anyway?
-		if (env_whisper_no_timestamps == false)
-		{
-			t0 = whisper_full_get_segment_t0(ctx, i);
-			t1 = whisper_full_get_segment_t1(ctx, i);
-		}
 		
 		std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, 1.0f);
 		partialResult.push_back(std::move(newResult));
