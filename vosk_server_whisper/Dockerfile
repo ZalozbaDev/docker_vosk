@@ -2,7 +2,7 @@ FROM ubuntu:noble
 MAINTAINER Daniel Sobe <daniel.sobe@sorben.com>
 
 # normal call
-# docker build -f vosk_server_whisper/Dockerfile --build-arg NVIDIA_DRIVER_PACKAGE_VERSION_STRING=$(dpkg -l nvidia-utils-535-server | grep nvidia-utils-535-server | awk '{ printf("%s", $3) }') --progress=plain -t vosk_server_whisper .
+# docker build -f vosk_server_whisper/Dockerfile --build-arg NVIDIA_DRIVER_PACKAGE_VERSION_STRING=$(dpkg -l nvidia-utils-535-server | grep nvidia-utils-535-server | awk '{ printf("%s", $3) }') --build-arg WHISPER_CPP_CUDA_ARCHITECTURES=61 --progress=plain -t vosk_server_whisper .
 
 # rebuild from scratch
 # docker build -f vosk_server_whisper/Dockerfile --build-arg NVIDIA_DRIVER_PACKAGE_VERSION_STRING=$(dpkg -l nvidia-utils-535-server | grep nvidia-utils-535-server | awk '{ printf("%s", $3) }') --progress=plain -t vosk_server_whisper . --no-cache
