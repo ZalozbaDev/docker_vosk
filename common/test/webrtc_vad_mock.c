@@ -14,6 +14,8 @@ VadInst dummy;
 
 int WebRtcVad_resultValue = 0;
 
+bool verify_disabled = false;
+
 VadInst* WebRtcVad_Create(void)
 {
 	printf("WebRtcVad_Create()\n");
@@ -42,16 +44,22 @@ int WebRtcVad_Process(VadInst* handle,
                       const int16_t* audio_frame,
                       size_t frame_length)
 {
-	// printf("WebRtcVad_Process(frame_length=%ld)\n", frame_length);
-	for (size_t index = 0; index < frame_length; index++)
+	if (verify_disabled == false)
 	{
-		if (audio_frame[index] != dummy.sample_ctr)
+		// printf("WebRtcVad_Process(frame_length=%ld)\n", frame_length);
+		for (size_t index = 0; index < frame_length; index++)
 		{
-			printf("Sample comparison error! Expected sample %d but read %d at index %ld.\n", dummy.sample_ctr, audio_frame[index], index);
-			assert(false);
+			if (audio_frame[index] != dummy.sample_ctr)
+			{
+				printf("Sample comparison error! Expected sample %d but read %d at index %ld.\n", dummy.sample_ctr, audio_frame[index], index);
+				assert(false);
+			}
+			dummy.sample_ctr++;
 		}
-		dummy.sample_ctr++;
 	}
+	
+	printf("Frame result: %d.\n", WebRtcVad_resultValue);
+	
 	return WebRtcVad_resultValue;	
 }
 
@@ -65,9 +73,16 @@ void WebRtcVad_Mock_reset(VadInst* handle)
 	printf("WebRtcVad_Mock_reset()\n");
 	dummy.sample_ctr = 0;
 	WebRtcVad_resultValue = 0;
+	verify_disabled = false;
 }
 
 void WebRtcVad_Mock_set_result(int result)
 {
 	WebRtcVad_resultValue = result;
 }
+
+void WebRtcVad_Mock_disable_verify(bool disabled)
+{
+	verify_disabled = disabled;	
+}
+

@@ -20,6 +20,7 @@ TEST_CASE("partial and full result format output options")
 {	
 	SUBCASE("simple partial result (empty)") {
 		char dummyData[16000];
+		WebRtcVad_Mock_disable_verify(true);
 		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(false);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
@@ -28,6 +29,7 @@ TEST_CASE("partial and full result format output options")
 
 	SUBCASE("detailed partial result (empty), recognizer inactive") {
 		char dummyData[16000] = {0};
+		WebRtcVad_Mock_disable_verify(true);
 		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(true);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
@@ -36,17 +38,28 @@ TEST_CASE("partial and full result format output options")
 
 	SUBCASE("detailed partial result (empty), recognizer active") {
 		char dummyData[48000] = {127};
+		WebRtcVad_Mock_disable_verify(true);
 		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(true);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
 		fill_buffer((int16_t *) &dummyData, 0, sizeof(dummyData) / 2);
 		WebRtcVad_Mock_set_result(1);
+		// assure enough packets in queue to have one active processed
 		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		vosk.acceptWaveform(dummyData, sizeof(dummyData) / 2);
+		// need to wait until enough processed before checking
+		while (vosk.getRecognizerBusy(true) == true)
+		{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
 		CHECK(std::string(vosk.getPartialResult()).compare("{ \"partial\" : \"\", \"listen\" : \"true\" }") == 0);
 	}
 
 	SUBCASE("simple final result (empty)") {
 		char dummyData[16000];
+		WebRtcVad_Mock_disable_verify(true);
 		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(false);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));
@@ -58,6 +71,7 @@ TEST_CASE("partial and full result format output options")
 
 	SUBCASE("detailed final result") {
 		char dummyData[48000] = {127};
+		WebRtcVad_Mock_disable_verify(true);
 		VoskRecognizer vosk(1, 48000, "/dum/my/Config.cfg");
 		vosk.setDetailedResult(true);
 		vosk.acceptWaveform(dummyData, sizeof(dummyData));

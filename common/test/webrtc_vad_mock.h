@@ -29,6 +29,8 @@ void WebRtcVad_Mock_reset(VadInst* handle);
 
 void WebRtcVad_Mock_set_result(int result);
 
+void WebRtcVad_Mock_disable_verify(bool disabled);
+
 #ifdef __cplusplus
 }
 #endif

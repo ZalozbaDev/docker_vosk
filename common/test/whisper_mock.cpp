@@ -34,6 +34,16 @@ int whisper_full(
 	return 0;	
 }
 
+int whisper_full_parallel(
+                struct whisper_context * ctx,
+            struct whisper_full_params   params,
+                           const float * samples,
+                                   int   n_samples,
+                                   int   n_processors)
+{
+	return 0;	
+}
+
 int whisper_full_n_segments(struct whisper_context * ctx)
 {
 	return resultSegments;	
@@ -57,6 +67,24 @@ const char * whisper_full_get_segment_text(struct whisper_context * ctx, int i_s
 struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy)
 {
 	return default_params;
+}
+
+struct whisper_context_params whisper_context_default_params() {
+    struct whisper_context_params result = {
+        /*.use_gpu              =*/ true,
+        /*.flash_attn           =*/ false,
+        /*.gpu_device           =*/ 0,
+
+        /*.dtw_token_timestamps =*/ false,
+        /*.dtw_aheads_preset    =*/ WHISPER_AHEADS_NONE,
+        /*.dtw_n_top            =*/ -1,
+        /*.dtw_aheads           =*/ {
+            /*.n_heads          =*/ 0,
+            /*.heads            =*/ NULL,
+        },
+        /*.dtw_mem_size         =*/ 1024*1024*128,
+    };
+    return result;
 }
 
 void whisper_mock_set_text(const char *text, int segments)
