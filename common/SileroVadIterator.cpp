@@ -1,6 +1,8 @@
 
 #include <SileroVadIterator.h>
 
+#define __DEBUG_SPEECH_PROB___
+
 //////////////////////////////////////////////////////////////////////////
 // Loads the ONNX model.
 void VadIterator::init_onnx_model(const std::string& model_path) {
@@ -50,6 +52,15 @@ void VadIterator::predict(const std::vector<float>& data_chunk) {
 	ort_inputs.emplace_back(std::move(state_ort));
 	ort_inputs.emplace_back(std::move(sr_ort));
 
+	float min = 2.0f;
+	float max = -2.0f;
+	for (auto it = data_chunk.begin(); it != data_chunk.end(); ++it) { 
+		// std::cout << std::setw(8) << std::fixed << std::setprecision(4) << *it << "\t";
+		if (*it < min) min = *it;
+		if (*it > max) max = *it;
+	}
+	std::cout << "Min=" << min << ", max=" << max << std::endl;
+	
 	// Run inference.
 	ort_outputs = session->Run(
 		Ort::RunOptions{ nullptr },
@@ -60,6 +71,10 @@ void VadIterator::predict(const std::vector<float>& data_chunk) {
 	float* stateN = ort_outputs[1].GetTensorMutableData<float>();
 	std::memcpy(_state.data(), stateN, size_state * sizeof(float));
 	current_sample += static_cast<unsigned int>(window_size_samples); // Advance by the original window size.
+	
+#ifdef __DEBUG_SPEECH_PROB___
+	printf("{ (%.3f) }\n", speech_prob);
+#endif
 
 	// If speech is detected (probability >= threshold)
 	if (speech_prob >= threshold) {

@@ -56,10 +56,13 @@ int VADWrapperSilero::process(int samplingFrequency, const int16_t* audio_frame,
 	// it does not matter what is used for actual recognition
 	for (unsigned int tmp = 0; tmp < nrVADSamples; tmp++)
 	{
-		chunk->fSamples[tmp] = (float) (((double) chunk->samples[tmp]) / 32768.0); 
+		chunk->fSamples[tmp] = (float) (((double) chunk->samples[tmp]) / 32768.0);
+		// std::cout << tmp << ": " << chunk->samples[tmp] << " ==> " << chunk->fSamples[tmp] << std::endl;
 	}
 		
 	const std::vector<float> chunkToPredict(&chunk->fSamples[0], &chunk->fSamples[nrVADSamples]);
+	
+	// for (auto it = chunkToPredict.begin(); it != chunkToPredict.end(); ++it) { std::cout << *it << std::endl; }
 	
 	// actual VAD processing
 	sileroVadInst->predict(chunkToPredict);

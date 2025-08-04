@@ -16,7 +16,7 @@
 # cd whisper.cpp && git checkout v1.7.4
 # cmake -B build -DGGML_CUDA=1 && cmake --build build -j --config Release
 
-# apt install -y libhunspell-dev  libicu-dev libsndfile1-dev
+# apt install -y libhunspell-dev  libicu-dev libsndfile1-dev libresample1-dev
 
 
 rm -rf whisper_out/
@@ -42,5 +42,5 @@ whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADW
 whisper_out/HunspellPostProc.cpp whisper_out/CustomPostProc.cpp \
 main.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--ldl -lpthread -lhunspell -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -lonnxruntime  -Lwhisper_out/ -Lonnxruntime-linux-x64-1.12.1/lib/
+-ldl -lpthread -lhunspell -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -lonnxruntime -lresample -Lwhisper_out/ -Lonnxruntime-linux-x64-1.12.1/lib/
 

@@ -147,6 +147,15 @@ int main(int argc, char **argv)
 		
 		sf_count_t amount = file.read(buffer, BUFFER_LEN);
 		
+		float min = 32768;
+		float max = -32768;
+		for (sf_count_t idx = 0; idx < amount; idx ++) { 
+			int16_t val = buffer[idx];
+			if (val < min) min = val;
+			if (val > max) max = val;
+		}
+		std::cout << "INT16\t\t\t\t\tMin=" << min << ", max=" << max << std::endl;
+		
 		// std::cout << "Error: " << file.error() << std::endl;
 		
 		/*

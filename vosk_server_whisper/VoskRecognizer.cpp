@@ -10,6 +10,8 @@
 #include <cassert>
 #include <regex>
 
+#include <libresample.h>
+
 #ifndef WHISPER_MOCK
 #include "common.h"
 #endif
@@ -46,7 +48,8 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	// init static parts already here
 	
 	// adjust pre/post buffers here if needed
-	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
+	// vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
+	vad = new VADWrapperSilero(m_processingSampleRate, std::string("model/silero_vad.onnx"));
 	m_vadFrameCounter = 0;
 	
 	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
@@ -295,6 +298,12 @@ void VoskRecognizer::workerThreadFunc(void)
 	
 	WebRtcSpl_ResetResample48khzTo16khz(&m_resamplestate_48_to_16);
 
+	void* resampler = resample_open(1, 0.3, 1);
+    if (!resampler) {
+        std::cerr << "Failed to initialize libresample." << std::endl;
+        return;
+    }
+    
 	m_recoState = VoskRecognizerState::INIT;
 	
 	
@@ -329,8 +338,49 @@ void VoskRecognizer::workerThreadFunc(void)
 				length -= useLen;
 				leftOverDataLen = 0;
 		
-				WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
-		  
+				// WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
+				
+				// Convert input to float
+				std::vector<float> input_float(framelen48);
+				for (int i = 0; i < framelen48; ++i) {
+					input_float[i] = *(((int16_t*) leftOverData) + i) / 32768.0f;
+				}
+				
+				float min = 2.0f;
+				float max = -2.0f;
+				for (auto it = input_float.begin(); it != input_float.end(); ++it) { 
+					// std::cout << std::setw(8) << std::fixed << std::setprecision(4) << *it << "\t";
+					if (*it < min) min = *it;
+					if (*it > max) max = *it;
+				}
+				std::cout << "F48\t\t\tMin=" << min << ", max=" << max << std::endl;
+				
+				std::vector<float> output_float(framelen16);
+				
+				int input_used = framelen48;
+				int output_generated = resample_process(
+					resampler,
+					(1.0 / 3.0),
+					input_float.data(),
+					framelen48,
+					1, // last buffer
+					&input_used,
+					output_float.data(),
+					framelen16
+					);
+
+				// std::cout << "Used " << input_used << " samples and generated " << output_generated << " samples." << std::endl;
+				assert(input_used == framelen48);
+				assert(output_generated == framelen16);
+				for (int i = 0; i < output_generated; ++i) {
+					if ((output_float[i] < -1.0f) || (output_float[i] > 1.0f))
+					{
+						std::cout << "ERROR: Sample " << output_float[i] << " overflow!\t";
+					}
+					buf[i] = output_float[i] * 32768;
+					// std::cout << i << ": " << output_float[i] << " ==> " << buf[i] << std::endl;
+				}
+
 				// TODO we could remove all leftover handling from VAD
 				status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
 			
@@ -340,7 +390,7 @@ void VoskRecognizer::workerThreadFunc(void)
 				}
 				
 				// every VAD frame covers 10ms of audio
-				arrivalTime += std::chrono::milliseconds(10);
+				arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
 			}
 
 			if (length > 0)
@@ -405,7 +455,9 @@ void VoskRecognizer::workerThreadFunc(void)
 	
 	promoteToFinalResult();
 	pcmf32.clear();
-			
+		
+	resample_close(resampler);
+	
 	////////////////////////
 
 	whisper_free(ctx);

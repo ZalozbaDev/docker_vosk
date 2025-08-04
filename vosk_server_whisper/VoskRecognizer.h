@@ -160,7 +160,9 @@ private:
 	VADWrapper *vad;
 	
 	WebRtcSpl_State48khzTo16khz m_resamplestate_48_to_16;
-	char leftOverData[480*2] = {0};
+	
+	// TBD MAKE THIS DYNAMIC!!!!
+	char leftOverData[4800*2] = {0};
 	int leftOverDataLen = 0;
 	
 	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
