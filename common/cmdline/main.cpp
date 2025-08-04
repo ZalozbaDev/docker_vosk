@@ -20,7 +20,7 @@
 static std::string to_timestamp(uint64_t t) {
 
 	// one VAD frame == 10ms
-    uint64_t msec = t * 10;
+    uint64_t msec = t * 32;
     
     // compute hour and remember fraction of ms
     uint64_t hr = msec / (1000 * 60 * 60);
