@@ -44,16 +44,20 @@ public:
 class RecognizerBase
 {
 public:
-	virtual int getInstanceId(void)                          = 0;
-	virtual int getModelInstanceId(void)                     = 0;
-	virtual float getSampleRate(void)                        = 0;
-	virtual void setDetailedResult(bool detailsOn)           = 0;
-	virtual int acceptWaveform(const char *data, int length) = 0;
-	virtual bool getRecognizerBusy(bool audioQueueOnly = false) = 0;
-	virtual const char* getPartialResult(void) = 0;
-	virtual const char* getFinalResult(void) = 0;
-	virtual bool getPartialStatus(void) = 0;
+	RecognizerBase()                                 = default;
+	
+	virtual int getInstanceId(void)                               = 0;
+	virtual int getModelInstanceId(void)                          = 0;
+	virtual float getSampleRate(void)                             = 0;
+	virtual void setDetailedResult(bool detailsOn)                = 0;
+	virtual int acceptWaveform(const char *data, int length)      = 0;
+	virtual bool getRecognizerBusy(bool audioQueueOnly = false)   = 0;
+	virtual const char* getPartialResult(void)                    = 0;
+	virtual const char* getFinalResult(void)                      = 0;
+	virtual bool getPartialStatus(void)                           = 0;
 	virtual std::unique_ptr<FinalResult> getFinalResultData(void) = 0;
+	virtual int getFrameResolution(void)                          = 0;
+	
 	virtual ~RecognizerBase();
 
 };

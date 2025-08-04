@@ -539,6 +539,12 @@ std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
 }
 
 //////////////////////////////////////////////
+int VoskRecognizer::getFrameResolution(void)
+{
+	return vad->getFrameTimeMs();
+}
+
+//////////////////////////////////////////////
 void VoskRecognizer::promoteToFinalResult(void)
 {
 	std::string finalResult;

@@ -17,10 +17,10 @@
 
 #define LOG_BUFFER_LEN 32768
 
-static std::string to_timestamp(uint64_t t) {
+static std::string to_timestamp(int frameResolutionMs, uint64_t t) {
 
 	// one VAD frame == 10ms
-    uint64_t msec = t * 10;
+    uint64_t msec = t * frameResolutionMs;
     
     // compute hour and remember fraction of ms
     uint64_t hr = msec / (1000 * 60 * 60);
@@ -55,6 +55,7 @@ int main(int argc, char **argv)
 	// int logsize;
 	int subtitle_index;
 	int vad_aggressiveness = 2;
+	int frameResolutionMs;
 	
 	if (argc < 4)
 	{
@@ -133,6 +134,8 @@ int main(int argc, char **argv)
 	
 	v.setDetailedResult(true);
 	
+	frameResolutionMs = v.getFrameResolution();
+	
 	std::ofstream transcript;
 	transcript.open(std::string(argv[3]) + "/transcript.txt", std::ios::out | std::ios::trunc);
 	
@@ -173,7 +176,7 @@ int main(int argc, char **argv)
 			transcript << res->text << std::endl;
 			
 			subtitles << subtitle_index << std::endl;
-			subtitles << to_timestamp(res->frameCounterStart) << " --> " << to_timestamp(res->frameCounterEnd) << std::endl;
+			subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
 			subtitles << res->text << std::endl;
 			subtitles << std::endl;
 			subtitle_index++;
@@ -209,7 +212,7 @@ int main(int argc, char **argv)
 			transcript << res->text << std::endl;
 			
 			subtitles << subtitle_index << std::endl;
-			subtitles << to_timestamp(res->frameCounterStart) << " --> " << to_timestamp(res->frameCounterEnd) << std::endl;
+			subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
 			subtitles << res->text << std::endl;
 			subtitles << std::endl;
 			subtitle_index++;
