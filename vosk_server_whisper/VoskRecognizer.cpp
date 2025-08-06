@@ -7,6 +7,11 @@
 #include <string.h>
 #include <dlfcn.h>
 
+#include <VADWrapperWebRTC.h>
+#include <VADWrapperSilero.h>
+#include <ResamplerWebRTC_48_16.h>
+#include <ResamplerLibResample_48_16.h>
+
 #include <cassert>
 #include <regex>
 
@@ -46,8 +51,6 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	// init static parts already here
 	
 	// adjust pre/post buffers here if needed
-	vad = new VADWrapper(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
-	m_vadFrameCounter = 0;
 	
 	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
     
@@ -114,7 +117,31 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
         }
     }
     std::cout << "ENV setting whisper use CPU to  " << default_params.use_gpu << "." << std::endl;
-    
+
+    // makes sense to tie the resampler to the VAD algo used - not all combinations are possible anyway
+    if (const char *env_p = std::getenv("VOSK_VAD_ALGO"))
+    {
+        if (strcasecmp(env_p, "Silero") == 0)
+        {
+        	std::cout << "ENV setting VAD algo to Silero." << std::endl;
+        	resample = new ResamplerLibResample_48_16();
+        	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
+        }
+        else
+        {
+        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
+        	resample = new ResamplerWebRTC_48_16();
+        	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
+        }
+    }
+    else
+    {
+       	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
+       	resample = new ResamplerWebRTC_48_16();
+    	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);	
+    }
+	m_vadFrameCounter = 0;
+	    
     threadRunning = true;
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
@@ -140,6 +167,7 @@ VoskRecognizer::~VoskRecognizer(void)
 	delete(audioLogger);
 	
 	delete(vad);
+	delete(resample);
 	
 	partialResult.clear();
 	finalResults.clear();
@@ -274,11 +302,14 @@ void VoskRecognizer::workerThreadFunc(void)
 	struct whisper_context* ctx;
 
 	// splitting audio into chunks & resampling to 16kHz
-	const int framelen48=480;
-	const int framelen16=160;
-	int32_t tmp[framelen48 + 256] = { 0 };
+	// make this depend on the required framelength for VAD
+	const int framelen16 = vad->getRequiredFrameLength();
+	const int framelen48 = framelen16 * 3;
 	int16_t buf[framelen16];
-
+	
+	// leftover data buffer should not be bigger than one audio frame
+	leftOverData = new char[framelen48 * 2];
+	
 	// whisper init
 	cparams = whisper_context_default_params();
 	
@@ -290,10 +321,7 @@ void VoskRecognizer::workerThreadFunc(void)
 
 	pcmf32.clear();
 	
-	WebRtcSpl_ResetResample48khzTo16khz(&m_resamplestate_48_to_16);
-
 	m_recoState = VoskRecognizerState::INIT;
-	
 	
 	///////////////////////
 	
@@ -325,10 +353,9 @@ void VoskRecognizer::workerThreadFunc(void)
 				data += useLen;
 				length -= useLen;
 				leftOverDataLen = 0;
+				
+				resample->resample((const int16_t*)leftOverData, buf, framelen48);
 		
-				WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
-		  
-				// TODO we could remove all leftover handling from VAD
 				status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
 			
 				if (status == -1)
@@ -360,9 +387,9 @@ void VoskRecognizer::workerThreadFunc(void)
 				{
 					uttStatus = vad->getUtteranceStatus();
 					
-					std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk = vad->getNextChunk();
+					std::unique_ptr<VADFrame> chunk = vad->getNextChunk();
 					
-					pcmf32.insert(pcmf32.cend(), std::begin(chunk->fSamples), std::end(chunk->fSamples));
+					pcmf32.insert(pcmf32.cend(), chunk->fSamples, chunk->fSamples + chunk->m_numberSamples);
 					
 					audioLogger->addChunk(std::move(chunk));
 					
@@ -402,7 +429,9 @@ void VoskRecognizer::workerThreadFunc(void)
 	
 	promoteToFinalResult();
 	pcmf32.clear();
-			
+
+	delete[] leftOverData;
+	
 	////////////////////////
 
 	whisper_free(ctx);
@@ -533,6 +562,12 @@ std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
     finalResultMutex.unlock();
     
 	return res;
+}
+
+//////////////////////////////////////////////
+int VoskRecognizer::getFrameResolution(void)
+{
+	return vad->getFrameTimeMs();
 }
 
 //////////////////////////////////////////////

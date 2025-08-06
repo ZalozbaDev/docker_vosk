@@ -31,7 +31,7 @@ AudioLogger::~AudioLogger(void)
 }
 
 //////////////////////////////////////////////
-void AudioLogger::addChunk(std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk)
+void AudioLogger::addChunk(std::unique_ptr<VADFrame> chunk)
 {
 	if (m_active == true)
 	{
@@ -75,9 +75,9 @@ void AudioLogger::flush(std::string resultText)
 					
 					while ((chunks.size() > 0) && (isGood == true))
 					{
-						std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk = std::move(chunks.front());
+						std::unique_ptr<VADFrame> chunk = std::move(chunks.front());
 						chunks.pop_front();
-						audioStream.write((const char*) chunk->samples, sizeof(chunk->samples));
+						audioStream.write((const char*) chunk->samples, (chunk->m_numberSamples * sizeof(short)));
 						
 						isGood = audioStream.good();
 					}

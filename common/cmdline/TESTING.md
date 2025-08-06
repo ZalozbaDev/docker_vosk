@@ -45,6 +45,13 @@ diff testdata/0002_poswjecenje_vadaggr_1.srt testresults/subtitles.srt
 ## whisper tests
 
 ```code
-LD_LIBRARY_PATH=./whisper_out/ ./whisper_out/whisper_main ~/whisper_models/Korla/whisper_large_v3_turbo_hsb/ggml-model.bin testdata/0001_citanje.wav testresults/ 2
+LD_LIBRARY_PATH=./whisper_out/:./onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main ~/whisper_models/Korla/whisper_large_v3_turbo_hsb/ggml-model.bin testdata/0001_citanje.wav testresults/ 2
+diff testdata/0001_citanje_vadaggr_2_whisper.srt testresults/subtitles.srt
+```
+
+## VAD test
+
+```code
+LD_LIBRARY_PATH=./whisper_out/:./onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main ~/whisper_models/Korla/whisper_large_v3_turbo_hsb/ggml-model.bin testdata/0001_citanje.wav testresults/ 2 auto -1 False Silero 
 diff testdata/0001_citanje_vadaggr_2_whisper.srt testresults/subtitles.srt
 ```

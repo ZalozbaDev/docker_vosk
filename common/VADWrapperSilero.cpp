@@ -1,5 +1,5 @@
 
-#include <VADWrapper.h>
+#include <VADWrapperSilero.h>
 
 #include <iostream>
 
@@ -8,43 +8,26 @@
 
 #include <chrono>
 
+// define the memory for the constant
+const unsigned int VADWrapperSilero::nrVADSamples;
+
 //////////////////////////////////////////////
-VADWrapper::VADWrapper(int aggressiveness, size_t frequencyHz, unsigned int audioPreBufferFrames,
+VADWrapperSilero::VADWrapperSilero(size_t frequencyHz, const std::string model_path, unsigned int audioPreBufferFrames,
 	unsigned int audioPostBufferFrames, unsigned int vadHystheresisFramesOn, unsigned int vadHystheresisFramesOff) :
 	m_audioPreBufferFrames(audioPreBufferFrames), m_audioPostBufferFrames(audioPostBufferFrames), 
 	m_vadHystheresisFramesOn(vadHystheresisFramesOn), m_vadHystheresisFramesOff(vadHystheresisFramesOff)
 {
-	int status;
-	
-	rtcVadInst = WebRtcVad_Create();
-	
-	status = WebRtcVad_Init(rtcVadInst);
-	if (status != 0)
-	{
-		std::cout << "WebRtcVad_Init not successful!" << std::endl;
-	}
-	
-	status = WebRtcVad_set_mode(rtcVadInst, aggressiveness);
-	if (status != 0)
-	{
-		std::cout << "WebRtcVad_set_mode not successful!" << std::endl;
-	}
-	
-	status = WebRtcVad_ValidRateAndFrameLength(frequencyHz, nrVADSamples);
-	if (status != 0)
-	{
-		std::cout << "Invalid combination of sample rate and number of samples!" << std::endl;	
-	}
+	sileroVadInst = new VadIterator(model_path);
 	
 	state = VADWrapperState::IDLE;
 }
 
 //////////////////////////////////////////////
-VADWrapper::~VADWrapper(void)
+VADWrapperSilero::~VADWrapperSilero(void)
 {
 	chunks.clear();
 	
-	WebRtcVad_Free(rtcVadInst);
+	delete sileroVadInst;
 }
 
 //////////////////////////////////////////////
@@ -53,43 +36,37 @@ VADWrapper::~VADWrapper(void)
 // all data is VAD analyzed and stored in the "chunks" vector
 //
 //////////////////////////////////////////////
-int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime)
+int VADWrapperSilero::process(int samplingFrequency, const int16_t* audio_frame, size_t frame_length, std::uint64_t frameCtr, std::chrono::time_point<std::chrono::system_clock> frameTime)
 {
-	int result, retVal;
+	int retVal;
 	
 	// leftover samples handling done at upper layer, can assume one full frame per call
 	assert(frame_length == nrVADSamples);
 	
 	retVal = 0;
 
-	std::unique_ptr<VADFrame<nrVADSamples>> chunk = std::make_unique<VADFrame<nrVADSamples>>();
+	std::unique_ptr<VADFrame> chunk = std::make_unique<VADFrame>(nrVADSamples);
 
 	chunk->currFrameCtr  = frameCtr;
 	chunk->currFrameTime = frameTime; 
 		
-	memcpy(chunk->samples, audio_frame, sizeof(chunk->samples));
+	memcpy(chunk->samples, audio_frame, (chunk->m_numberSamples * sizeof(short)));
 
-	// actual VAD processing
-	result = WebRtcVad_Process(rtcVadInst, samplingFrequency, chunk->samples, nrVADSamples);
-		
-	if (result == -1)
-	{
-		std::cout << "Error processing VAD data!" << std::endl;
-		retVal = -1;
-	}
-		
-	// 1 == active, 0 == not active, -1 == error
-	chunk->state = (result == 1) ? VADState::ACTIVE : VADState::OFF;
-
-#ifdef VAD_FRAME_CONVERT_FLOAT	
-	// we need to convert every frame to float for whisper
-	// because we dont know which range is used for recognition
+	// we need to convert every frame to float already for VAD
+	// it does not matter what is used for actual recognition
 	for (unsigned int tmp = 0; tmp < nrVADSamples; tmp++)
 	{
 		chunk->fSamples[tmp] = (float) (((double) chunk->samples[tmp]) / 32768.0); 
 	}
-#endif		
 		
+	const std::vector<float> chunkToPredict(&chunk->fSamples[0], &chunk->fSamples[nrVADSamples]);
+	
+	// actual VAD processing
+	sileroVadInst->predict(chunkToPredict);
+		
+	// 1 == active, 0 == not active, -1 == error
+	chunk->state = (sileroVadInst->getTriggered() == true) ? VADState::ACTIVE : VADState::OFF;
+
 	chunks.push_back(std::move(chunk));
 	
 	return retVal;
@@ -103,7 +80,7 @@ int VADWrapper::process(int samplingFrequency, const int16_t* audio_frame, size_
 // returns true if there is no data to fetch for recognition
 //
 //////////////////////////////////////////////
-bool VADWrapper::analyze(bool hintShortAudio)
+bool VADWrapperSilero::analyze(bool hintShortAudio)
 {
 	switch (state)
 	{
@@ -131,7 +108,7 @@ bool VADWrapper::analyze(bool hintShortAudio)
 }
 
 //////////////////////////////////////////////
-unsigned int VADWrapper::getAvailableChunks(void)
+unsigned int VADWrapperSilero::getAvailableChunks(void)
 {
 	switch (state)
 	{
@@ -185,7 +162,7 @@ unsigned int VADWrapper::getAvailableChunks(void)
 }
 
 //////////////////////////////////////////////
-bool VADWrapper::findUtteranceStart(void)
+bool VADWrapperSilero::findUtteranceStart(void)
 {
 	assert(state == VADWrapperState::IDLE);
 	
@@ -342,7 +319,7 @@ bool VADWrapper::findUtteranceStart(void)
 }
 
 //////////////////////////////////////////////
-void VADWrapper::findUtteranceStop(bool hintShortAudio)
+void VADWrapperSilero::findUtteranceStop(bool hintShortAudio)
 {
 	assert(state == VADWrapperState::BUFFERING);
 	
@@ -403,9 +380,9 @@ void VADWrapper::findUtteranceStop(bool hintShortAudio)
 }
 
 //////////////////////////////////////////////
-std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(void)
+std::unique_ptr<VADFrame> VADWrapperSilero::getNextChunk(void)
 {
-	std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk;
+	std::unique_ptr<VADFrame> chunk;
 	
 	assert(state != VADWrapperState::IDLE);
 	assert(chunks.size() > 0);
@@ -436,15 +413,15 @@ std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> VADWrapper::getNextChunk(voi
 		chunk = std::move(chunks.at(m_audioPostBufferFrames - m_bufferedStopChunksCountDown));
 		chunks.erase(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunksCountDown));
 		
-		std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunkCopy = std::make_unique<VADFrame<VADWrapper::nrVADSamples>>();
+		std::unique_ptr<VADFrame> chunkCopy = std::make_unique<VADFrame>(nrVADSamples);
 		
 		chunkCopy->state         = chunk->state;
 		chunkCopy->currFrameCtr  = chunk->currFrameCtr;
 		chunkCopy->currFrameTime = chunk->currFrameTime;
 
-		memcpy(chunkCopy->samples, chunk->samples, sizeof(chunk->samples));
+		memcpy(chunkCopy->samples, chunk->samples, (chunk->m_numberSamples * sizeof(short)));
 #ifdef VAD_FRAME_CONVERT_FLOAT	
-		memcpy(chunkCopy->fSamples, chunk->fSamples, sizeof(chunk->fSamples));
+		memcpy(chunkCopy->fSamples, chunk->fSamples, (chunk->m_numberSamples * sizeof(float)));
 #endif
 
 		chunks.insert(chunks.begin() + (m_audioPostBufferFrames - m_bufferedStopChunksCountDown), std::move(chunkCopy));

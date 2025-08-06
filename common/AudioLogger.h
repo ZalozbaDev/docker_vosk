@@ -15,12 +15,12 @@ public:
 	AudioLogger(std::string logPath, int instanceId);
 	~AudioLogger(void);
 	void activate(void) { m_active = true; }
-	void addChunk(std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk);
+	void addChunk(std::unique_ptr<VADFrame> chunk);
 	void flush(std::string resultText);
 private:
 	int m_instanceId;
 	std::string m_logPath;
-	std::deque<std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>>> chunks;
+	std::deque<std::unique_ptr<VADFrame>> chunks;
 	std::string filename;
 	unsigned long long idx;
 	bool m_active;
