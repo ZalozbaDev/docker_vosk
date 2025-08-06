@@ -17,11 +17,9 @@ extern "C" {
 }
 
 #include <VADWrapper.h>
+#include <Resampler.h>
 #include <RecognitionResult.h>
 #include <AudioLogger.h>
-extern "C" {
-#include "common_audio/signal_processing/include/signal_processing_library.h"
-}
 
 #include <HunspellPostProc.h>
 #include <CustomPostProc.h>
@@ -31,19 +29,23 @@ class VoskRecognizer:public RecognizerBase
 {
 public:
 	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=2);
-	~VoskRecognizer(void);
-	int getInstanceId(void) { return m_instanceId; }
-	int getModelInstanceId(void) { return m_modelInstanceId; }
-	float getSampleRate(void) { return m_inputSampleRate; }
-	void setDetailedResult(bool detailsOn);
+	virtual ~VoskRecognizer(void);
+	
+	virtual int getInstanceId(void)                               override { return m_instanceId; }
+	virtual int getModelInstanceId(void)                          override { return m_modelInstanceId; }
+	virtual float getSampleRate(void)                             override { return m_inputSampleRate; }
+	virtual void setDetailedResult(bool detailsOn)                override;
+	virtual int acceptWaveform(const char *data, int length)      override;
+	virtual bool getRecognizerBusy(bool audioQueueOnly = false)   override;
+	virtual const char* getPartialResult(void)                    override;
+	virtual const char* getFinalResult(void)                      override;
+	virtual bool getPartialStatus(void)                           override;
+	virtual std::unique_ptr<FinalResult> getFinalResultData(void) override;
+	virtual int getFrameResolution(void)                          override;
+
+	// TBD move to base?
 	void setTimeStamp(int64_t seconds, int64_t uSeconds);
-	int acceptWaveform(const char *data, int length);
-	bool getRecognizerBusy(bool audioQueueOnly = false);
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);
-	const char* getPartialResult(void);
-	const char* getFinalResult(void);
-	bool getPartialStatus(void);
-	std::unique_ptr<FinalResult> getFinalResultData(void);
 	
 private:
 	static const ssize_t m_processingSampleRate = 16000;
@@ -106,9 +108,9 @@ private:
 	static void recikts_callback(struct recikts_callback_dat dat, void *userdata);
 	
 	VADWrapper *vad;
+	Resampler  *resample;
 
-	WebRtcSpl_State48khzTo16khz m_resamplestate_48_to_16;
-	char leftOverData[480*2] = {0};
+	char* leftOverData;
 	int leftOverDataLen = 0;
 	
 	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;

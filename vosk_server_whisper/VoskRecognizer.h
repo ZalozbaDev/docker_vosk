@@ -104,18 +104,20 @@ class VoskRecognizer:public RecognizerBase
 public:
 	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=2);
 	virtual ~VoskRecognizer(void);
-	virtual int getInstanceId(void)                             override { return m_instanceId; }
-	virtual int getModelInstanceId(void)                        override { return m_modelInstanceId; }
-	virtual float getSampleRate(void)                           override { return m_inputSampleRate; }
-	virtual void setDetailedResult(bool detailsOn)              override;
-	virtual int acceptWaveform(const char *data, int length)    override;
-	virtual bool getRecognizerBusy(bool audioQueueOnly = false) override;
-	virtual const char* getPartialResult(void)                  override;
-	virtual const char* getFinalResult(void)                    override;
-	virtual bool getPartialStatus(void)                         override;
-	std::unique_ptr<FinalResult> getFinalResultData(void)       override;
-	virtual int getFrameResolution(void)                        override;
+	
+	virtual int getInstanceId(void)                               override { return m_instanceId; }
+	virtual int getModelInstanceId(void)                          override { return m_modelInstanceId; }
+	virtual float getSampleRate(void)                             override { return m_inputSampleRate; }
+	virtual void setDetailedResult(bool detailsOn)                override;
+	virtual int acceptWaveform(const char *data, int length)      override;
+	virtual bool getRecognizerBusy(bool audioQueueOnly = false)   override;
+	virtual const char* getPartialResult(void)                    override;
+	virtual const char* getFinalResult(void)                      override;
+	virtual bool getPartialStatus(void)                           override;
+	virtual std::unique_ptr<FinalResult> getFinalResultData(void) override;
+	virtual int getFrameResolution(void)                          override;
 
+	// TBD move to base?
 	void setTimeStamp(int64_t seconds, int64_t uSeconds);
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);
 	

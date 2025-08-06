@@ -363,8 +363,8 @@ void VoskRecognizer::workerThreadFunc(void)
 					std::cout << "VAD processing error!" << std::endl;	
 				}
 				
-				// every VAD frame covers 10ms of audio
-				arrivalTime += std::chrono::milliseconds(10);
+				// every VAD frame covers a defined amount of audio
+				arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
 			}
 
 			if (length > 0)

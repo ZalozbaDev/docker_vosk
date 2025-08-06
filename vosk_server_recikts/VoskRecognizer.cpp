@@ -7,8 +7,12 @@
 #include <string.h>
 #include <dlfcn.h>
 
-#include <cassert>
+#include <VADWrapperWebRTC.h>
+#include <VADWrapperSilero.h>
+#include <ResamplerWebRTC_48_16.h>
+#include <ResamplerLibResample_48_16.h>
 
+#include <cassert>
 #include <regex>
 
 #ifndef PREFIX
@@ -44,17 +48,6 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	
 	m_configPath = std::string(configPath);
 	
-//	status = cfgikts_load(configPath, &recikts_cfg);
-//	checkRecognizerError(status, "cfgikts_load");
-	
-//	status = recikts_start(recikts_cfg);
-//	checkRecognizerError(status, "recikts_start");
-
-    // init static parts already here
-
-    vad = new VADWrapper(aggressiveness, m_processingSampleRate, 5, 5, 5, 5);
-	m_vadFrameCounter = 0;
-    
     audioLogger = new AudioLogger(std::string(PREFIX "logs/"), m_instanceId);
     
     if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
@@ -84,6 +77,30 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     }
     cpp = new CustomPostProc(true, replacement_file, true);
     
+    // makes sense to tie the resampler to the VAD algo used - not all combinations are possible anyway
+    if (const char *env_p = std::getenv("VOSK_VAD_ALGO"))
+    {
+        if (strcasecmp(env_p, "Silero") == 0)
+        {
+        	std::cout << "ENV setting VAD algo to Silero." << std::endl;
+        	resample = new ResamplerLibResample_48_16();
+        	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
+        }
+        else
+        {
+        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
+        	resample = new ResamplerWebRTC_48_16();
+        	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
+        }
+    }
+    else
+    {
+       	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
+       	resample = new ResamplerWebRTC_48_16();
+    	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);	
+    }
+	m_vadFrameCounter = 0;
+	    
     threadRunning = true;
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
     
@@ -117,6 +134,7 @@ VoskRecognizer::~VoskRecognizer(void)
 	unloadLibrary();
 	
 	delete(vad);
+	delete(resample);
 	
 	partialResult.clear();
 	finalResults.clear();
@@ -337,10 +355,14 @@ void VoskRecognizer::workerThreadFunc(void)
 	int status;
 	bool noMoreData;
 
-	const int framelen48=480;
-	const int framelen16=160;
-	int32_t tmp[framelen48 + 256] = { 0 };
+	// splitting audio into chunks & resampling to 16kHz
+	// make this depend on the required framelength for VAD
+	const int framelen16 = vad->getRequiredFrameLength();
+	const int framelen48 = framelen16 * 3;
 	int16_t buf[framelen16];
+	
+	// leftover data buffer should not be bigger than one audio frame
+	leftOverData = new char[framelen48 * 2];
 	
 	initStatus = cfgikts_load(m_configPath.c_str(), &recikts_cfg);
 	checkRecognizerError(initStatus, "cfgikts_load");
@@ -348,9 +370,9 @@ void VoskRecognizer::workerThreadFunc(void)
 	initStatus = recikts_start(recikts_cfg);
 	checkRecognizerError(initStatus, "recikts_start");
 		
-	WebRtcSpl_ResetResample48khzTo16khz(&m_resamplestate_48_to_16);
-
 	m_recoState = VoskRecognizerState::INIT;
+	
+	///////////////////////
 	
 	std::cout << "RECO_THREAD cfg load OK" << std::endl;
 
@@ -381,7 +403,7 @@ void VoskRecognizer::workerThreadFunc(void)
 				length -= useLen;
 				leftOverDataLen = 0;
 		
-				WebRtcSpl_Resample48khzTo16khz((const int16_t*)leftOverData,buf,&m_resamplestate_48_to_16,tmp);
+				resample->resample((const int16_t*)leftOverData, buf, framelen48);
 		  
 				// TODO we could remove all leftover handling from VAD
 				status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
@@ -391,8 +413,8 @@ void VoskRecognizer::workerThreadFunc(void)
 					std::cout << "VAD processing error!" << std::endl;	
 				}
 				
-				// every VAD frame covers 10ms of audio
-				arrivalTime += std::chrono::milliseconds(10);
+				// every VAD frame covers a defined amount of audio
+				arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
 			}
 		
 			if (length > 0)
@@ -417,10 +439,10 @@ void VoskRecognizer::workerThreadFunc(void)
 				{
 					uttStatus = vad->getUtteranceStatus();
 					
-					std::unique_ptr<VADFrame<VADWrapper::nrVADSamples>> chunk = vad->getNextChunk();
+					std::unique_ptr<VADFrame> chunk = vad->getNextChunk();
 					
-					status = recikts_audio(chunk->samples, VADWrapper::nrVADSamples);
-							checkRecognizerError(status, "recikts_audio");
+					status = recikts_audio(chunk->samples, chunk->m_numberSamples);
+					checkRecognizerError(status, "recikts_audio");
 					
 					audioLogger->addChunk(std::move(chunk));
 					
@@ -467,6 +489,8 @@ void VoskRecognizer::workerThreadFunc(void)
 		
 	promoteToFinalResult();
 	
+	delete[] leftOverData;
+
     initStatus = recikts_stop();
     checkRecognizerError(initStatus, "recikts_stop");
                 
@@ -597,6 +621,12 @@ std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
     finalResultMutex.unlock();
     
 	return res;
+}
+
+//////////////////////////////////////////////
+int VoskRecognizer::getFrameResolution(void)
+{
+	return vad->getFrameTimeMs();
 }
 
 //////////////////////////////////////////////
