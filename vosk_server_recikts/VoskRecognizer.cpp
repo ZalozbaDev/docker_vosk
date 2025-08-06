@@ -90,14 +90,14 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
         {
         	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
         	resample = new ResamplerWebRTC_48_16();
-        	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
+        	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 5, 5, 5, 5);
         }
     }
     else
     {
        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
        	resample = new ResamplerWebRTC_48_16();
-    	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);	
+    	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 5, 5, 5, 5);	
     }
 	m_vadFrameCounter = 0;
 	    
