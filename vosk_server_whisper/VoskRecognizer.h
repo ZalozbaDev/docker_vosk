@@ -16,17 +16,10 @@ extern "C" {
 #include "vosk_api.h"
 }
 
-#include <VADWrapperWebRTC.h>
-#include <VADWrapperSilero.h>
+#include <VADWrapper.h>
+#include <Resampler.h>
 #include <RecognitionResult.h>
 #include <AudioLogger.h>
-#ifndef SIGNAL_PROCESSING_MOCK
-extern "C" {
-#include "common_audio/signal_processing/include/signal_processing_library.h"
-}
-#else
-#include "signal_processing_mock.h"
-#endif
 
 #ifndef WHISPER_MOCK
 #include "whisper.h"
@@ -160,9 +153,9 @@ private:
 	static const unsigned int pcm_buffer_max   = WHISPER_SAMPLE_RATE * 29; // 29s, do not let audio grow past this value
 	
 	VADWrapper *vad;
+	Resampler  *resample;
 	
-	WebRtcSpl_State48khzTo16khz m_resamplestate_48_to_16;
-	char leftOverData[480*2] = {0};
+	char* leftOverData;
 	int leftOverDataLen = 0;
 	
 	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
