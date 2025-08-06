@@ -123,7 +123,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     {
         if (strcasecmp(env_p, "Silero") == 0)
         {
-        	std::cout << "ENV setting VAD algo to silero." << std::endl;
+        	std::cout << "ENV setting VAD algo to Silero." << std::endl;
         	resample = new ResamplerLibResample_48_16();
         	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
         }

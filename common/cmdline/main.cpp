@@ -18,10 +18,11 @@
 #define LOG_BUFFER_LEN 32768
 
 static std::string to_timestamp(int frameResolutionMs, uint64_t t) {
-
-	// one VAD frame == 10ms
+ 
+    // one VAD frame is how many ms? 
     uint64_t msec = t * frameResolutionMs;
-    
+     
+     
     // compute hour and remember fraction of ms
     uint64_t hr = msec / (1000 * 60 * 60);
     msec = msec - hr * (1000 * 60 * 60);
@@ -59,7 +60,7 @@ int main(int argc, char **argv)
 	
 	if (argc < 4)
 	{
-		std::cout << "Error! Need to specify at least model path, .wav file and destination path! [vad_aggressiveness] [whisper_lang] [whisper_max_ctx] [whisper_no_timestamps]" << std::endl;
+		std::cout << "Error! Need to specify at least model path, .wav file and destination path! [vad_aggressiveness] [whisper_lang] [whisper_max_ctx] [whisper_no_timestamps] [WebRTC|Silero]" << std::endl;
 		std::cout << "Example: ./main ./model/data/merged_47_nnet_v3.cfg ./testdata/0001_citanje.wav testresults/" << std::endl;
 		std::cout << "Example: ./main ./model/data/merged_47_nnet_v3.cfg ./testdata/0001_citanje.wav testresults/ 2" << std::endl;
 		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true" << std::endl;
@@ -93,6 +94,10 @@ int main(int argc, char **argv)
 	if (argc >= 8)
 	{
 		setenv("VOSK_WHISPER_DISABLE_TIMESTAMPS", argv[7], 1);
+	}
+	if (argc >= 9)
+	{
+		setenv("VOSK_VAD_ALGO", argv[8], 1);
 	}
 	
 	file = SndfileHandle(argv[2]) ;
