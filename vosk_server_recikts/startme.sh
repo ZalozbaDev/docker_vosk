@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LD_LIBRARY_PATH=/data/ /recikts_server 0.0.0.0 2700 1 ${MODEL_PATH_FULL}
+LD_LIBRARY_PATH=/data/:/onnxruntime-linux-x64-1.12.1/lib/ /recikts_server 0.0.0.0 2700 1 ${MODEL_PATH_FULL}
 
 # export LD_LIBRARY_PATH=/data/
 # export VOSK_SAMPLE_RATE=48000

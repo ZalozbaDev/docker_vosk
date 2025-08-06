@@ -11,6 +11,9 @@ services:
             - MODEL_PATH_FULL
             - VOSK_SHOW_WORDS
             - VOSK_SUBWORD_REGEX
+            - VOSK_REPLACEMENT_FILE
+            - VOSK_VAD_ALGO
         volumes:
             - ./data:/data
             - ./logs:/logs
+            - ./model:/model

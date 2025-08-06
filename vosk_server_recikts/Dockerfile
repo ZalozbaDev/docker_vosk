@@ -47,38 +47,39 @@ RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -
 #RUN wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
 #  && tar xzf boost_1_76_0.tar.gz
 # alternative: use the debian packages, reduces external dependencies
-RUN apt install -y libboost-all-dev libhunspell-dev libicu-dev gdb
+RUN apt install -y libboost-all-dev libhunspell-dev libicu-dev libresample1-dev gdb 
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
 RUN cd vosk-api && git checkout dabe784434fd44e00b6b4d95598649495a854e23
 
-RUN touch abcde
-
 # get VOSK server implementation
 RUN git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
 RUN cd vosk-server && git checkout b909a48e9701fe5440902d5eea69bd6e512f4a6e
 
+# get ONNX runtime (for Silero)
+RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.12.1/onnxruntime-linux-x64-1.12.1.tgz
+RUN tar xvfz onnxruntime-linux-x64-1.12.1.tgz
+
 RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /
 
-COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognizerBase.cpp \
-common/RecognizerBase.h common/RecognitionResult.h  common/VADFrame.h  \
-common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp \
-common/HunspellPostProc.h common/HunspellPostProc.cpp common/CustomPostProc.cpp \
-common/CustomPostProc.h /
+COPY common/*.cpp  common/*.h /
 COPY vosk_server_recikts/recikts.h vosk_server_recikts/VoskRecognizer.cpp vosk_server_recikts/VoskRecognizer.h /
 
 RUN mkdir -p /data/
 
 RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -o recikts_server -I. \
+-DVAD_FRAME_CONVERT_FLOAT \
 -I/webrtc-audio-processing/webrtc/ -DPREFIX=\"/data/\" \
-asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapper.cpp AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
+-I/onnxruntime-linux-x64-1.12.1/include/ \
+asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
+ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--ldl -lpthread -lhunspell -licuio -licuuc
+-ldl -lpthread -lhunspell -licuio -licuuc -lonnxruntime -lresample -L/onnxruntime-linux-x64-1.12.1/lib/
 # -I/boost_1_76_0/ 
 
-RUN mkdir -p /logs/
+RUN mkdir -p /logs/ /model/
 
 ############################################
 # Vosk server startup script
