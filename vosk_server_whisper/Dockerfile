@@ -108,8 +108,7 @@ ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -lpthread -lhunspell  -licuio -licuuc -lonnxruntime -lresample -lwhisper -lggml -lggml-cpu -lggml-base -L/ -L/onnxruntime-linux-x64-1.12.1/lib/ 
 
-RUN mkdir -p /logs/
-RUN mkdir -p /whisper/
+RUN mkdir -p /logs/ /whisper/ /model/
 
 ############################################
 # Vosk server startup script
