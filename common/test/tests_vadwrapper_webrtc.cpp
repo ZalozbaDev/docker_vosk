@@ -1325,10 +1325,10 @@ TEST_CASE("test handling with empty buffer")
 		
 TEST_CASE("test different values for buffering and hysteresis")
 {
-	unsigned int audioPreBufferFrames  = 5;
-	unsigned int audioPostBufferFrames = 5; 
-	unsigned int vadHystheresisFramesOn = 2;
-	unsigned int vadHystheresisFramesOff = 2;
+	unsigned int audioPreBufferFrames  = 2;
+	unsigned int audioPostBufferFrames = 2; 
+	unsigned int vadHystheresisFramesOn = 1;
+	unsigned int vadHystheresisFramesOff = 1;
 	int vad_aggressiveness = 3;
 	
 	VADWrapperWebRTC wrapper(vad_aggressiveness, 16000, audioPreBufferFrames, audioPostBufferFrames, vadHystheresisFramesOn, vadHystheresisFramesOff);
