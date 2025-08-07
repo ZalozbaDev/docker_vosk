@@ -11,6 +11,7 @@ HunspellPostProc::HunspellPostProc(std::string aff, std::string dic, std::string
 	if ((aff.length() < 1) || (dic.length() < 1))
 	{
 		std::cout << "No valid hunspell data --> passthrough mode!" << std::endl;
+		hsp = nullptr;
 		passThrough = true;
 	}
 	else
@@ -24,7 +25,10 @@ HunspellPostProc::HunspellPostProc(std::string aff, std::string dic, std::string
 //////////////////////////////////////////////
 HunspellPostProc::~HunspellPostProc(void)
 {
-	delete(hsp);
+	if (hsp != nullptr)
+	{
+		delete(hsp);
+	}
 }
 
 //////////////////////////////////////////////
