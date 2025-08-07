@@ -58,7 +58,7 @@ RUN apt install -y nvidia-utils-535-server=$NVIDIA_DRIVER_PACKAGE_VERSION_STRING
 # get boost source code for some boost header files 
 #RUN wget -q https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
 #  && tar xzf boost_1_76_0.tar.gz
-RUN apt install -y libboost-all-dev
+RUN apt install -y libboost-all-dev libhunspell-dev  libicu-dev libresample1-dev gdb
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
@@ -67,6 +67,10 @@ RUN cd vosk-api && git checkout 1053cfa0f80039d2956de7e05a05c0b8db90c3c0
 # get VOSK server implementation
 RUN git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
 RUN cd vosk-server && git checkout 21147c33e383f45b942846c9f713789d8bca41d1
+
+# get ONNX runtime (for Silero)
+RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.12.1/onnxruntime-linux-x64-1.12.1.tgz
+RUN tar xvfz onnxruntime-linux-x64-1.12.1.tgz
 
 RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /
@@ -83,13 +87,7 @@ RUN cd whisper.cpp && git checkout v1.7.4
 # TBD how to specify???
 RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=$WHISPER_CPP_CUDA_ARCHITECTURES && cmake --build build -j --config Release
 
-RUN apt install -y libhunspell-dev  libicu-dev
-
-COPY common/AudioLogger.cpp  common/AudioLogger.h  common/RecognizerBase.cpp \
-common/RecognizerBase.h common/RecognitionResult.h  common/VADFrame.h  \
-common/VADWrapper.cpp  common/VADWrapper.h  common/vosk_api_wrapper.cpp \
-common/HunspellPostProc.h common/HunspellPostProc.cpp common/CustomPostProc.cpp \
-common/CustomPostProc.h /
+COPY common/*.cpp  common/*.h /
 COPY vosk_server_whisper/VoskRecognizer.cpp vosk_server_whisper/VoskRecognizer.h /
 
 # RUN find /whisper.cpp/ -name "*.o"
@@ -104,14 +102,14 @@ RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
 -pthread -fopenmp -fPIC -march=native -mtune=native \ 
 -DVAD_FRAME_CONVERT_FLOAT \
 -I. -I/whisper.cpp/ -I/whisper.cpp/examples/ -I/whisper.cpp/include/ -I/whisper.cpp/ggml/include/ -I/webrtc-audio-processing/webrtc/ \
-asr_server.cpp VoskRecognizer.cpp VADWrapper.cpp vosk_api_wrapper.cpp AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
+-I/onnxruntime-linux-x64-1.12.1/include/ \
+asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
+ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
--lpthread -lhunspell  -licuio -licuuc -lwhisper -lggml -lggml-cpu -lggml-base -L/
+-lpthread -lhunspell  -licuio -licuuc -lonnxruntime -lresample -lwhisper -lggml -lggml-cpu -lggml-base -L/ -L/onnxruntime-linux-x64-1.12.1/lib/ 
 
 RUN mkdir -p /logs/
 RUN mkdir -p /whisper/
-
-RUN apt install -y gdb
 
 ############################################
 # Vosk server startup script
