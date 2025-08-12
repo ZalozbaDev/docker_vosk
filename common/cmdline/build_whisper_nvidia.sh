@@ -9,6 +9,9 @@
 
 # cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -C build
 
+# wget https://github.com/microsoft/onnxruntime/releases/download/v1.12.1/onnxruntime-linux-x64-1.12.1.tgz
+# tar xvfz onnxruntime-linux-x64-1.12.1.tgz
+
 
 
 # git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
