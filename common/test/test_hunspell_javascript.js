@@ -14,6 +14,17 @@ spellchecker.use(DICT);
 
 // Check a word
 var isRight = spellchecker.check("jedyn");
+console.log("jedyn: " + isRight)
 
-console.log("Right: " + isRight)
+var isRight = spellchecker.check("dwaj");
+console.log("dwaj: " + isRight)
+
+var isRight = spellchecker.check("ławka");
+console.log("ławka: " + isRight)
+
+var isRight = spellchecker.check("překłapjenje");
+console.log("překłapjenje: " + isRight)
+
+var isRight = spellchecker.check("překwapjenje");
+console.log("překwapjenje: " + isRight)
 
