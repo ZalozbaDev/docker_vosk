@@ -22,3 +22,10 @@ TRANSCRIPTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.srt/')
 echo "Writing transcript file $TRANSCRIPTFILE"
 
 mv tmpoutdir/subtitles.srt $TRANSCRIPTFILE
+
+TEXTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.txt/')
+
+echo "Writing transcript file $TEXTFILE"
+
+mv tmpoutdir/transcript.txt $TEXTFILE
+
