@@ -18,15 +18,9 @@ LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisp
 tmp_audio_stripped_resampled.wav \
 tmpoutdir/ 2 auto 0 false WebRTC $CONF
 
-TRANSCRIPTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.filt\.srt/')
+TRANSCRIPTFILE=$(echo $INPUTFILE | sed "s/\.[^./]\{3\}$/-${CONF}\.srt/")
 
 echo "Writing transcript file $TRANSCRIPTFILE"
 
 mv tmpoutdir/subtitles.srt $TRANSCRIPTFILE
-
-TEXTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.txt/')
-
-echo "Writing transcript file $TEXTFILE"
-
-mv tmpoutdir/transcript.txt $TEXTFILE
 

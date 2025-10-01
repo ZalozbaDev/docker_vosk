@@ -43,6 +43,32 @@ static std::string to_timestamp(int frameResolutionMs, uint64_t t) {
     return std::string(buf);
 }
 
+static int subtitle_index = 1;
+
+static void process_subtitle(std::unique_ptr<FinalResult> res, std::ofstream& transcript, std::ofstream& subtitles, float confidenceThreshold, int frameResolutionMs)
+{
+	if (res->text.length() > 0)
+	{
+		if (res->confidence > confidenceThreshold)
+		{
+		
+			transcript << res->text << std::endl;
+			
+			subtitles << subtitle_index << std::endl;
+			subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
+			subtitles << res->text << std::endl;
+			subtitles << std::endl;
+			subtitle_index++;
+			
+			std::cout << res->text << std::endl;
+		}
+		else
+		{
+			std::cout << "#### Skipping line with bad confidence " << res->confidence << ": " << res->text << std::endl;
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	SndfileHandle file;
@@ -54,7 +80,6 @@ int main(int argc, char **argv)
 	sf_count_t size;
 	sf_count_t index;
 	// int logsize;
-	int subtitle_index;
 	int vad_aggressiveness = 2;
 	int frameResolutionMs;
 	float confidenceThreshold = -10000.0f;
@@ -155,7 +180,6 @@ int main(int argc, char **argv)
 	subtitles.open(std::string(argv[3]) + "/subtitles.srt", std::ios::out | std::ios::trunc);
 	
 	index = 0;
-	subtitle_index = 1;
 	while (index < size)
 	{
 		int res;
@@ -184,24 +208,7 @@ int main(int argc, char **argv)
 		else
 		{
 			std::unique_ptr<FinalResult> res = v.getFinalResultData();
-			
-			if (res->confidence > confidenceThreshold)
-			{
-			
-				transcript << res->text << std::endl;
-				
-				subtitles << subtitle_index << std::endl;
-				subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
-				subtitles << res->text << std::endl;
-				subtitles << std::endl;
-				subtitle_index++;
-				
-				std::cout << res->text << std::endl;
-			}
-			else
-			{
-				std::cout << "Skipping line with bad confidence " << res->confidence << ": " << res->text << std::endl;
-			}
+			process_subtitle(std::move(res), transcript, subtitles, confidenceThreshold, frameResolutionMs);
 		}
 
 		/*
@@ -226,20 +233,8 @@ int main(int argc, char **argv)
 	while (v.getRecognizerBusy(false) == true)
 	{
 		std::unique_ptr<FinalResult> res = v.getFinalResultData();
+		process_subtitle(std::move(res), transcript, subtitles, confidenceThreshold, frameResolutionMs);
 		
-		if (res->text.length() > 0)
-		{
-			transcript << res->text << std::endl;
-			
-			subtitles << subtitle_index << std::endl;
-			subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
-			subtitles << res->text << std::endl;
-			subtitles << std::endl;
-			subtitle_index++;
-			
-			std::cout << res->text << std::endl;
-		}
-
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 	
