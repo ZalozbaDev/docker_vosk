@@ -574,6 +574,7 @@ int VoskRecognizer::getFrameResolution(void)
 void VoskRecognizer::promoteToFinalResult(void)
 {
 	std::string finalResult;
+	float confidence = 0.0f;
 	
 	partialResultMutex.lock();
 	
@@ -586,9 +587,11 @@ void VoskRecognizer::promoteToFinalResult(void)
 			{
 				finalResult += " ";
 			}
+			confidence += partialResult[i]->m_negLogLikelihood;
 		}
+		confidence = confidence / ((float) partialResult.size());
 		
-		std::cout << "Promoting partial result to final: " << finalResult << std::endl;
+		std::cout << "Promoting partial result to final: " << finalResult << ", confidence = " << confidence << std::endl;
 		
 		std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
 		
@@ -616,6 +619,7 @@ void VoskRecognizer::promoteToFinalResult(void)
 		res->uStartTimeMs = vad->getUtteranceStartMs();
 		res->uStopTime    = vad->getUtteranceStop();
 		res->uStopTimeMs  = vad->getUtteranceStopMs();
+		res->confidence   = confidence;
 		
 		finalResultMutex.lock();
 		
@@ -723,7 +727,43 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 					t1 = whisper_full_get_segment_t1(ctx, i);
 				}
 				
-				std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, 1.0f);
+				std::vector<float> tokenProbs;
+				const int n_tokens = whisper_full_n_tokens(ctx, i);
+				// fprintf(stderr,"tokens: %d\n",n_tokens);
+				for (int j = 0; j < n_tokens; j++) {
+					auto token = std::string(whisper_full_get_token_text(ctx, i, j));
+					float probability = whisper_full_get_token_p(ctx, i, j);
+					// std::cout << token << '\t' << probability << std::endl;
+					// fprintf(stderr,"token: %s %f\n",token,probability);
+					
+					// do not use probs from empty tokens and special tokens
+					if (!token.empty() && token.front() != '[' && token.back() != ']')
+					{
+						tokenProbs.push_back(probability);
+					}
+					else
+					{
+						// std::cout << "Excluding token " << token << " from confidence!" << std::endl;	
+					}
+				}
+				
+				// Compute mean
+				float probSum = 0.0f;
+				for (float val : tokenProbs) {
+					probSum += val;
+				}
+				float probMean = probSum / tokenProbs.size();
+
+				// Compute standard deviation
+				float varianceSum = 0.0f;
+				for (float val : tokenProbs) {
+					varianceSum += (val - probMean) * (val - probMean);
+				}
+				float stddev = std::sqrt(varianceSum / tokenProbs.size()); // Population std dev
+				
+				// std::cout << "Sequence confidence: Mean = " << probMean << ", stddev = " << stddev << "." << std::endl;
+				
+				std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, (probMean - stddev));
 				partialResult.push_back(std::move(newResult));
 			}
 		}

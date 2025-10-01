@@ -57,13 +57,16 @@ int main(int argc, char **argv)
 	int subtitle_index;
 	int vad_aggressiveness = 2;
 	int frameResolutionMs;
+	float confidenceThreshold = -10000.0f;
 	
 	if (argc < 4)
 	{
-		std::cout << "Error! Need to specify at least model path, .wav file and destination path! [vad_aggressiveness] [whisper_lang] [whisper_max_ctx] [whisper_no_timestamps] [WebRTC|Silero]" << std::endl;
+		std::cout << "Error! Need to specify at least model path, .wav file and destination path! [vad_aggressiveness] [whisper_lang] [whisper_max_ctx] [whisper_no_timestamps] [WebRTC|Silero] [confidenceThreshold]" << std::endl;
 		std::cout << "Example: ./main ./model/data/merged_47_nnet_v3.cfg ./testdata/0001_citanje.wav testresults/" << std::endl;
 		std::cout << "Example: ./main ./model/data/merged_47_nnet_v3.cfg ./testdata/0001_citanje.wav testresults/ 2" << std::endl;
 		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true" << std::endl;
+		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true Silero" << std::endl;
+		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true Silero 0.9" << std::endl;
 		return 1;
 	}
 	
@@ -98,6 +101,10 @@ int main(int argc, char **argv)
 	if (argc >= 9)
 	{
 		setenv("VOSK_VAD_ALGO", argv[8], 1);
+	}
+	if (argc >= 10)
+	{
+		confidenceThreshold = std::stof(std::string(argv[9]));
 	}
 	
 	file = SndfileHandle(argv[2]) ;
@@ -178,15 +185,23 @@ int main(int argc, char **argv)
 		{
 			std::unique_ptr<FinalResult> res = v.getFinalResultData();
 			
-			transcript << res->text << std::endl;
+			if (res->confidence > confidenceThreshold)
+			{
 			
-			subtitles << subtitle_index << std::endl;
-			subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
-			subtitles << res->text << std::endl;
-			subtitles << std::endl;
-			subtitle_index++;
-			
-			std::cout << res->text << std::endl;	
+				transcript << res->text << std::endl;
+				
+				subtitles << subtitle_index << std::endl;
+				subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
+				subtitles << res->text << std::endl;
+				subtitles << std::endl;
+				subtitle_index++;
+				
+				std::cout << res->text << std::endl;
+			}
+			else
+			{
+				std::cout << "Skipping line with bad confidence " << res->confidence << ": " << res->text << std::endl;
+			}
 		}
 
 		/*

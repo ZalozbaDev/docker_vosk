@@ -19,6 +19,7 @@ public:
     int64_t  uStartTimeMs;
     int64_t  uStopTime;
     int64_t  uStopTimeMs;
+    float    confidence;
 };
 
 class AudioPacket
