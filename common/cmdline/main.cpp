@@ -47,20 +47,32 @@ static int subtitle_index = 1;
 
 static void process_subtitle(std::unique_ptr<FinalResult> res, std::ofstream& transcript, std::ofstream& subtitles, float confidenceThreshold, int frameResolutionMs)
 {
+	// do not process empty text
 	if (res->text.length() > 0)
 	{
+		// do not process text below confidence threshold
 		if (res->confidence > confidenceThreshold)
 		{
-		
-			transcript << res->text << std::endl;
+			uint64_t frameCounterDiff = res->frameCounterEnd - res->frameCounterStart;
+			float frameLenMs = frameResolutionMs * frameCounterDiff;
 			
-			subtitles << subtitle_index << std::endl;
-			subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
-			subtitles << res->text << std::endl;
-			subtitles << std::endl;
-			subtitle_index++;
-			
-			std::cout << res->text << std::endl;
+			// do not process short frames if confidence filter is on (threshold > 0) 
+			if ((confidenceThreshold < 0) || (frameLenMs > 1000.0f))
+			{
+				transcript << res->text << std::endl;
+				
+				subtitles << subtitle_index << std::endl;
+				subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
+				subtitles << res->text << std::endl;
+				subtitles << std::endl;
+				subtitle_index++;
+				
+				std::cout << res->text << std::endl;
+			}
+			else
+			{
+				std::cout << "#### Skipping short line " << frameLenMs << "ms: " << res->text << std::endl;
+			}
 		}
 		else
 		{
