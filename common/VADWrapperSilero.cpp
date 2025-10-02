@@ -433,7 +433,63 @@ std::unique_ptr<VADFrame> VADWrapperSilero::getNextChunk(void)
 		}
 	}
 	
+	// update timing properties in case sbdy needs the current values
+	frameCtrCurr  = chunk->currFrameCtr;
+	timeStampCurr = chunk->currFrameTime;
+	
 	// return the current (copied / moved) chunk
 	return (chunk);
 }
 
+//////////////////////////////////////////////
+std::unique_ptr<VADFrameTiming> VADWrapperSilero::getUtteranceStart(void)
+{
+	std::unique_ptr<VADFrameTiming> startTiming = std::make_unique<VADFrameTiming>();
+	
+	startTiming->valid = false;
+	
+	if (state != VADWrapperState::IDLE)
+	{
+		startTiming->valid = true;
+		
+		startTiming->frameCounter          = frameCtrStart;
+		startTiming->timeStampSeconds      = uStartTime;
+		startTiming->timeStampMilliSeconds = uStartTimeMs;
+	}
+		
+	return startTiming;
+}
+
+//////////////////////////////////////////////
+std::unique_ptr<VADFrameTiming> VADWrapperSilero::getUtteranceStop(void)
+{
+	std::unique_ptr<VADFrameTiming> stopTiming = std::make_unique<VADFrameTiming>();
+	
+	stopTiming->valid = false;
+	
+	if (state == VADWrapperState::POSTBUF)
+	{
+		stopTiming->valid = true;
+		
+		stopTiming->frameCounter          = frameCtrStop;
+		stopTiming->timeStampSeconds      = uStopTime;
+		stopTiming->timeStampMilliSeconds = uStopTimeMs;
+	}
+		
+	return stopTiming;
+}
+
+//////////////////////////////////////////////
+std::unique_ptr<VADFrameTiming> VADWrapperSilero::getUtteranceCurr(void)
+{
+	std::unique_ptr<VADFrameTiming> currTiming = std::make_unique<VADFrameTiming>();
+	
+	currTiming->valid = true;
+	
+	currTiming->frameCounter = frameCtrCurr;
+	
+	currTiming->timeStampSeconds      = std::chrono::duration_cast<std::chrono::seconds>(timeStampCurr.time_since_epoch()).count();
+	currTiming->timeStampMilliSeconds = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampCurr.time_since_epoch()).count() - (currTiming->timeStampSeconds * 1000);
+		
+	return currTiming;
+}

@@ -320,7 +320,8 @@ void VoskRecognizer::workerThreadFunc(void)
 	ctx = whisper_init_from_file_with_params(m_configPath.c_str(), cparams);
 
 	pcmf32.clear();
-	
+	pcmBufferFragmented = false;
+		
 	m_recoState = VoskRecognizerState::INIT;
 	
 	///////////////////////
@@ -380,12 +381,24 @@ void VoskRecognizer::workerThreadFunc(void)
 				unsigned int availableChunks = vad->getAvailableChunks();
 				VADWrapperState uttStatus;
 				bool detectedUttFinished = false;
-				
+				std::unique_ptr<VADFrameTiming> currStart;
+				std::unique_ptr<VADFrameTiming> currStop;
+								
 				assert(availableChunks > 0);
 				
 				while (availableChunks > 0)
 				{
 					uttStatus = vad->getUtteranceStatus();
+					
+					// get the utterance start and stop properties from VAD wrapper
+					if ((currStart->valid == false) && (uttStatus != VADWrapperState::IDLE))
+					{
+						currStart = vad->getUtteranceStart();
+					}
+					if ((currStop->valid == false) && (uttStatus != VADWrapperState::POSTBUF))
+					{
+						currStop = vad->getUtteranceStop();
+					}
 					
 					std::unique_ptr<VADFrame> chunk = vad->getNextChunk();
 					
@@ -404,9 +417,60 @@ void VoskRecognizer::workerThreadFunc(void)
 				
 				if ((detectedUttFinished == true) || (pcmf32.size() > pcm_buffer_max))
 				{
+					
 					runWhisper(ctx);
-					promoteToFinalResult();
+					
+					// first audio buffer
+					if (pcmBufferFragmented == false)
+					{
+						if (detectedUttFinished == true)
+						{
+							// normal utterance end 
+							assert(currStart->valid == true);
+							assert(currStop->valid == true);
+							
+							promoteToFinalResult(std::move(currStart), std::move(currStop));
+						}
+						else
+						{
+							// buffer full --> will fragment!
+							assert(currStart->valid == true);
+							currStop = vad->getUtteranceCurr();
+							
+							promoteToFinalResult(std::move(currStart), std::move(currStop));
+							
+							pcmBufferFragmented = true;
+							currFragmentStartTime = std::move(currStop);
+						}
+					}
+					// continued audio buffer
+					else
+					{
+						if (detectedUttFinished == true)
+						{
+							// normal utterance end --> end fragmenting
+							assert(currFragmentStartTime->valid == true);
+							assert(currStop->valid == true);
+							
+							promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
+							
+							pcmBufferFragmented = false;
+							currFragmentStartTime->valid = false;
+						}	
+						else
+						{
+							// continue fragmenting
+							assert(currFragmentStartTime->valid == true);
+							currStop = vad->getUtteranceCurr();
+							
+							promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
+							
+							currFragmentStartTime = std::move(currStop);
+						}
+					}
+					
 					pcmf32.clear();
+					
 				}
 		
 				noMoreData = vad->analyze((pcmf32.size() < pcm_buffer_short) ? true : false);
@@ -427,7 +491,6 @@ void VoskRecognizer::workerThreadFunc(void)
 		}		
 	}
 	
-	promoteToFinalResult();
 	pcmf32.clear();
 
 	delete[] leftOverData;
@@ -571,7 +634,7 @@ int VoskRecognizer::getFrameResolution(void)
 }
 
 //////////////////////////////////////////////
-void VoskRecognizer::promoteToFinalResult(void)
+void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop)
 {
 	std::string finalResult;
 	float confidence = 0.0f;
@@ -612,13 +675,13 @@ void VoskRecognizer::promoteToFinalResult(void)
 				
 		res->text = spellResult;
 		
-		res->frameCounterStart = vad->getUtteranceStartFrameCtr();
-		res->frameCounterEnd   = vad->getUtteranceStopFrameCtr();
+		res->frameCounterStart = currStart->frameCounter;
+		res->frameCounterEnd   = currStop->frameCounter;
 		
-		res->uStartTime   = vad->getUtteranceStart();
-		res->uStartTimeMs = vad->getUtteranceStartMs();
-		res->uStopTime    = vad->getUtteranceStop();
-		res->uStopTimeMs  = vad->getUtteranceStopMs();
+		res->uStartTime   = currStart->timeStampSeconds;
+		res->uStartTimeMs = currStart->timeStampMilliSeconds;
+		res->uStopTime    = currStop->timeStampSeconds;
+		res->uStopTimeMs  = currStop->timeStampMilliSeconds;
 		res->confidence   = confidence;
 		
 		finalResultMutex.lock();

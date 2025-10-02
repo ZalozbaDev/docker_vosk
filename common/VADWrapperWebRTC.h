@@ -39,13 +39,9 @@ public:
 	virtual unsigned int getAvailableChunks(void) override;
 	virtual VADWrapperState getUtteranceStatus(void) override { return state; }
 	virtual std::unique_ptr<VADFrame> getNextChunk(void) override;
-	virtual int64_t getUtteranceStart(void)   override { return uStartTime;   }
-	virtual int64_t getUtteranceStartMs(void) override { return uStartTimeMs; }
-	virtual int64_t getUtteranceStop(void)    override { return uStopTime;    }
-	virtual int64_t getUtteranceStopMs(void)  override { return uStopTimeMs;  }
-	
-	virtual uint64_t getUtteranceStartFrameCtr(void)  override { return frameCtrStart;  }
-	virtual uint64_t getUtteranceStopFrameCtr(void)   override { return frameCtrStop;  }
+	virtual std::unique_ptr<VADFrameTiming> getUtteranceStart(void) override;
+	virtual std::unique_ptr<VADFrameTiming> getUtteranceStop(void) override;
+	virtual std::unique_ptr<VADFrameTiming> getUtteranceCurr(void) override;
 	
 	virtual const int getRequiredFrameLength(void) const override { return nrVADSamples; }
 	
@@ -87,6 +83,10 @@ private:
 	// for cmdline usage
 	std::uint64_t frameCtrStart;
 	std::uint64_t frameCtrStop;
+
+	// for fragmented PCM buffer
+	std::uint64_t frameCtrCurr;
+	std::chrono::time_point<std::chrono::system_clock> timeStampCurr;
 	
 	bool findUtteranceStart(void);
 	void findUtteranceStop(bool hintShortAudio);

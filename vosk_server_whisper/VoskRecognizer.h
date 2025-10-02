@@ -148,7 +148,9 @@ private:
 	const int n_samples_30s  = (1e-3 * 30000.0) * WHISPER_SAMPLE_RATE;
     
 	std::vector<float> pcmf32;
-	
+	bool pcmBufferFragmented;
+	std::unique_ptr<VADFrameTiming> currFragmentStartTime;
+		
 	// 1 second of audio is 16000 samples
 	static const unsigned int pcm_buffer_min   = WHISPER_SAMPLE_RATE * 1 + (WHISPER_SAMPLE_RATE / 100); // < 1 seconds will not work with whisper
 	static const unsigned int pcm_buffer_short = WHISPER_SAMPLE_RATE * 5; // < 5 seconds is short
@@ -173,7 +175,7 @@ private:
 	char finalResultBuffer[1000];
 	bool detailedResults;
 	
-	void promoteToFinalResult(void);
+	void promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop);
 	void runWhisper(struct whisper_context* ctx);
 	
 	AudioLogger *audioLogger;
