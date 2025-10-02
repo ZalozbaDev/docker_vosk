@@ -445,7 +445,7 @@ void VoskRecognizer::workerThreadFunc(void)
 							promoteToFinalResult(std::move(currStart), std::move(currStop));
 							
 							pcmBufferFragmented = true;
-							currFragmentStartTime = std::move(currStop);
+							currFragmentStartTime = vad->getUtteranceCurr();
 						}
 					}
 					// continued audio buffer
