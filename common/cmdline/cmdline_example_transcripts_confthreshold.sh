@@ -16,7 +16,7 @@ sox ./tmp_audio_stripped.wav -r 48000 -c 1 -b 16 ./tmp_audio_stripped_resampled.
 LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main \
 ../../../whisper_models/Korla/whisper_large_v3_turbo_hsb/ggml-model.bin \
 tmp_audio_stripped_resampled.wav \
-tmpoutdir/ 2 auto 0 false WebRTC $CONF
+tmpoutdir/ 2 auto 0 false Silero $CONF
 
 TRANSCRIPTFILE=$(echo $INPUTFILE | sed "s/\.[^./]\{3\}$/-${CONF}\.srt/")
 

@@ -21,6 +21,9 @@
 
 # apt install -y libhunspell-dev  libicu-dev libsndfile1-dev libresample1-dev
 
+# for Silero VAD
+# git clone https://github.com/ZalozbaDev/silero-vad
+# cp -r silero-vad/examples/cpp/model .
 
 rm -rf whisper_out/
 mkdir -p whisper_out/
