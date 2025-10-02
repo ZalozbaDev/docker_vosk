@@ -321,6 +321,7 @@ void VoskRecognizer::workerThreadFunc(void)
 
 	pcmf32.clear();
 	pcmBufferFragmented = false;
+	currFragmentStartTime = std::make_unique<VADFrameTiming>();
 		
 	m_recoState = VoskRecognizerState::INIT;
 	
@@ -381,8 +382,8 @@ void VoskRecognizer::workerThreadFunc(void)
 				unsigned int availableChunks = vad->getAvailableChunks();
 				VADWrapperState uttStatus;
 				bool detectedUttFinished = false;
-				std::unique_ptr<VADFrameTiming> currStart;
-				std::unique_ptr<VADFrameTiming> currStop;
+				std::unique_ptr<VADFrameTiming> currStart = std::make_unique<VADFrameTiming>();
+				std::unique_ptr<VADFrameTiming> currStop = std::make_unique<VADFrameTiming>();
 								
 				assert(availableChunks > 0);
 				
@@ -395,7 +396,7 @@ void VoskRecognizer::workerThreadFunc(void)
 					{
 						currStart = vad->getUtteranceStart();
 					}
-					if ((currStop->valid == false) && (uttStatus != VADWrapperState::POSTBUF))
+					if ((currStop->valid == false) && (uttStatus == VADWrapperState::POSTBUF))
 					{
 						currStop = vad->getUtteranceStop();
 					}
@@ -425,6 +426,8 @@ void VoskRecognizer::workerThreadFunc(void)
 					{
 						if (detectedUttFinished == true)
 						{
+							std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished true <<<<<<<<<<<<<<" << std::endl;
+							
 							// normal utterance end 
 							assert(currStart->valid == true);
 							assert(currStop->valid == true);
@@ -433,6 +436,8 @@ void VoskRecognizer::workerThreadFunc(void)
 						}
 						else
 						{
+							std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished false <<<<<<<<<<<<<<" << std::endl;
+							
 							// buffer full --> will fragment!
 							assert(currStart->valid == true);
 							currStop = vad->getUtteranceCurr();
@@ -448,6 +453,8 @@ void VoskRecognizer::workerThreadFunc(void)
 					{
 						if (detectedUttFinished == true)
 						{
+							std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished true <<<<<<<<<<<<<<" << std::endl;
+														
 							// normal utterance end --> end fragmenting
 							assert(currFragmentStartTime->valid == true);
 							assert(currStop->valid == true);
@@ -455,10 +462,12 @@ void VoskRecognizer::workerThreadFunc(void)
 							promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
 							
 							pcmBufferFragmented = false;
-							currFragmentStartTime->valid = false;
+							currFragmentStartTime = std::make_unique<VADFrameTiming>();
 						}	
 						else
 						{
+							std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished false <<<<<<<<<<<<<<" << std::endl;
+							
 							// continue fragmenting
 							assert(currFragmentStartTime->valid == true);
 							currStop = vad->getUtteranceCurr();
