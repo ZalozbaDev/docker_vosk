@@ -3,6 +3,8 @@
 INPUTFILE=$1
 CONF=$2
 
+set -e
+
 echo "Creating transcript for $INPUTFILE"
 
 rm -f ./tmp_audio_stripped.wav ./tmp_audio_stripped_resampled.wav
@@ -12,6 +14,9 @@ mkdir -p tmpoutdir/
 ffmpeg -i $INPUTFILE ./tmp_audio_stripped.wav
 
 sox ./tmp_audio_stripped.wav -r 48000 -c 1 -b 16 ./tmp_audio_stripped_resampled.wav
+
+# modify like this for GBD
+# LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ gdb --args ./whisper_out/whisper_main \
 
 LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main \
 ../../../whisper_models/Korla/whisper_large_v3_turbo_hsb/ggml-model.bin \

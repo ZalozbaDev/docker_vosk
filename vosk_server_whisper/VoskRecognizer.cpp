@@ -474,7 +474,7 @@ void VoskRecognizer::workerThreadFunc(void)
 							
 							promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
 							
-							currFragmentStartTime = std::move(currStop);
+							currFragmentStartTime = vad->getUtteranceCurr();
 						}
 					}
 					
