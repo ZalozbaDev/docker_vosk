@@ -57,7 +57,7 @@ bool ResamplerLibResample_48_16::resample(const int16_t* source, int16_t* target
 		   }
 		   else if (target_float[i] >= 1.0f)
 		   {
-		   	   target[i] = 32768;
+		   	   target[i] = 32767;
 		   }
 		   else
 		   {
