@@ -70,7 +70,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     {
     	replacement_file = env_p;
     }
-    cpp = new CustomPostProc(true, replacement_file);
+    cpp = new CustomPostProc(true, replacement_file, false, 30); // limit to max. 30 characters per second of audio, reduces impact of hallucinations
     
     // optional environment var
     // - --language            ("en", "czech", ...)
@@ -695,7 +695,8 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 		std::cout << "Raw final result: " << finalResult << std::endl;
 		
 		// try to fix various shortcomings of the result
-		std::string spellResult = hpp->processLine(cpp->processLine(finalResult));
+		int lengthInSeconds = (currStop->timeStampSeconds - currStart->timeStampSeconds) + 1;
+		std::string spellResult = hpp->processLine(cpp->processLine(finalResult, lengthInSeconds));
 
 		audioLogger->flush(spellResult);
 				
