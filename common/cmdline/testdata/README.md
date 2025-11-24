@@ -17,8 +17,8 @@ The file length is < 2 seconds, so processing it should not take longer than tha
 
 These files generated recognition loops with whisper.cpp.
 
-## 2010
+## 201X
 
-Whisper had issues detecting words at the beginning(?).
+Whisper had issues detecting words (?).
 
 
