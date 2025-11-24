@@ -13,10 +13,10 @@ ffmpeg -i $INPUTFILE ./tmp_audio_stripped.wav
 sox ./tmp_audio_stripped.wav -r 48000 -c 1 -b 16 ./tmp_audio_stripped_resampled.wav
 
 LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main \
-../../../whisper_models/Korla/whisper_large_v3_turbo_hsb/ggml-model.bin \
+../../../whisper_models/Korla/whisper_large_v3_turbo_hsb-0/ggml-model.bin \
 tmp_audio_stripped_resampled.wav \
 tmpoutdir/ \
-2 auto 0 false WebRTC -1.0 false
+2 auto -1 false WebRTC -1.0 false
 
 TRANSCRIPTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.srt/')
 
