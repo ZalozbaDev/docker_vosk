@@ -54,13 +54,19 @@ std::string CustomPostProc::processLine(std::string line)
 	// replace several whitespaces by one
 	retVal = std::regex_replace(retVal, severalSpaces, " ");
 	
+	// ALWAYS run through the icu library!
+	// this shall avoid an invalid UTF-8 sequence
+	std::string tmp = "";
+	icu::UnicodeString unicodeString(retVal.c_str());
 	if (convCase == true)
 	{
-		std::string tmp = "";
-		icu::UnicodeString unicodeString(retVal.c_str());
 		tmp = unicodeString.toLower().toUTF8String(tmp);
-		retVal = tmp;
 	}
+	else
+	{
+		tmp = unicodeString.toUTF8String(tmp);
+	}
+	retVal = tmp;
 	
 	// iterate through list and replace all occurences with their counterpart
 	if (listReplace == true)
