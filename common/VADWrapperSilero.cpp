@@ -297,7 +297,7 @@ bool VADWrapperSilero::findUtteranceStart(void)
 	
 	if (chunksChopOffIdx > 0)
 	{
-		std::cout << "Erasing " << chunksChopOffIdx << " frames from buffer start." << std::endl;
+		// std::cout << "Erasing " << chunksChopOffIdx << " frames from buffer start." << std::endl;
 		chunks.erase(chunks.begin(), chunks.begin() + chunksChopOffIdx);	
 	}
 	
