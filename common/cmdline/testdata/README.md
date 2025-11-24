@@ -13,4 +13,12 @@ Check subtitle generation.
 Check processing time (resp. whether limiting processing time to a sane value works).
 The file length is < 2 seconds, so processing it should not take longer than that when usign GPU.
 
+## 200X
+
+These files generated recognition loops with whisper.cpp.
+
+## 2010
+
+Whisper had issues detecting words at the beginning(?).
+
 
