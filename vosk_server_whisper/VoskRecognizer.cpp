@@ -797,6 +797,7 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 		auto start = std::chrono::high_resolution_clock::now();
 #endif
 
+		// this can degrade accuracy if n_processors > 1
 		int whisper_call_result = whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors);
 		
 #ifdef MEASURE_WHISPER_TIME
@@ -853,6 +854,10 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 						// std::cout << "Excluding token " << token << " from confidence!" << std::endl;	
 					}
 				}
+				
+				// TODO could eventually be used for confidence as well
+				// float noSpeech = whisper_full_get_segment_no_speech_prob(ctx, i);
+				// std::cout << "Segment " << i << '\t' << noSpeech << " no speech prob." << std::endl;
 				
 				// Compute mean
 				float probSum = 0.0f;
