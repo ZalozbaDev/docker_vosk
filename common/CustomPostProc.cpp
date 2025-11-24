@@ -9,7 +9,7 @@
 #include <CustomPostProc.h>
 
 //////////////////////////////////////////////
-CustomPostProc::CustomPostProc(bool active, std::string replacementFile, bool convertCase)
+CustomPostProc::CustomPostProc(bool active, std::string replacementFile, bool convertCase, int maxCharsPerSecond)
 {
 	passThrough = !active;
 	
@@ -28,6 +28,7 @@ CustomPostProc::CustomPostProc(bool active, std::string replacementFile, bool co
 	}
 	
 	convCase = convertCase;
+	limitCharsPerSecond = maxCharsPerSecond;
 }
 
 //////////////////////////////////////////////
@@ -37,7 +38,7 @@ CustomPostProc::~CustomPostProc(void)
 }
 
 //////////////////////////////////////////////
-std::string CustomPostProc::processLine(std::string line)
+std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 {
 	if (passThrough == true)
 	{
@@ -67,6 +68,24 @@ std::string CustomPostProc::processLine(std::string line)
 		tmp = unicodeString.toUTF8String(tmp);
 	}
 	retVal = tmp;
+	
+	// do length limitation by applying reasonable limit of chars for a line
+	if ((limitCharsPerSecond > 0) && (lengthInSeconds > 0))
+	{
+		unsigned int maxLineLength = limitCharsPerSecond * lengthInSeconds;
+		if (retVal.length() > maxLineLength)
+		{
+			std::size_t found = retVal.find(' ', maxLineLength);
+			if (found != std::string::npos)
+			{
+				tmp = retVal.substr(0, found);
+				
+				std::cout << "LIMITER to " << lengthInSeconds << " seconds: Shrinking '" << retVal << "' to '" << tmp << "'!" << std::endl;
+				
+				retVal = tmp;
+			}
+		}
+	}
 	
 	// iterate through list and replace all occurences with their counterpart
 	if (listReplace == true)

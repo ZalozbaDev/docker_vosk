@@ -8,9 +8,9 @@
 class CustomPostProc
 {
 public:
-	CustomPostProc(bool active, std::string replacementFile, bool convertCase = false);
+	CustomPostProc(bool active, std::string replacementFile, bool convertCase = false, int maxCharsPerSecond = -1);
 	~CustomPostProc(void);
-	std::string processLine(std::string line);
+	std::string processLine(std::string line, int lengthInSeconds = -1);
 private:
 	bool readReplacementFile(std::string filename);
 	std::string replace_all(std::string line, std::string replacee, std::string replacer, std::size_t maxSuffix); 
@@ -26,6 +26,8 @@ private:
 	std::vector<std::string> replacees;
 	std::vector<std::string> replacers;
 	std::vector<std::size_t> maxsuffixes;
+	
+	int limitCharsPerSecond;
 	
 	bool convCase;
 };
