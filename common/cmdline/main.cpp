@@ -104,6 +104,7 @@ int main(int argc, char **argv)
 		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true" << std::endl;
 		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true Silero" << std::endl;
 		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true Silero 0.9" << std::endl;
+		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 auto 0 false WebRTC -1 true" << std::endl;
 		return 1;
 	}
 	
@@ -142,6 +143,10 @@ int main(int argc, char **argv)
 	if (argc >= 10)
 	{
 		confidenceThreshold = std::stof(std::string(argv[9]));
+	}
+	if (argc >= 11)
+	{
+		setenv("VOSK_WHISPER_NO_FALLBACK", argv[10], 1);
 	}
 	
 	file = SndfileHandle(argv[2]) ;

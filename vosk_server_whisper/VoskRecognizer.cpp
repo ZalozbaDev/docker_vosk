@@ -14,6 +14,7 @@
 
 #include <cassert>
 #include <regex>
+#include <chrono>
 
 #ifndef WHISPER_MOCK
 #include "common.h"
@@ -108,7 +109,23 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     	}
     }    
     std::cout << "ENV setting whisper no timestamps option to '" << env_whisper_no_timestamps << "'." << std::endl;
-
+    
+    // optional environment var
+    // - --no_fallback   (do not try to decode in several attempts, as this can slow down decoding on strange audio)
+    if (const char *env_p = std::getenv("VOSK_WHISPER_NO_FALLBACK"))
+    {
+    	if (strcasecmp(env_p, "True") == 0)
+    	{
+    		env_whisper_no_fallback = true;
+    	}
+    }
+    else
+    {
+    	// default
+    	env_whisper_no_fallback = false;
+    }
+    std::cout << "ENV setting whisper no fallback to " << env_whisper_no_fallback << "." << std::endl;
+    
     if (const char *env_p = std::getenv("VOSK_WHISPER_USE_CPU"))
     {
         if (strcasecmp(env_p, "True") == 0)
@@ -116,7 +133,7 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
         	default_params.use_gpu = false;
         }
     }
-    std::cout << "ENV setting whisper use CPU to  " << default_params.use_gpu << "." << std::endl;
+    std::cout << "ENV setting whisper use GPU to  " << default_params.use_gpu << "." << std::endl;
 
     // makes sense to tie the resampler to the VAD algo used - not all combinations are possible anyway
     if (const char *env_p = std::getenv("VOSK_VAD_ALGO"))
@@ -705,6 +722,8 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 	partialResultMutex.unlock();
 }
 
+// #define MEASURE_WHISPER_TIME
+
 //////////////////////////////////////////////
 void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 {
@@ -753,7 +772,7 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
     wparams.greedy.best_of        = default_params.best_of;
     wparams.beam_search.beam_size = default_params.beam_size;
 
-    wparams.temperature_inc  = default_params.no_fallback ? 0.0f : default_params.temperature_inc;
+    wparams.temperature_inc  = env_whisper_no_fallback ? 0.0f : default_params.temperature_inc;
     wparams.temperature      = default_params.temperature;
 
     wparams.entropy_thold    = default_params.entropy_thold;
@@ -773,7 +792,23 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 		partialResult.clear();
 		
 		std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
-		if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors) != 0) 
+		
+#ifdef MEASURE_WHISPER_TIME
+		auto start = std::chrono::high_resolution_clock::now();
+#endif
+
+		int whisper_call_result = whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors);
+		
+#ifdef MEASURE_WHISPER_TIME
+		auto end = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+		std::cout << "whisper call took "	
+              << duration.count()
+              << " milliseconds\n";
+#endif
+		
+		if (whisper_call_result != 0) 
 		{
 			// announce the error instead of crashing
 			std::string errorText = getLocalTimeStamp().append(": Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.");
