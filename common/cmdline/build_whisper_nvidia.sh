@@ -32,6 +32,8 @@ cp ../*.h ../*.cpp whisper_out/
 
 cp ../../vosk_server_whisper/VoskRecognizer.cpp ../../vosk_server_whisper/VoskRecognizer.h whisper_out/
 
+# if you want whisper debug output, you must already build whisper with WHISPER_DEBUG set (check src/whisper.cpp!)
+
 cp whisper.cpp/build/src/libwhisper.so.1 whisper_out/
 cp whisper.cpp/build/ggml/src/*.so       whisper_out/
 pushd whisper_out
