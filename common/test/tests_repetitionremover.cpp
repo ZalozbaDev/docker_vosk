@@ -38,7 +38,6 @@ TEST_CASE("simple tests")
 		CHECK(reduced == "bla abc");
 	}
 
-
 }
 
 TEST_CASE("real world tests")
@@ -73,7 +72,7 @@ TEST_CASE("real world tests")
 		CHECK(reduced == "lěće hodźinu a wěruwaje");
 	}
 
-	SUBCASE("check line with spaces and strange ending") {
+	SUBCASE("another real world example") {
 		Repetition rep;
 		std::string testString = "a lubosći wokoło swětłaće a wěčnje wosomniwi a wěčnje wosomniwi a wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wě";
 		rep = RepetitionRemover::detectRepetitionByShift(testString);
@@ -83,21 +82,54 @@ TEST_CASE("real world tests")
 		CHECK(reduced == "a lubosći wokoło swětłaće a wěčnje wosomniwi a wěčnje wosomniwi a wěčnje");
 	}
 
-		
-		/*
-	
-	
-	"a lubosć ju poswjeća poswjeća poswjeća jow wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a w"
-	
-	"zo móhli zhromadnje wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a w"
-	
-	"w krótkich lawdacijach hnydom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wě"
-	
-	"a čest nam sy aktiwna eh našeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knje"
-	
-	"tež tu njeje njewidźu wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukow"
-	*/
-	
+	SUBCASE("another real world example") {
+		Repetition rep;
+		std::string testString = "a lubosć ju poswjeća poswjeća poswjeća jow wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a w";
+		rep = RepetitionRemover::detectRepetitionByShift(testString);
+		CHECK(rep.repetitions == 49);
+		std::string reduced = RepetitionRemover::removeRepetitions(testString, rep);
+		// std::cout << "|" << reduced << "|" << std::endl;
+		CHECK(reduced == "a lubosć ju poswjeća poswjeća poswjeća jow wěmy a");
+	}
+
+	SUBCASE("another real world example") {
+		Repetition rep;
+		std::string testString = "zo móhli zhromadnje wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a w";
+		rep = RepetitionRemover::detectRepetitionByShift(testString);
+		CHECK(rep.repetitions == 26);
+		std::string reduced = RepetitionRemover::removeRepetitions(testString, rep);
+		// std::cout << "|" << reduced << "|" << std::endl;
+		CHECK(reduced == "zo móhli zhromadnje wučerpjeć a");
+	}
+
+	SUBCASE("another real world example") {
+		Repetition rep;
+		std::string testString = "w krótkich lawdacijach hnydom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wě";
+		rep = RepetitionRemover::detectRepetitionByShift(testString);
+		CHECK(rep.repetitions == 16);
+		std::string reduced = RepetitionRemover::removeRepetitions(testString, rep);
+		// std::cout << "|" << reduced << "|" << std::endl;
+		CHECK(reduced == "w krótkich lawdacijach hnydom hłósćicach, a wón wě");
+	}
+
+	SUBCASE("another real world example") {
+		Repetition rep;
+		std::string testString = "a čest nam sy aktiwna eh našeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knje";
+		rep = RepetitionRemover::detectRepetitionByShift(testString);
+		CHECK(rep.repetitions == 34);
+		std::string reduced = RepetitionRemover::removeRepetitions(testString, rep);
+		// std::cout << "|" << reduced << "|" << std::endl;
+		CHECK(reduced == "a čest nam sy aktiwna eh našeho knjeza a j");
+	}
+
+	SUBCASE("another real world example") {
+		Repetition rep;
+		std::string testString = "tež tu njeje njewidźu wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukow";
+		rep = RepetitionRemover::detectRepetitionByShift(testString);
+		CHECK(rep.repetitions == 34);
+		std::string reduced = RepetitionRemover::removeRepetitions(testString, rep);
+		// std::cout << "|" << reduced << "|" << std::endl;
+		CHECK(reduced == "tež tu njeje njewidźu wukowarjene");
+	}
+
 }
-
-
