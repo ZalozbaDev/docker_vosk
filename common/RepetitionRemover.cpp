@@ -24,22 +24,41 @@ Repetition RepetitionRemover::detectRepetitionByShift(const std::string& s) {
                 match_len = 0;
             }
         }
+        
+        if (match_len > 0)
+        {
+        	std::cout << "Testing potential match of len " << match_len << " with shift of " << k << std::endl;	
+        }
 
         // Check if we got a meaningful repetition
         if (match_len >= k) {
             // repetition begins at the start of the match range
             size_t start = match_start;
 
-            // repetition should run exactly to the end of the string
-            if (start + match_len == n) {
+            // repetition should run exactly to the end of the string (minus the shift applied)
+            if (start + match_len == (n - k)) {
                 size_t reps = match_len / k + 1; // +1 for the first implicit pattern
 
                 return { start, k, reps };
+            }
+            else {
+            	std::cout << "Disregarding match because it's length " << match_len 
+            		<< " starting at " << start << " does not end at string length " 
+            		<< n << "." << std::endl; 	
             }
         }
     }
 
     return {};
+}
+
+std::string RepetitionRemover::removeRepetitions(const std::string& s, const Repetition& r)
+{
+	// keep the first occurance of the repetition
+	size_t end = r.start + r.length;
+	
+	std::string ret = s.substr(0, end);
+	return ret;
 }
 
 /*

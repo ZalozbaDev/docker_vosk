@@ -14,6 +14,7 @@ struct Repetition {
 class RepetitionRemover {
 public:
 	static Repetition detectRepetitionByShift(const std::string& s);
+	static std::string removeRepetitions(const std::string& s, const Repetition& r);
 };
 
 #endif // REPETITION_REMOVER_H
