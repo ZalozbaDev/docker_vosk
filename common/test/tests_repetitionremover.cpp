@@ -63,6 +63,41 @@ TEST_CASE("real world tests")
 		CHECK(reduced == "*spomniće, wěče");
 	}
 	
+	SUBCASE("check line with spaces and strange ending") {
+		Repetition rep;
+		std::string testString = "lěće hodźinu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a wěruwajenu a w";
+		rep = RepetitionRemover::detectRepetitionByShift(testString);
+		CHECK(rep.repetitions == 26);
+		std::string reduced = RepetitionRemover::removeRepetitions(testString, rep);
+		// std::cout << "|" << reduced << "|" << std::endl;
+		CHECK(reduced == "lěće hodźinu a wěruwaje");
+	}
+
+	SUBCASE("check line with spaces and strange ending") {
+		Repetition rep;
+		std::string testString = "a lubosći wokoło swětłaće a wěčnje wosomniwi a wěčnje wosomniwi a wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wěčnje wě";
+		rep = RepetitionRemover::detectRepetitionByShift(testString);
+		CHECK(rep.repetitions == 36);
+		std::string reduced = RepetitionRemover::removeRepetitions(testString, rep);
+		// std::cout << "|" << reduced << "|" << std::endl;
+		CHECK(reduced == "a lubosći wokoło swětłaće a wěčnje wosomniwi a wěčnje wosomniwi a wěčnje");
+	}
+
+		
+		/*
+	
+	
+	"a lubosć ju poswjeća poswjeća poswjeća jow wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a wěmy a w"
+	
+	"zo móhli zhromadnje wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a wučerpjeć a w"
+	
+	"w krótkich lawdacijach hnydom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wědom hłósćicach, a wón wě"
+	
+	"a čest nam sy aktiwna eh našeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knjeza a jeho knje"
+	
+	"tež tu njeje njewidźu wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukowarjene wukow"
+	*/
+	
 }
 
 
