@@ -75,12 +75,24 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 		unsigned int maxLineLength = limitCharsPerSecond * lengthInSeconds;
 		if (retVal.length() > maxLineLength)
 		{
+			// part 1: shrink on next space after max. allowed length
 			std::size_t found = retVal.find(' ', maxLineLength);
 			if (found != std::string::npos)
 			{
 				tmp = retVal.substr(0, found);
 				
-				std::cout << "LIMITER to " << lengthInSeconds << " seconds: Shrinking '" << retVal << "' to '" << tmp << "'!" << std::endl;
+				std::cout << "LIMITER (in words) for " << lengthInSeconds << " seconds: Shrinking '" << retVal << "' to '" << tmp << "'!" << std::endl;
+				
+				retVal = tmp;
+			}
+			
+			// part 2: make a hard cut if the line is still too long (like e.g. hallucinations without spaces)
+			unsigned int maxLineLengthHardCut = maxLineLength + limitCharsPerSecond;
+			if (retVal.length() > maxLineLengthHardCut)
+			{
+				tmp = retVal.substr(0, maxLineLengthHardCut);
+				
+				std::cout << "LIMITER (hard cut) to " << maxLineLengthHardCut << " characters: Shrinking '" << retVal << "' to '" << tmp << "'!" << std::endl;
 				
 				retVal = tmp;
 			}
