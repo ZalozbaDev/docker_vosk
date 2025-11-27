@@ -105,7 +105,8 @@ RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
 -DVAD_FRAME_CONVERT_FLOAT \
 -I. -I/whisper.cpp/ -I/whisper.cpp/examples/ -I/whisper.cpp/include/ -I/whisper.cpp/ggml/include/ -I/webrtc-audio-processing/webrtc/ \
 -I/onnxruntime-linux-x64-1.12.1/include/ \
-asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
+asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp \
+RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp RepetitionRemover.cpp \
 ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -lpthread -lhunspell  -licuio -licuuc -lonnxruntime -lresample -lwhisper -lggml -lggml-cpu -lggml-base -L/ -L/onnxruntime-linux-x64-1.12.1/lib/ 
