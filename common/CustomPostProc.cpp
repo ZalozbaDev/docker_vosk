@@ -1,12 +1,14 @@
 
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 
 #include <unicode/unistr.h>
 #include <unicode/ustream.h>
 #include <unicode/locid.h>
 
 #include <CustomPostProc.h>
+#include <RepetitionRemover.h>
 
 //////////////////////////////////////////////
 CustomPostProc::CustomPostProc(bool active, std::string replacementFile, bool convertCase, int maxCharsPerSecond)
@@ -75,6 +77,15 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 		unsigned int maxLineLength = limitCharsPerSecond * lengthInSeconds;
 		if (retVal.length() > maxLineLength)
 		{
+			// check for a hallucination as endless repetition
+			Repetition rep = RepetitionRemover::detectRepetitionByShift(retVal);
+			if (rep.repetitions > 3)
+			{
+				// eventually reduce max line length to expected start of repetition
+				maxLineLength = std::min(maxLineLength, ((unsigned int) (rep.start + rep.length)));	
+				std::cout << "LIMITER (repetitions): Max length recomputed to " << maxLineLength << "!" << std::endl;
+			}
+			
 			// part 1: shrink on next space after max. allowed length
 			std::size_t found = retVal.find(' ', maxLineLength);
 			if (found != std::string::npos)
