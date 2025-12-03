@@ -10,7 +10,8 @@ class RecognitionResultSplitter
 {
 public:
 	RecognitionResultSplitter(void);
-	pushResult(RecognitionResult result);
+	~RecognitionResultSplitter(void);
+	void pushResult(RecognitionResult result);
 	RecognitionResult pullResultPieces(void);
 private:
 	std::vector<RecognitionResult> resultPieces;
