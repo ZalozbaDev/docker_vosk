@@ -531,6 +531,19 @@ void VoskRecognizer::workerThreadFunc(void)
 }
 
 //////////////////////////////////////////////
+//
+// return string variants:
+//
+// no detailed result:
+//
+// { "partial" : "my partial recognition" }
+//
+// with detailed result:
+// 
+// { "partial" : "my partial recognition", "listen" : "false" }
+// { "partial" : "my partial recognition", "listen" : "true" }
+//
+//////////////////////////////////////////////
 const char* VoskRecognizer::getPartialResult(void)
 {
 	std::string res = "{ \"partial\" : \"";
@@ -585,6 +598,18 @@ bool VoskRecognizer::getPartialStatus(void)
 	return ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? true : false);
 }
 
+//////////////////////////////////////////////
+//
+// return string variants:
+//
+// no detailed result:
+//
+// { "text" : "my final recognition result" }
+//
+// with detailed result:
+// 
+// { "text" : "my final recognition result", "start" : "1234567", "startMs" : "345", "stop" : "1234569", "stopMs" : "765"}
+//
 //////////////////////////////////////////////
 const char* VoskRecognizer::getFinalResult(void)
 {
