@@ -720,7 +720,13 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 		std::cout << "Raw final result: " << finalResult << std::endl;
 		
 		// try to fix various shortcomings of the result
-		int lengthInSeconds = (currStop->timeStampSeconds - currStart->timeStampSeconds) + 1;
+		
+		// compute utterance length based on frame counter, not on timestamps
+		// timestamps are only valid for online mode, not offline transcripts!!!
+		uint64_t frameCounterDiff = currStop->frameCounter - currStart->frameCounter;
+		float frameLenMs = getFrameResolution() * frameCounterDiff;
+		int lengthInSeconds = (int) (frameLenMs + 1000);
+		
 		std::string spellResult = hpp->processLine(cpp->processLine(finalResult, lengthInSeconds));
 
 		audioLogger->flush(spellResult);
