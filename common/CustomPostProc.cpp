@@ -71,6 +71,8 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 	}
 	retVal = tmp;
 	
+	bool lineReduced = false;
+	
 	// do length limitation by applying reasonable limit of chars for a line
 	if ((limitCharsPerSecond > 0) && (lengthInSeconds > 0))
 	{
@@ -79,6 +81,7 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 		{
 			// check for a hallucination as endless repetition
 			Repetition rep = RepetitionRemover::detectRepetitionByShift(retVal);
+			// to avoid falling for falsely detected repetitions, use sane lower limit
 			if (rep.repetitions > 3)
 			{
 				// eventually reduce max line length to expected start of repetition
@@ -92,9 +95,13 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 			{
 				tmp = retVal.substr(0, found);
 				
-				std::cout << "LIMITER (in words) for " << lengthInSeconds << " seconds: Shrinking '" << retVal << "' to '" << tmp << "'!" << std::endl;
+				unsigned int actCharsPerSecond = retVal.length() / lengthInSeconds;
+				
+				std::cout << "Line length limit reached. Max is " << limitCharsPerSecond << " chars/sec but found " << actCharsPerSecond << "." << std::endl;
+				std::cout << "LIMITER (in words) for " << lengthInSeconds << " seconds: Shrinking from " << retVal.length() << " characters to " << tmp.length() << "!" << std::endl;
 				
 				retVal = tmp;
+				lineReduced = true;
 			}
 			
 			// part 2: make a hard cut if the line is still too long (like e.g. hallucinations without spaces)
@@ -106,8 +113,14 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 				std::cout << "LIMITER (hard cut) to " << maxLineLengthHardCut << " characters: Shrinking '" << retVal << "' to '" << tmp << "'!" << std::endl;
 				
 				retVal = tmp;
+				lineReduced = true;
 			}
 		}
+	}
+	
+	if (lineReduced == true)
+	{
+		retVal = retVal + " /";	
 	}
 	
 	// iterate through list and replace all occurences with their counterpart
@@ -123,7 +136,7 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 		retVal = tmpVal;
 	}
 	
-	std::cout << "Orig: '" << line << "' changed to '" << retVal << "'" << std::endl;
+	std::cout << "Orig: " << std::endl << line << std::endl << " changed to:" << std::endl << retVal << std::endl;
 	
 	return retVal;
 }
