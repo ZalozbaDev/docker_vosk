@@ -6,21 +6,9 @@
 #include <memory>
 #include <chrono>
 
-enum VoskRecognizerState {UNINIT, INIT};
+#include "RecognitionResult.h"
 
-class FinalResult
-{
-public:
-	
-	std::string text;
-	uint64_t frameCounterStart;
-	uint64_t frameCounterEnd;
-    int64_t  uStartTime;
-    int64_t  uStartTimeMs;
-    int64_t  uStopTime;
-    int64_t  uStopTimeMs;
-    float    confidence;
-};
+enum VoskRecognizerState {UNINIT, INIT};
 
 class AudioPacket
 {
