@@ -74,3 +74,14 @@ std::string HunspellPostProc::processLine(std::string line)
 	
 	return retLine;
 }
+
+//////////////////////////////////////////////
+bool HunspellPostProc::spelledCorrectly(std::string word)
+{
+	if (passThrough == true)
+	{
+		return true;
+	}
+	
+	return hsp->spell(word);
+}

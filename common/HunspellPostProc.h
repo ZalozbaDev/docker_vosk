@@ -12,6 +12,7 @@ public:
 	HunspellPostProc(std::string aff, std::string dic, std::string custom);
 	~HunspellPostProc(void);
 	std::string processLine(std::string line);
+	bool spelledCorrectly(std::string word);
 private:
 	bool passThrough;
 	Hunspell *hsp;

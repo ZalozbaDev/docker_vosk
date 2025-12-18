@@ -41,6 +41,7 @@ public:
 	virtual void setDetailedResult(bool detailsOn)                = 0;
 	virtual int acceptWaveform(const char *data, int length)      = 0;
 	virtual bool getRecognizerBusy(bool audioQueueOnly = false)   = 0;
+	virtual void runTokenToWords(void)                            = 0;
 	virtual const char* getPartialResult(void)                    = 0;
 	virtual const char* getFinalResult(void)                      = 0;
 	virtual bool getPartialStatus(void)                           = 0;
