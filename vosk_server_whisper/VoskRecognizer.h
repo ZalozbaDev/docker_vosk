@@ -111,6 +111,7 @@ public:
 	virtual void setDetailedResult(bool detailsOn)                override;
 	virtual int acceptWaveform(const char *data, int length)      override;
 	virtual bool getRecognizerBusy(bool audioQueueOnly = false)   override;
+	virtual void runTokenToWords(void)                            override;
 	virtual const char* getPartialResult(void)                    override;
 	virtual const char* getFinalResult(void)                      override;
 	virtual bool getPartialStatus(void)                           override;
@@ -164,11 +165,14 @@ private:
 	
 	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
 	
-	std::vector<std::unique_ptr<RecognitionResult>> partialResult;
-	std::mutex partialResultMutex;
+	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
+	std::mutex tokenMutex;
 	
-	std::deque<std::unique_ptr<FinalResult>>        finalResults;
-	std::mutex finalResultMutex;
+	std::vector<std::unique_ptr<RecognizedWord>>     words;
+	std::mutex wordMutex;
+	
+	std::deque<std::unique_ptr<RecognizedUtterance>> utterances;
+	std::mutex utteranceMutex;
 	
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];

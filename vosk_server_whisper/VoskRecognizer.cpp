@@ -531,6 +531,73 @@ void VoskRecognizer::workerThreadFunc(void)
 }
 
 //////////////////////////////////////////////
+void VoskRecognizer::runTokenToWords(void)
+{
+	tokenMutex.lock();
+	
+	wordMutex.lock();
+	
+	std::string currWord = "";
+	std::chrono::milliseconds duration = 0ms;
+	std::chrono::milliseconds relStart = 0ms;
+	std::chrono::milliseconds relEnd   = 0ms;
+	std::vector<float>        tokenConfidences;
+	
+	for (auto&& token : tokens)
+	{
+		// check new word
+		if ((token->m_text[0] == ' ') && (currWord.length() > 0))
+		{
+			float confidenceSum = 0.0f;
+			for (float val : tokenConfidences) {
+				confidenceSum += val;
+			}
+			float confidenceMean = probSum / tokenConfidences.size();
+			bool spellResult = hpp.spelledCorrectly(currWord);
+			
+			std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(currWord, duration, relStart, relEnd, confidenceMean, spellResult);
+			words.push_back(word);
+			
+			currWord = "";
+			duration = 0ms;
+			relStart = 0ms;
+			relEnd   = 0ms;
+			tokenConfidences.clear();
+		}
+		
+		// TBD remove initial space
+		currWord += token->m_text;
+		if (duration < 1ms)
+		{
+			relStart = token->m_relStart;	
+		}
+		duration += token->m_duration;
+		relEnd = token->m_relEnd;
+		tokenConfidences.push_back(token->m_confidence);
+	}
+	
+	// remaining (sub-)word after all tokens parsed
+	if (currWord.length() > 0)
+	{
+		float confidenceSum = 0.0f;
+		for (float val : tokenConfidences) {
+			confidenceSum += val;
+		}
+		float confidenceMean = probSum / tokenConfidences.size();
+		bool spellResult = hpp.spelledCorrectly(currWord);
+		
+		std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(currWord, duration, relStart, relEnd, confidenceMean, spellResult);
+		words.push_back(word);
+	}
+	
+	wordMutex.unlock();
+	
+	tokens.clear();
+	
+	tokenMutex.unlock();
+}
+
+//////////////////////////////////////////////
 //
 // return string variants:
 //
@@ -546,6 +613,8 @@ void VoskRecognizer::workerThreadFunc(void)
 //////////////////////////////////////////////
 const char* VoskRecognizer::getPartialResult(void)
 {
+	runTokensToWords();
+	
 	std::string res = "{ \"partial\" : \"";
 	
 	partialResultMutex.lock();
@@ -690,6 +759,8 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 	std::string finalResult;
 	float confidence = 0.0f;
 	
+	runTokensToWords();
+	
 	partialResultMutex.lock();
 	
 	if (partialResult.size() > 0)
@@ -821,7 +892,9 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 	// we have a valid instance --> run recognition
 	if (ctx)
 	{
-		partialResult.clear();
+		tokenMutex.lock()
+		
+		tokens.clear();
 		
 		std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
 		
@@ -846,11 +919,10 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 			// announce the error instead of crashing
 			std::string errorText = getLocalTimeStamp().append(": Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.");
 			// const char * text = "Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.";
-			int64_t t0 = 0;
-			int64_t t1 = 0;
 			
-			std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(errorText.c_str()), (unsigned int) t0, (unsigned int) t1, 1.0f);
-			partialResult.push_back(std::move(newResult));
+			// TBD rather push an utterance than a token???
+			std::unique_ptr<RecognizedToken> newResult = std::make_unique<RecognizedToken>(const_cast<char*>(errorText.c_str()), 5000, 200, 4800, 1.0f);
+			tokens.push_back(std::move(newResult));
 		}
 		else
 		{
@@ -867,7 +939,7 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 					t1 = whisper_full_get_segment_t1(ctx, i);
 				}
 				
-				std::vector<float> tokenProbs;
+				// std::vector<float> tokenProbs;
 				const int n_tokens = whisper_full_n_tokens(ctx, i);
 				// fprintf(stderr,"tokens: %d\n",n_tokens);
 				for (int j = 0; j < n_tokens; j++) {
@@ -879,7 +951,10 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 					// do not use probs from empty tokens and special tokens
 					if (!token.empty() && token.front() != '[' && token.back() != ']')
 					{
-						tokenProbs.push_back(probability);
+						// just collect all tokens
+						std::unique_ptr<RecognizedToken> token = std::make_unique<RecognizedToken>(const_cast<char*>(token), 1000, 200, 800, probability);
+						tokens.push_back(std::move(token));
+						// tokenProbs.push_back(probability);
 					}
 					else
 					{
@@ -892,37 +967,47 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 				// std::cout << "Segment " << i << '\t' << noSpeech << " no speech prob." << std::endl;
 				
 				// Compute mean
+				
+				/*
 				float probSum = 0.0f;
 				for (float val : tokenProbs) {
 					probSum += val;
 				}
 				float probMean = probSum / tokenProbs.size();
+				*/
 
 				// Compute standard deviation
+				/*
 				float varianceSum = 0.0f;
 				for (float val : tokenProbs) {
 					varianceSum += (val - probMean) * (val - probMean);
 				}
 				float stddev = std::sqrt(varianceSum / tokenProbs.size()); // Population std dev
+				*/
 				
 				// std::cout << "Sequence confidence: Mean = " << probMean << ", stddev = " << stddev << "." << std::endl;
 				
-				std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, (probMean - stddev));
-				partialResult.push_back(std::move(newResult));
+				// std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, (probMean - stddev));
+				// partialResult.push_back(std::move(newResult));
 			}
 		}
+		
+		tokenMutex.unlock()
 	}
 	else
 	{
-		partialResult.clear();
+		tokenMutex.lock()
+		
+		tokens.clear();
 		
 		// supply a dummy result
 		std::string errorText = (getLocalTimeStamp().append(": System je přećežene. Spytajće prošu pozdźišo hišće raz."));
 		// const char * text = "System je přećežene. Spytajće prošu pozdźišo hišće raz.";
-		int64_t t0 = 0;
-		int64_t t1 = 0;
 		
-		std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(errorText.c_str()), (unsigned int) t0, (unsigned int) t1, 1.0f);
-		partialResult.push_back(std::move(newResult));
+		// TBD rather push an utterance than a token???
+		std::unique_ptr<RecognizedToken> newResult = std::make_unique<RecognizedToken>(const_cast<char*>(errorText.c_str()), 5000, 200, 4800, 1.0f);
+		tokens.push_back(std::move(newResult));
+		
+		tokenMutex.unlock()
 	}
 }
