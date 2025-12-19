@@ -542,7 +542,7 @@ void VoskRecognizer::runTokenToWords(void)
 	std::chrono::milliseconds relStart = 0ms;
 	std::chrono::milliseconds relEnd   = 0ms;
 	std::vector<float>        tokenConfidences;
-	bool newWord = false;
+	bool newWord = true;
 	
 	for (auto&& token : tokens)
 	{
@@ -554,9 +554,15 @@ void VoskRecognizer::runTokenToWords(void)
 				confidenceSum += val;
 			}
 			float confidenceMean = probSum / tokenConfidences.size();
-			bool spellResult = hpp.spelledCorrectly(currWord);
 			
-			std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(currWord, duration, relStart, relEnd, confidenceMean, spellResult);
+			std::string origWord = cpp.sanitizeWord(currWord);
+			std::string replacedWord = cpp.replaceWord(origWord);
+			bool spellResult = hpp.spelledCorrectly(replacedWord);
+			
+			std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
+				origWord, replacedWord,
+				duration, relStart, relEnd, 
+				confidenceMean, spellResult);
 			words.push_back(word);
 			
 			currWord = "";
@@ -567,7 +573,7 @@ void VoskRecognizer::runTokenToWords(void)
 			newWord = true;
 		}
 		
-		// TBD remove initial space
+		// initial space removed when word is stored
 		currWord += token->m_text;
 		if (newWord == true)
 		{
@@ -587,9 +593,15 @@ void VoskRecognizer::runTokenToWords(void)
 			confidenceSum += val;
 		}
 		float confidenceMean = probSum / tokenConfidences.size();
-		bool spellResult = hpp.spelledCorrectly(currWord);
 		
-		std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(currWord, duration, relStart, relEnd, confidenceMean, spellResult);
+		std::string origWord = cpp.sanitizeWord(currWord);
+		std::string replacedWord = cpp.replaceWord(origWord);
+		bool spellResult = hpp.spelledCorrectly(replacedWord);
+		
+		std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
+			origWord, replacedWord,
+			duration, relStart, relEnd, 
+			confidenceMean, spellResult);
 		words.push_back(word);
 	}
 	
@@ -668,9 +680,14 @@ bool VoskRecognizer::getPartialStatus(void)
 //
 // { "text" : "my final recognition result" }
 //
-// with detailed result:
+// with detailed result (old):
 // 
 // { "text" : "my final recognition result", "start" : "1234567", "startMs" : "345", "stop" : "1234569", "stopMs" : "765"}
+//
+// with detailed result (new):
+// 
+// { "text" : "my final recognition result", "start" : "1234567", "startMs" : "345", "stop" : "1234569", "stopMs" : "765",
+//   "result": [ { "conf": 1, "end": 1.11, "spell": "true", "start": 0.87, "word": "my"}, { "conf": 0.8, "end": 1.53, "spell": "true", "start": 1.11, "word": "final" } ] }
 //
 //////////////////////////////////////////////
 const char* VoskRecognizer::getFinalResult(void)
@@ -685,14 +702,14 @@ const char* VoskRecognizer::getFinalResult(void)
     
 	if (finalResults.size() > 0)
 	{
-		std::unique_ptr<FinalResult> fin = std::move(finalResults.front());
-		finalResults.pop_front();
-		res += fin->text;
+		std::unique_ptr<RecognizedUtterance> fin = std::move(utterances.front());
+		utterances.pop_front();
+		res += fin->getTotalUtterance();
 		
-		uStartTime   = fin->uStartTime;
-		uStartTimeMs = fin->uStartTimeMs;
-		uStopTime    = fin->uStopTime;
-		uStopTimeMs  = fin->uStopTimeMs;
+		uStartTime   = fin->m_uStartTime;
+		uStartTimeMs = fin->m_uStartTimeMs;
+		uStopTime    = fin->m_uStopTime;
+		uStopTimeMs  = fin->m_uStopTimeMs;
 	}
 	
     finalResultMutex.unlock();
@@ -711,7 +728,24 @@ const char* VoskRecognizer::getFinalResult(void)
 		res += std::to_string(uStopTime);
 		res += "\", \"stopMs\" : \"";
 		res += std::to_string(uStopTimeMs);
-		res += "\" }";
+		res += "\" ";
+		
+		// word-level results
+		res += ", \"result\": [ ";
+		for (unsigned int i = 0; i < fin->getNumberWords(); i++)
+		{
+			if (i > 0)
+			{
+				res += ", ";	
+			}
+			std::unique_ptr<RecognizedWord> word = fin->popWord(i);
+			res += "{ \"conf\": "  + std::to_string(word->m_meanConfidence);  + ", ";
+			res +=  " \"end\": "   + std::to_string(word->m_relEnd);          + ", ";
+			res +=  " \"spell\": " + std::to_string(word->m_correctSpelling); + ", ";
+			res +=  " \"start\": " + std::to_string(word->m_relStart);        + ", ";
+			res +=  " \"word\": "  + word->m_replacer                         + " } ";
+		}
+		res += "] }";
 	}
 		
 	std::cout << "Final result: " << res << std::endl;
@@ -761,61 +795,20 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 		std::unique_ptr<RecognizedUtterance> utt = std::make_unique<RecognizedUtterance>(
 			currStart->frameCounter, currStop->frameCounter, 
 			currStart->timeStampSeconds, currStart->timeStampMilliSeconds,
-			currStop->timeStampSeconds, currStop->timeStampMilliSeconds);
+			currStop->timeStampSeconds, currStop->timeStampMilliSeconds,
+			getFrameResolution());
 			
 		for (unsigned int i = 0; i < words.size(); i++)
 		{
 			utt.addWord(words[i]);	
 		}
 		
-		/*
-		for (unsigned int i = 0; i < words.size(); i++)
-		{
-			finalResult += partialResult[i]->text;
-			if (i < (partialResult.size() - 1))
-			{
-				finalResult += " ";
-			}
-			confidence += partialResult[i]->m_negLogLikelihood;
-		}
-		confidence = confidence / ((float) partialResult.size());
-		*/
-		
 		std::cout << "Promoting partial result to final: " << finalResult << ", confidence = " << confidence << std::endl;
 		
-		// try to fix various shortcomings of the result
-		
-		// compute utterance length based on frame counter, not on timestamps
-		// timestamps are only valid for online mode, not offline transcripts!!!
-		
-		/*
-		uint64_t frameCounterDiff = currStop->frameCounter - currStart->frameCounter;
-		float frameLenMs = getFrameResolution() * frameCounterDiff;
-		int lengthInSeconds = (int) (frameLenMs + 1000);
-		
-		std::string spellResult = cpp->processLine(finalResult, lengthInSeconds);
-		*/
-
-		audioLogger->flush(spellResult);
-
-		/*
-		res->text = spellResult;
-		
-		res->frameCounterStart = currStart->frameCounter;
-		res->frameCounterEnd   = currStop->frameCounter;
-		
-		res->uStartTime   = currStart->timeStampSeconds;
-		res->uStartTimeMs = currStart->timeStampMilliSeconds;
-		res->uStopTime    = currStop->timeStampSeconds;
-		res->uStopTimeMs  = currStop->timeStampMilliSeconds;
-		res->confidence   = confidence;
-		*/
-		
+		audioLogger->flush(utt.getTotalUtterance());
 		
 		utteranceMutex.lock();
-		
 		utterances.push_back(std::move(res));
-		
 		utteranceMutex.unlock();
 		
 		words.clear();
