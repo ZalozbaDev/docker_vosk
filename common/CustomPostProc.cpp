@@ -71,58 +71,14 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 	}
 	retVal = tmp;
 	
-	bool lineReduced = false;
-	
 	// do length limitation by applying reasonable limit of chars for a line
-	if ((limitCharsPerSecond > 0) && (lengthInSeconds > 0))
+	int maxLineLength = limitLine(retVal, lengthInSeconds);
+	if (maxLineLength > 0)
 	{
-		unsigned int maxLineLength = limitCharsPerSecond * lengthInSeconds;
-		if (retVal.length() > maxLineLength)
-		{
-			// check for a hallucination as endless repetition
-			Repetition rep = RepetitionRemover::detectRepetitionByShift(retVal);
-			// to avoid falling for falsely detected repetitions, use sane lower limit
-			if (rep.repetitions > 3)
-			{
-				// eventually reduce max line length to expected start of repetition
-				maxLineLength = std::min(maxLineLength, ((unsigned int) (rep.start + rep.length)));	
-				std::cout << "LIMITER (repetitions): Max length recomputed to " << maxLineLength << "!" << std::endl;
-			}
-			
-			// part 1: shrink on next space after max. allowed length
-			std::size_t found = retVal.find(' ', maxLineLength);
-			if (found != std::string::npos)
-			{
-				tmp = retVal.substr(0, found);
-				
-				unsigned int actCharsPerSecond = retVal.length() / lengthInSeconds;
-				
-				std::cout << "Line length limit reached. Max is " << limitCharsPerSecond << " chars/sec but found " << actCharsPerSecond << "." << std::endl;
-				std::cout << "LIMITER (in words) for " << lengthInSeconds << " seconds: Shrinking from " << retVal.length() << " characters to " << tmp.length() << "!" << std::endl;
-				
-				retVal = tmp;
-				lineReduced = true;
-			}
-			
-			// part 2: make a hard cut if the line is still too long (like e.g. hallucinations without spaces)
-			unsigned int maxLineLengthHardCut = maxLineLength + limitCharsPerSecond;
-			if (retVal.length() > maxLineLengthHardCut)
-			{
-				tmp = retVal.substr(0, maxLineLengthHardCut);
-				
-				std::cout << "LIMITER (hard cut) to " << maxLineLengthHardCut << " characters: Shrinking '" << retVal << "' to '" << tmp << "'!" << std::endl;
-				
-				retVal = tmp;
-				lineReduced = true;
-			}
-		}
+		tmp = retVal.substr(0, maxLineLength);
+		retVal = tmp;
 	}
-	
-	if (lineReduced == true)
-	{
-		retVal = retVal + " /";	
-	}
-	
+
 	// iterate through list and replace all occurences with their counterpart
 	if (listReplace == true)
 	{
@@ -137,6 +93,141 @@ std::string CustomPostProc::processLine(std::string line, int lengthInSeconds)
 	}
 	
 	std::cout << "Orig: " << std::endl << line << std::endl << " changed to:" << std::endl << retVal << std::endl;
+	
+	return retVal;
+}
+
+//////////////////////////////////////////////
+//
+// make sure the word contains only allowed characters
+// especially it must be valid UTF-8
+//
+//////////////////////////////////////////////
+std::string CustomPostProc::sanitizeWord(std::string word)
+{
+	// 1) ALWAYS run through the icu library!
+	// this shall avoid an invalid UTF-8 sequence
+	std::string tmp = "";
+	std::string retVal;
+
+	icu::UnicodeString unicodeString(word.c_str());
+	if (convCase == true)
+	{
+		tmp = unicodeString.toLower().toUTF8String(tmp);
+	}
+	else
+	{
+		tmp = unicodeString.toUTF8String(tmp);
+	}
+	retVal = tmp;
+
+	// 2) reduce to allowed characters
+	
+	// remove all unwanted symbols (interpunction)
+	retVal = std::regex_replace(retVal, unwantedChars, " ");
+
+	// remove all spaces (we want words only)
+	retVal = std::regex_replace(retVal, oneOrMoreSpaces, "");	
+	
+	// could even be an empty string now
+	return retVal;
+}
+
+//////////////////////////////////////////////
+//
+// make several attempts to limit the line if it is too long (repetitions/hallucinations)
+//
+// retval of -1 means line does not need altering
+//
+//////////////////////////////////////////////
+int CustomPostProc::limitLine(std::string line, int lengthInSeconds)
+{
+	int retLineLength = -1;
+	
+	// do length limitation by applying reasonable limit of chars for a line
+	if ((limitCharsPerSecond > 0) && (lengthInSeconds > 0))
+	{
+		unsigned int allowedLineLength = limitCharsPerSecond * lengthInSeconds;
+		unsigned int origLineLength = line.length();
+		
+		if (origLineLength > allowedLineLength)
+		{
+			unsigned int actCharsPerSecond = origLineLength / lengthInSeconds;
+			std::cout << "Line length limit reached. Max is " << limitCharsPerSecond << " chars/sec but found " << actCharsPerSecond << "." << std::endl;
+			
+			// part 1: check for a hallucination as endless repetition
+			Repetition rep = RepetitionRemover::detectRepetitionByShift(line);
+			// to avoid falling for falsely detected repetitions, use sane lower limit
+			if (rep.repetitions > 3)
+			{
+				// eventually reduce max line length to expected start of repetition
+				retLineLength = std::min(origLineLength, ((unsigned int) (rep.start + rep.length)));	
+				std::cout << "LIMITER 1 (repetitions): Max length recomputed to " << retLineLength << "!" << std::endl;
+			}
+			else
+			{
+				std::cout << "LIMITER 1 (repetitions): not active" << std::endl;
+			}
+			
+			// part 2: find next space after max. allowed length
+			std::size_t found = line.find(' ', retLineLength);
+			if (found != std::string::npos)
+			{
+				retLineLength = found;
+				std::cout << "LIMITER 2 (in words) for " << lengthInSeconds << " seconds: Shrinking from " << origLineLength << " characters to " << retLineLength << "!" << std::endl;
+			}
+			else
+			{
+				std::cout << "LIMITER 2 (in words): not active" << std::endl;
+			}
+			
+			// part 3: make a hard cut if the line is still too long (like e.g. hallucinations without spaces)
+			unsigned int maxLineLengthHardCut = allowedLineLength + limitCharsPerSecond;
+			if ((retLineLength == -1) || (((unsigned int) retLineLength) > maxLineLengthHardCut))
+			{
+				std::cout << "LIMITER 3 (hard cut) to " << maxLineLengthHardCut << " characters: Shrinking from '" << retLineLength << "' to '" << maxLineLengthHardCut << "'!" << std::endl;
+				retLineLength = maxLineLengthHardCut;
+			}
+			else
+			{
+				std::cout << "LIMITER 3 (hard cut): not active" << std::endl;
+			}
+		}
+	}
+	
+	return retLineLength;
+}
+
+//////////////////////////////////////////////
+//
+// go through the replacement list and replace the word if found
+// algo here is easier because we are operating at word level
+//
+//////////////////////////////////////////////
+std::string CustomPostProc::replaceWord(std::string word)
+{
+	std::string retVal = word;
+	
+	if (listReplace == true)
+	{
+		for (size_t index = 0; index < replacees.size(); index++)
+		{
+			// word core match
+			if (word.find(replacees[index]) == 0)
+			{
+				// allowed suffix in range?
+				if (word.length() <= (replacees[index].length() + maxsuffixes[index]))
+				{
+					retVal = replacers[index] + word.substr(replacees[index].length());
+					std::cout << "Replaced '" << word << "' with '" << retVal << "'." << std::endl; 
+				}
+				else
+				{
+					std::cout << "Word '" << word << "' not replaced (suffix too long)." << std::endl;
+				}
+			}
+		}
+	}
 	
 	return retVal;
 }
