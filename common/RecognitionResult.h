@@ -60,14 +60,12 @@ class RecognizedUtterance
 {
 public:
 	
-	std::string m_totalUtterance;
 	uint64_t    m_frameCounterStart;
 	uint64_t    m_frameCounterEnd;
     int64_t     m_uStartTime;
     int64_t     m_uStartTimeMs;
     int64_t     m_uStopTime;
     int64_t     m_uStopTimeMs;
-    float       m_meanConfidence;
     
     RecognizedUtterance(uint64_t frameCounterStart, uint64_t frameCounterEnd, int64_t uStartTime, int64_t uStartTimeMs,
     	int64_t uStopTime, int64_t uStopTimeMs)
@@ -81,6 +79,9 @@ public:
     	
     	m_totalUtterance = "";
     	m_meanConfidence = 0.0f;
+    	m_saneSize       = 0;
+    	
+    	m_sanizited = false;
     	
     	words.clear();
     }
@@ -88,8 +89,26 @@ public:
     addWord(std::vector<std::unique_ptr<RecognizedWord>> word)
     {
     	words.push_back(word);
+    }
+    
+    std::string getTotalUtterance()
+    {
+    	if (!m_sanitized)
+    	{
+    		sanitize();
+    	}
     	
-    	// TBD compute totalUtterance and meanConfidence
+    	return m_totalUtterance;
+    }
+    
+    uint32_t getNumberWords()
+    {
+    	if (!m_sanitized)
+    	{
+    		sanitize();
+    	}
+    	
+    	return m_saneSize;	
     }
     
     ~RecognizedUtterance()
@@ -100,7 +119,30 @@ public:
 private:
 	
     std::vector<std::unique_ptr<RecognizedWord>> words;
-	
+	std::string m_totalUtterance;
+    float       m_meanConfidence;
+    bool        m_sanitized;
+	uint32_t    m_saneSize;
+    
+    void sanitize(void)
+    {
+    	// construct utterance text
+		for (unsigned int i = 0; i < words.size(); i++)
+		{
+			if (i == 0)
+			{
+				m_totalUtterance = words[i]->m_text;
+			}
+			else
+			{
+				m_totalUtterance = m_totalUtterance + " " + words[i]->m_text;	
+			}
+		}
+    	
+		// run line limiter
+		
+		// recreate total utterance based on limited string (until longer)
+    }
 };
 
 #endif // RECOGNITION_RESULT_H

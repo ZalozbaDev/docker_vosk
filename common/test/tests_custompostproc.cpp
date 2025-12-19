@@ -8,95 +8,97 @@
 
 #include <string>
 
-TEST_CASE("passthrough mode")
+TEST_CASE("simple tests")
 {
-	CustomPostProc cpp(false, "");
+	CustomPostProc cpp(false, "", false);
 	
-	SUBCASE("check unmodified line") {
-		CHECK(cpp.processLine("witajće K Nam,.-!/").compare("witajće K Nam,.-!/") == 0);
+	SUBCASE("check simple sanitizing") {
+		CHECK(cpp.sanitizeWord("witajće") == "witajće");
+		CHECK(cpp.sanitizeWord("K") == "K");
+		CHECK(cpp.sanitizeWord("Nam,.-!") == "Nam");
+		
+		// test invalid multibyte sequence (replaced with U+FFFD / see below for UTF-8 notation)
+		CHECK(cpp.sanitizeWord("lubi\xF0\xA4\xAD") == "lubi\xEF\xBF\xBD");
+
+		// check space removal
+		CHECK(cpp.sanitizeWord(" witajće") == "witajće");
+		CHECK(cpp.sanitizeWord("  witajće") == "witajće");
+		CHECK(cpp.sanitizeWord("witajće ") == "witajće");
+		CHECK(cpp.sanitizeWord("witajće  ") == "witajće");
+		CHECK(cpp.sanitizeWord(" w  i    t a j ć e") == "witajće");
+		
+		// check interpunction removal
+		CHECK(cpp.sanitizeWord("witajće,") == "witajće");
+		CHECK(cpp.sanitizeWord("k:")       == "k");
+		CHECK(cpp.sanitizeWord("nam!")     == "nam");
 	}
 
-}
-
-TEST_CASE("correction mode without list")
-{
-	CustomPostProc cpp(true, "");
-
-	SUBCASE("check chars to be removed") {
-		CHECK(cpp.processLine("witajće, k: nam!").compare("witajće k nam") == 0);
-	}
+	CustomPostProc cpp_case(true, "", true);
 	
+	SUBCASE("check case correction") {
+		CHECK(cpp_case.sanitizeWord("witajće") == "witajće");
+		CHECK(cpp_case.sanitizeWord("K") == "k");
+		CHECK(cpp_case.sanitizeWord("Nam,.-!") == "nam");
+		
+		CHECK(cpp_case.sanitizeWord("HRAJER") == "hrajer");
+		CHECK(cpp_case.sanitizeWord("FELIKS") == "feliks");
+		CHECK(cpp_case.sanitizeWord("RIČEL") == "ričel");
+		
+		CHECK(cpp_case.sanitizeWord("HRAJER!") == "hrajer");
+		CHECK(cpp_case.sanitizeWord("FELIKS.") == "feliks");
+		CHECK(cpp_case.sanitizeWord("RIČEL,") == "ričel");
+	}
 }
 
 TEST_CASE("correction mode with list")
 {
 	CustomPostProc cpp(true, "replacement_list.txt");
 
-	///////////////////////////////////////
-	//
-	// replacements start, middle, end
-	//
-	///////////////////////////////////////
-	SUBCASE("check replacements somewhere in text") {
-		CHECK(cpp.processLine("hrajer feliks ričel so!").compare("hrajer Feliks Ričel so") == 0);
+	SUBCASE("check replacements without suffix") {
+		CHECK(cpp.replaceWord("feliks") == "Feliks");
+		CHECK(cpp.replaceWord("ričel")  == "Ričel");
+		CHECK(cpp.replaceWord("ben")    == "Ben");
+		CHECK(cpp.replaceWord("boese")  == "Boese");
 	}
 	
-	SUBCASE("check replacements at beginning of line") {
-		CHECK(cpp.processLine("ben boese njeda so,").compare("Ben Boese njeda so") == 0);
-	}
-	
-	SUBCASE("check replacements at end of line") {
-		CHECK(cpp.processLine("ben böse njeda so, ričel").compare("Ben Boese njeda so Ričel") == 0);
-	}
-	
-	///////////////////////////////////////
-	//
-	// no replacements start, middle, end
-	//
-	///////////////////////////////////////
 	SUBCASE("check no replacement if word does not match exactly") {
-		CHECK(cpp.processLine("benej böseu njeda so, ričel").compare("benej böseu njeda so Ričel") == 0);
+		CHECK(cpp.replaceWord("benej")   == "benej");
+		CHECK(cpp.replaceWord("böseu")   == "böseu");
+		CHECK(cpp.replaceWord("aben")    == "aben");
+		CHECK(cpp.replaceWord("alričel") == "alričel");
+	}
+
+	SUBCASE("check different suffix lengths") {
+		CHECK(cpp.replaceWord("chróšćic")   == "Chróšćic");
+		CHECK(cpp.replaceWord("chróšćicy")  == "Chróšćicy");
+		CHECK(cpp.replaceWord("chróšćicej") == "chróšćicej");
 	}
 	
-	SUBCASE("check no replacement at beginning of line when match not at word start") {
-		CHECK(cpp.processLine("aben boese njeda so,").compare("aben Boese njeda so") == 0);
+	// probably unnecessary on word level
+	SUBCASE("check space in replacee") {
+		CHECK(cpp.replaceWord("sven erik")   == "Sven Erik");
 	}
-	
-	SUBCASE("check no replacement somewhere in text when match not at word start") {
-		CHECK(cpp.processLine("ben boese alričel njeda so,").compare("Ben Boese alričel njeda so") == 0);
-	}
-	
-	SUBCASE("check no replacement of last word when match not at word start") {
-		CHECK(cpp.processLine("ben boese ričel njeda so, alričel").compare("Ben Boese Ričel njeda so alričel") == 0);
-	}
-	
-	///////////////////////////////////////
-	//
-	// suffix length
-	//
-	///////////////////////////////////////
-	SUBCASE("check no replacement of last word when match not at word start") {
-		CHECK(cpp.processLine("chróšćic chróšćic chróšćicy chróšćicej chróšćicy").compare("Chróšćic Chróšćic Chróšćicy chróšćicej Chróšćicy") == 0);
-	}
-	
-	///////////////////////////////////////
-	//
-	// replacee with space
-	//
-	///////////////////////////////////////
-	SUBCASE("check no replacement of last word when match not at word start") {
-		CHECK(cpp.processLine("to je sven erik lehmann tule").compare("to je Sven Erik Lehmann tule") == 0);
-	}
-	
 }
 
-TEST_CASE("case modification")
+TEST_CASE("string length limit")
 {
-	CustomPostProc cpp(true, "replacement_list.txt", true);
+	CustomPostProc cpp(true, "", true, 30);
 	
-	SUBCASE("check lower casing of buffer and then replacements") {
-		CHECK(cpp.processLine("HRAJER FELIKS RIČEL SO!").compare("hrajer Feliks Ričel so") == 0);
-	}
-	
+	SUBCASE("simple tests") {
+		// no repetition
+		CHECK(cpp.limitLine("abc", 1)                 == -1);
+		CHECK(cpp.limitLine("bla abcabc", 1)          == -1);
+		CHECK(cpp.limitLine("bla abcabcabc", 1)       == -1);
+		CHECK(cpp.limitLine("bla abcabcabcabc", 1)    == -1);
+		
+		// repetition detected
+		CHECK(cpp.limitLine("bla abcabcabcabcabcabcabcabcabc", 1) == 7);
+		
+		// repetition detected and word boundary found 
+		CHECK(cpp.limitLine("bla hallihallo also hier wird es abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc abc", 1) == 36);
+		
+		// no repetition detected and word boundary not found
+		CHECK(cpp.limitLine("bla abcabcabcabcabcabcabcabcabcblaabcabcabcabcabcabcabcabcabcaskldjghrasgsfdahfdsahgds", 1) == 60);
+		
+	}	
 }
-

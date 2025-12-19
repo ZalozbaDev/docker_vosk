@@ -542,6 +542,7 @@ void VoskRecognizer::runTokenToWords(void)
 	std::chrono::milliseconds relStart = 0ms;
 	std::chrono::milliseconds relEnd   = 0ms;
 	std::vector<float>        tokenConfidences;
+	bool newWord = false;
 	
 	for (auto&& token : tokens)
 	{
@@ -563,13 +564,15 @@ void VoskRecognizer::runTokenToWords(void)
 			relStart = 0ms;
 			relEnd   = 0ms;
 			tokenConfidences.clear();
+			newWord = true;
 		}
 		
 		// TBD remove initial space
 		currWord += token->m_text;
-		if (duration < 1ms)
+		if (newWord == true)
 		{
-			relStart = token->m_relStart;	
+			relStart = token->m_relStart;
+			newWord = false;
 		}
 		duration += token->m_duration;
 		relEnd = token->m_relEnd;
@@ -617,21 +620,21 @@ const char* VoskRecognizer::getPartialResult(void)
 	
 	std::string res = "{ \"partial\" : \"";
 	
-	partialResultMutex.lock();
+	wordMutex.lock();
 	
-	if (partialResult.size() > 0)
+	if (words.size() > 0)
 	{
-		for (unsigned int i = 0; i < partialResult.size(); i++)
+		for (unsigned int i = 0; i < words.size(); i++)
 		{
-			res += partialResult[i]->text;
-			if (i < (partialResult.size() - 1))
+			res += words[i]->text;
+			if (i < (words.size() - 1))
 			{
 				res += " ";
 			}
 		}
 	}
 	
-	partialResultMutex.unlock();
+	wordMutex.unlock();
 	
 	if (detailedResults == false)
 	{
@@ -644,16 +647,6 @@ const char* VoskRecognizer::getPartialResult(void)
 		res += ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? "true" : "false");
 		res += "\" }";
 	}
-	
-	/*
-	if (subword_regex.length() > 0)
-	{
-		std::regex subword(subword_regex);
-		res = std::regex_replace(res, subword, "");
-	}
-	*/
-	
-	// std::cout << "Partial result: " << res << std::endl;
 	
 	memset(partialResultBuffer, 0, sizeof(partialResultBuffer));
 	strncpy(partialResultBuffer, res.c_str(), sizeof(partialResultBuffer) - 1);
@@ -761,11 +754,22 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 	
 	runTokensToWords();
 	
-	partialResultMutex.lock();
+	wordMutex.lock();
 	
-	if (partialResult.size() > 0)
+	if (words.size() > 0)
 	{
-		for (unsigned int i = 0; i < partialResult.size(); i++)
+		std::unique_ptr<RecognizedUtterance> utt = std::make_unique<RecognizedUtterance>(
+			currStart->frameCounter, currStop->frameCounter, 
+			currStart->timeStampSeconds, currStart->timeStampMilliSeconds,
+			currStop->timeStampSeconds, currStop->timeStampMilliSeconds);
+			
+		for (unsigned int i = 0; i < words.size(); i++)
+		{
+			utt.addWord(words[i]);	
+		}
+		
+		/*
+		for (unsigned int i = 0; i < words.size(); i++)
 		{
 			finalResult += partialResult[i]->text;
 			if (i < (partialResult.size() - 1))
@@ -775,33 +779,26 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 			confidence += partialResult[i]->m_negLogLikelihood;
 		}
 		confidence = confidence / ((float) partialResult.size());
-		
-		std::cout << "Promoting partial result to final: " << finalResult << ", confidence = " << confidence << std::endl;
-		
-		std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
-		
-		/*
-		if (subword_regex.length() > 0)
-		{
-			std::regex subword(subword_regex);
-			finalResult = std::regex_replace(finalResult, subword, "");
-		}
 		*/
 		
-		std::cout << "Raw final result: " << finalResult << std::endl;
+		std::cout << "Promoting partial result to final: " << finalResult << ", confidence = " << confidence << std::endl;
 		
 		// try to fix various shortcomings of the result
 		
 		// compute utterance length based on frame counter, not on timestamps
 		// timestamps are only valid for online mode, not offline transcripts!!!
+		
+		/*
 		uint64_t frameCounterDiff = currStop->frameCounter - currStart->frameCounter;
 		float frameLenMs = getFrameResolution() * frameCounterDiff;
 		int lengthInSeconds = (int) (frameLenMs + 1000);
 		
-		std::string spellResult = hpp->processLine(cpp->processLine(finalResult, lengthInSeconds));
+		std::string spellResult = cpp->processLine(finalResult, lengthInSeconds);
+		*/
 
 		audioLogger->flush(spellResult);
-				
+
+		/*
 		res->text = spellResult;
 		
 		res->frameCounterStart = currStart->frameCounter;
@@ -812,17 +809,19 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 		res->uStopTime    = currStop->timeStampSeconds;
 		res->uStopTimeMs  = currStop->timeStampMilliSeconds;
 		res->confidence   = confidence;
+		*/
 		
-		finalResultMutex.lock();
 		
-		finalResults.push_back(std::move(res));
+		utteranceMutex.lock();
 		
-		finalResultMutex.unlock();
+		utterances.push_back(std::move(res));
 		
-		partialResult.clear();
+		utteranceMutex.unlock();
+		
+		words.clear();
 	}
 	
-	partialResultMutex.unlock();
+	wordMutex.unlock();
 }
 
 // #define MEASURE_WHISPER_TIME
