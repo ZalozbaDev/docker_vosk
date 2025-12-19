@@ -35,15 +35,17 @@ class RecognizedWord
 {
 public:
 	std::string               m_text;
+	std::string               m_replacer;
 	std::chrono::milliseconds m_duration;
 	std::chrono::milliseconds m_relStart;
 	std::chrono::milliseconds m_relEnd;
 	float                     m_meanConfidence;
 	bool                      m_correctSpelling;
 	
-	RecognizedWord(char* text, unsigned int durationMs, unsigned int startTimeMs, unsigned int endTimeMs, float confidence, bool correctSpelling) 
+	RecognizedWord(char* text, char* replacer, unsigned int durationMs, unsigned int startTimeMs, unsigned int endTimeMs, float confidence, bool correctSpelling) 
 	{
 		m_text             = text;
+		m_replacer         = replacer;
 		m_duration         = std::chrono::milliseconds(durationMs);
 		m_relStart         = std::chrono::milliseconds(startTimeMs);
 		m_relEnd           = std::chrono::milliseconds(endTimeMs);
@@ -68,7 +70,7 @@ public:
     int64_t     m_uStopTimeMs;
     
     RecognizedUtterance(uint64_t frameCounterStart, uint64_t frameCounterEnd, int64_t uStartTime, int64_t uStartTimeMs,
-    	int64_t uStopTime, int64_t uStopTimeMs)
+    	int64_t uStopTime, int64_t uStopTimeMs, int frameResolutionMs)
     {
     	m_frameCounterStart = frameCounterStart;
     	m_frameCounterEnd   = frameCounterEnd;
@@ -76,6 +78,7 @@ public:
     	m_uStartTimeMs      = uStartTimeMs;
     	m_uStopTime         = uStopTime;
     	m_uStopTimeMs       = uStopTimeMs;
+    	m_frameResolutionMs = frameResolutionMs;
     	
     	m_totalUtterance = "";
     	m_meanConfidence = 0.0f;
@@ -111,6 +114,16 @@ public:
     	return m_saneSize;	
     }
     
+    std::unique_ptr<RecognizedWord> popWord(uint32_t index)
+    {
+    	if (index >= m_saneSize)
+    	{
+    		return nullptr;	
+    	}
+    	
+    	return std::move(words[index]);
+    }
+    
     ~RecognizedUtterance()
     {
     	words.clear();	
@@ -126,7 +139,7 @@ private:
     
     void sanitize(void)
     {
-    	// construct utterance text
+    	// 1) construct whole utterance text (recognized content)
 		for (unsigned int i = 0; i < words.size(); i++)
 		{
 			if (i == 0)
@@ -139,9 +152,44 @@ private:
 			}
 		}
     	
-		// run line limiter
+		// 2) run line limiter to find out max. allowed length
 		
-		// recreate total utterance based on limited string (until longer)
+		// compute utterance length based on frame counter, not on timestamps
+		// timestamps are only valid for online mode, not offline transcripts!!!
+		
+		uint64_t frameCounterDiff = m_frameCounterEnd - m_frameCounterStart;
+		float frameLenMs = frameResolutionMs * frameCounterDiff;
+		int lengthInSeconds = (int) (frameLenMs + 1000);
+		
+		int maxLineLen = cpp.limitLine(m_totalUtterance, lengthInSeconds);
+		if (maxLineLen == -1)
+		{
+			maxLineLen = m_totalUtterance.length();
+		}
+		
+		// 3) recreate total utterance based on limited string (until longer)
+		// always need to do this to use replaced words
+		m_totalUtterance = "";
+		unsigned int i = 0;
+		while ((m_totalUtterance.length() <= maxLineLen) && (i < words.size()))
+		{
+			if (i == 0)
+			{
+				m_totalUtterance = words[i]->m_replacer;
+			}
+			else
+			{
+				m_totalUtterance = m_totalUtterance + " " + words[i]->m_replacer;	
+			}
+			
+			m_meanConfidence += words[i]->m_meanConfidence;
+			
+			i++;
+		}
+		m_meanConfidence = m_meanConfidence / ((float) i);
+		
+		// 4) set new maximum of (usable) words
+		m_saneSize = i;
     }
 };
 
