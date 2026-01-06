@@ -30,7 +30,7 @@ mkdir -p whisper_out/
 
 cp ../*.h ../*.cpp whisper_out/
 
-cp ../../vosk_server_whisper/VoskRecognizer.cpp ../../vosk_server_whisper/VoskRecognizer.h whisper_out/
+cp ../../vosk_server_whisper/*.cpp ../../vosk_server_whisper/*.h whisper_out/
 
 # if you want whisper debug output, you must already build whisper with WHISPER_DEBUG set (check src/whisper.cpp!)
 
@@ -49,6 +49,7 @@ whisper_out/RecognizerBase.cpp \
 whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADWrapperWebRTC.cpp whisper_out/VADWrapperSilero.cpp whisper_out/SileroVadIterator.cpp whisper_out/AudioLogger.cpp \
 whisper_out/ResamplerLibResample_48_16.cpp whisper_out/ResamplerWebRTC_48_16.cpp \
 whisper_out/HunspellPostProc.cpp whisper_out/CustomPostProc.cpp whisper_out/RepetitionRemover.cpp \
+whisper_out/WhisperImpl.cpp \
 main.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -ldl -lpthread -lhunspell -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -lonnxruntime -lresample -Lwhisper_out/ -Lonnxruntime-linux-x64-1.12.1/lib/
