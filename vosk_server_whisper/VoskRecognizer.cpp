@@ -20,6 +20,8 @@
 #include "common.h"
 #endif
 
+using namespace std::chrono_literals;
+
 int VoskRecognizer::voskRecognizerInstanceId = 1;
 
 //////////////////////////////////////////////
@@ -179,8 +181,9 @@ VoskRecognizer::~VoskRecognizer(void)
 	delete(vad);
 	delete(resample);
 	
-	partialResult.clear();
-	finalResults.clear();
+	tokens.clear();
+	words.clear();
+	utterances.clear();
 	
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
@@ -230,25 +233,30 @@ bool VoskRecognizer::getRecognizerBusy(bool audioQueueOnly)
 	
 	//
 	
-	partialResultMutex.lock();
-	
-	if (partialResult.size() > 0)
+	tokenMutex.lock();
+	if (tokens.size() > 0)
 	{
 		busy = true;
 	}
-	
-	partialResultMutex.unlock();
+	tokenMutex.unlock();
 	
 	//
 	
-    finalResultMutex.lock();
-    
-	if (finalResults.size() > 0)
+	wordMutex.lock();
+	if (words.size() > 0)
 	{
 		busy = true;
 	}
+	wordMutex.unlock();
 	
-    finalResultMutex.unlock();
+	//
+	
+    utteranceMutex.lock();
+	if (utterances.size() > 0)
+	{
+		busy = true;
+	}
+    utteranceMutex.unlock();
     
 	return busy;
 }
@@ -282,9 +290,8 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 	// std::cout << "acceptWaveform push -->" << std::endl;
 			
 	// access final results queue to compute return value
-    finalResultMutex.lock();
-    
-	if (finalResults.size() > 0)
+    utteranceMutex.lock();
+	if (utterances.size() > 0)
 	{
 		// at least one final utterance can be read
 		retVal = 1;
@@ -294,8 +301,7 @@ int VoskRecognizer::acceptWaveform(const char *data, int length)
 		// no final utterance available (maybe partial)
 		retVal = 0;
 	}
-	
-	finalResultMutex.unlock();
+	utteranceMutex.unlock();
 	
 	return retVal;
 }
@@ -524,7 +530,7 @@ void VoskRecognizer::workerThreadFunc(void)
 }
 
 //////////////////////////////////////////////
-void VoskRecognizer::runTokenToWords(void)
+void VoskRecognizer::runTokensToWords(void)
 {
 	tokenMutex.lock();
 	
@@ -546,11 +552,11 @@ void VoskRecognizer::runTokenToWords(void)
 			for (float val : tokenConfidences) {
 				confidenceSum += val;
 			}
-			float confidenceMean = probSum / tokenConfidences.size();
+			float confidenceMean = confidenceSum / tokenConfidences.size();
 			
-			std::string origWord = cpp.sanitizeWord(currWord);
-			std::string replacedWord = cpp.replaceWord(origWord);
-			bool spellResult = hpp.spelledCorrectly(replacedWord);
+			std::string origWord = cpp->sanitizeWord(currWord);
+			std::string replacedWord = cpp->replaceWord(origWord);
+			bool spellResult = hpp->spelledCorrectly(replacedWord);
 			
 			std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
 				origWord, replacedWord,
@@ -585,11 +591,11 @@ void VoskRecognizer::runTokenToWords(void)
 		for (float val : tokenConfidences) {
 			confidenceSum += val;
 		}
-		float confidenceMean = probSum / tokenConfidences.size();
+		float confidenceMean = confidenceSum / tokenConfidences.size();
 		
-		std::string origWord = cpp.sanitizeWord(currWord);
-		std::string replacedWord = cpp.replaceWord(origWord);
-		bool spellResult = hpp.spelledCorrectly(replacedWord);
+		std::string origWord = cpp->sanitizeWord(currWord);
+		std::string replacedWord = cpp->replaceWord(origWord);
+		bool spellResult = hpp->spelledCorrectly(replacedWord);
 		
 		std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
 			origWord, replacedWord,
@@ -631,7 +637,7 @@ const char* VoskRecognizer::getPartialResult(void)
 	{
 		for (unsigned int i = 0; i < words.size(); i++)
 		{
-			res += words[i]->text;
+			res += words[i]->m_text;
 			if (i < (words.size() - 1))
 			{
 				res += " ";
@@ -691,9 +697,9 @@ const char* VoskRecognizer::getFinalResult(void)
     int64_t uStopTime = 0;
     int64_t uStopTimeMs = 0;
 	
-    finalResultMutex.lock();
+    utteranceMutex.lock();
     
-	if (finalResults.size() > 0)
+	if (utterances.size() > 0)
 	{
 		std::unique_ptr<RecognizedUtterance> fin = std::move(utterances.front());
 		utterances.pop_front();
@@ -703,44 +709,44 @@ const char* VoskRecognizer::getFinalResult(void)
 		uStartTimeMs = fin->m_uStartTimeMs;
 		uStopTime    = fin->m_uStopTime;
 		uStopTimeMs  = fin->m_uStopTimeMs;
-	}
-	
-    finalResultMutex.unlock();
-    
-	if (detailedResults == false)
-	{
-		res += " --\" }";
-	}
-	else
-	{
-		res += " --\", \"start\" : \"";
-		res += std::to_string(uStartTime);
-		res += "\", \"startMs\" : \"";
-		res += std::to_string(uStartTimeMs);
-		res += "\", \"stop\" : \"";
-		res += std::to_string(uStopTime);
-		res += "\", \"stopMs\" : \"";
-		res += std::to_string(uStopTimeMs);
-		res += "\" ";
 		
-		// word-level results
-		res += ", \"result\": [ ";
-		for (unsigned int i = 0; i < fin->getNumberWords(); i++)
+		if (detailedResults == false)
 		{
-			if (i > 0)
-			{
-				res += ", ";	
-			}
-			std::unique_ptr<RecognizedWord> word = fin->popWord(i);
-			res += "{ \"conf\": "  + std::to_string(word->m_meanConfidence);  + ", ";
-			res +=  " \"end\": "   + std::to_string(word->m_relEnd);          + ", ";
-			res +=  " \"spell\": " + std::to_string(word->m_correctSpelling); + ", ";
-			res +=  " \"start\": " + std::to_string(word->m_relStart);        + ", ";
-			res +=  " \"word\": "  + word->m_replacer                         + " } ";
+			res += " --\" }";
 		}
-		res += "] }";
+		else
+		{
+			res += " --\", \"start\" : \"";
+			res += std::to_string(uStartTime);
+			res += "\", \"startMs\" : \"";
+			res += std::to_string(uStartTimeMs);
+			res += "\", \"stop\" : \"";
+			res += std::to_string(uStopTime);
+			res += "\", \"stopMs\" : \"";
+			res += std::to_string(uStopTimeMs);
+			res += "\" ";
+			
+			// word-level results
+			res += ", \"result\": [ ";
+			for (unsigned int i = 0; i < fin->getNumberWords(); i++)
+			{
+				if (i > 0)
+				{
+					res += ", ";	
+				}
+				std::unique_ptr<RecognizedWord> word = fin->popWord(i);
+				res += "{ \"conf\": "  + std::to_string(word->m_meanConfidence)   + ", ";
+				res +=  " \"end\": "   + std::to_string(word->m_relEnd.count())   + ", ";
+				res +=  " \"spell\": " + std::to_string(word->m_correctSpelling)  + ", ";
+				res +=  " \"start\": " + std::to_string(word->m_relStart.count()) + ", ";
+				res +=  " \"word\": "  + word->m_replacer                         + " } ";
+			}
+			res += "] }";
+		}
 	}
 		
+    utteranceMutex.unlock();
+    
 	std::cout << "Final result: " << res << std::endl;
 	
 	memset(finalResultBuffer, 0, sizeof(finalResultBuffer));
@@ -754,7 +760,7 @@ std::unique_ptr<RecognizedUtterance> VoskRecognizer::getFinalResultData(void)
 {
 	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>();
 	
-    finalResultMutex.lock();
+    utteranceMutex.lock();
     
 	if (utterances.size() > 0)
 	{
@@ -762,7 +768,7 @@ std::unique_ptr<RecognizedUtterance> VoskRecognizer::getFinalResultData(void)
 		utterances.pop_front();
 	}
 	
-    finalResultMutex.unlock();
+    utteranceMutex.unlock();
     
 	return res;
 }
@@ -877,7 +883,7 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 	// we have a valid instance --> run recognition
 	if (ctx)
 	{
-		tokenMutex.lock()
+		tokenMutex.lock();
 		
 		tokens.clear();
 		
@@ -977,11 +983,11 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 			}
 		}
 		
-		tokenMutex.unlock()
+		tokenMutex.unlock();
 	}
 	else
 	{
-		tokenMutex.lock()
+		tokenMutex.lock();
 		
 		tokens.clear();
 		
@@ -993,6 +999,6 @@ void VoskRecognizer::runWhisper(struct whisper_context* ctx)
 		std::unique_ptr<RecognizedToken> newResult = std::make_unique<RecognizedToken>(const_cast<char*>(errorText.c_str()), 5000, 200, 4800, 1.0f);
 		tokens.push_back(std::move(newResult));
 		
-		tokenMutex.unlock()
+		tokenMutex.unlock();
 	}
 }

@@ -4,6 +4,8 @@
 #include <vector>
 #include <chrono>
 
+#include "CustomPostProc.h" 
+
 /**
  *
  * Atomic part of "raw" detailed recognizer output. Can contain subword markers. 
@@ -71,7 +73,7 @@ public:
     int         m_frameResolutionMs;
     
     RecognizedUtterance(uint64_t frameCounterStart, uint64_t frameCounterEnd, int64_t uStartTime, int64_t uStartTimeMs,
-    	int64_t uStopTime, int64_t uStopTimeMs, int frameResolutionMs)
+    	int64_t uStopTime, int64_t uStopTimeMs, int frameResolutionMs, CustomPostProc* cpp)
     {
     	m_frameCounterStart = frameCounterStart;
     	m_frameCounterEnd   = frameCounterEnd;
@@ -86,6 +88,8 @@ public:
     	m_saneSize       = 0;
     	
     	m_sanitized = false;
+    	
+    	m_cpp = cpp;
     	
     	words.clear();
     }
@@ -137,8 +141,10 @@ private:
     float       m_meanConfidence;
     bool        m_sanitized;
 	uint32_t    m_saneSize;
+	
+	CustomPostProc* m_cpp;
     
-    void sanitize(void)
+    void sanitize()
     {
     	// 1) construct whole utterance text (recognized content)
 		for (unsigned int i = 0; i < words.size(); i++)
@@ -162,7 +168,7 @@ private:
 		float frameLenMs = m_frameResolutionMs * frameCounterDiff;
 		int lengthInSeconds = (int) (frameLenMs + 1000);
 		
-		int maxLineLen = cpp.limitLine(m_totalUtterance, lengthInSeconds);
+		int maxLineLen = m_cpp->limitLine(m_totalUtterance, lengthInSeconds);
 		if (maxLineLen == -1)
 		{
 			maxLineLen = m_totalUtterance.length();
@@ -172,7 +178,7 @@ private:
 		// always need to do this to use replaced words
 		m_totalUtterance = "";
 		unsigned int i = 0;
-		while ((m_totalUtterance.length() <= maxLineLen) && (i < words.size()))
+		while ((m_totalUtterance.length() <= ((unsigned int) maxLineLen)) && (i < words.size()))
 		{
 			if (i == 0)
 			{

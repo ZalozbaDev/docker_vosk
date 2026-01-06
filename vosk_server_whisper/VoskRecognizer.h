@@ -111,7 +111,6 @@ public:
 	virtual void setDetailedResult(bool detailsOn)                        override;
 	virtual int acceptWaveform(const char *data, int length)              override;
 	virtual bool getRecognizerBusy(bool audioQueueOnly = false)           override;
-	virtual void runTokenToWords(void)                                    override;
 	virtual const char* getPartialResult(void)                            override;
 	virtual const char* getFinalResult(void)                              override;
 	virtual bool getPartialStatus(void)                                   override;
@@ -160,7 +159,9 @@ private:
 	
 	char* leftOverData;
 	int leftOverDataLen = 0;
-	
+
+	void runTokensToWords(void);
+
 	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
 	
 	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
