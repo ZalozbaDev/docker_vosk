@@ -155,7 +155,8 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	
 	// announce the details of the impl
 	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 10, 0, 0, 0, 100, vad->getFrameTimeMs(), cpp);
-	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) whisperImpl->getAnnouncementString().c_str(), (char*) "", 500ms, 100ms, 400ms, 1.0f, true);
+	std::string voskAnnouncementString = whisperImpl->getAnnouncementString();
+	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) voskAnnouncementString.c_str(), (char*) voskAnnouncementString.c_str(), 500ms, 100ms, 400ms, 1.0f, true);
 	res->addWord(std::move(wrd));
 	utterances.push_back(std::move(res));
 	
@@ -699,7 +700,8 @@ bool VoskRecognizer::getPartialStatus(void)
 // with detailed result (new):
 // 
 // { "text" : "my final recognition result", "start" : "1234567", "startMs" : "345", "stop" : "1234569", "stopMs" : "765",
-//   "result": [ { "conf": 1, "end": 1.11, "spell": "true", "start": 0.87, "word": "my"}, { "conf": 0.8, "end": 1.53, "spell": "true", "start": 1.11, "word": "final" } ] }
+//   "result": [ { "conf": "1", "end": "1.11", "spell": "true", "start": "0.87", "word": "my"}, 
+//               { "conf": "0.8", "end": ""1.53"", "spell": "true", "start": "1.11", "word": "final" } ] }
 //
 //////////////////////////////////////////////
 const char* VoskRecognizer::getFinalResult(void)
@@ -748,11 +750,11 @@ const char* VoskRecognizer::getFinalResult(void)
 					res += ", ";	
 				}
 				std::unique_ptr<RecognizedWord> word = fin->popWord(i);
-				res += "{ \"conf\": "  + std::to_string(word->m_meanConfidence)   + ", ";
-				res +=  " \"end\": "   + std::to_string(word->m_relEnd.count())   + ", ";
-				res +=  " \"spell\": " + std::to_string(word->m_correctSpelling)  + ", ";
-				res +=  " \"start\": " + std::to_string(word->m_relStart.count()) + ", ";
-				res +=  " \"word\": "  + word->m_replacer                         + " } ";
+				res += "{ \"conf\": \""  + std::to_string(word->m_meanConfidence)   + "\", ";
+				res +=  " \"end\": \""   + std::to_string(word->m_relEnd.count())   + "\", ";
+				res +=  " \"spell\": \"" + std::to_string(word->m_correctSpelling)  + "\", ";
+				res +=  " \"start\": \"" + std::to_string(word->m_relStart.count()) + "\", ";
+				res +=  " \"word\": \""  + word->m_replacer                         + "\" } ";
 			}
 			res += "] }";
 		}
@@ -762,6 +764,7 @@ const char* VoskRecognizer::getFinalResult(void)
     
 	std::cout << "Final result: " << res << std::endl;
 	
+	// FIXME shall log if text would not fit buffer!
 	memset(finalResultBuffer, 0, sizeof(finalResultBuffer));
 	strncpy(finalResultBuffer, res.c_str(), sizeof(finalResultBuffer) - 1);
 	
