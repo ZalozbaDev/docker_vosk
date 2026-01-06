@@ -44,13 +44,13 @@ public:
 	float                     m_meanConfidence;
 	bool                      m_correctSpelling;
 	
-	RecognizedWord(char* text, char* replacer, unsigned int durationMs, unsigned int startTimeMs, unsigned int endTimeMs, float confidence, bool correctSpelling) 
+	RecognizedWord(char* text, char* replacer, std::chrono::milliseconds durationMs, std::chrono::milliseconds startTimeMs, std::chrono::milliseconds endTimeMs, float confidence, bool correctSpelling) 
 	{
 		m_text             = text;
 		m_replacer         = replacer;
-		m_duration         = std::chrono::milliseconds(durationMs);
-		m_relStart         = std::chrono::milliseconds(startTimeMs);
-		m_relEnd           = std::chrono::milliseconds(endTimeMs);
+		m_duration         = durationMs;
+		m_relStart         = startTimeMs;
+		m_relEnd           = endTimeMs;
 		m_meanConfidence   = confidence;
 		m_correctSpelling  = correctSpelling;
 	}
@@ -107,6 +107,16 @@ public:
     	}
     	
     	return m_totalUtterance;
+    }
+    
+    float getTotalConfidenceMean()
+    {
+    	if (!m_sanitized)
+    	{
+    		sanitize();
+    	}
+    	
+		return m_meanConfidence; 	
     }
     
     uint32_t getNumberWords()

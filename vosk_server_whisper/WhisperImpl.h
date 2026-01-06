@@ -1,6 +1,7 @@
 #ifndef WHISPER_IMPL_H
 #define WHISPER_IMPL_H
 
+#include "RecognitionResult.h"
 
 #ifndef WHISPER_MOCK
 #include "whisper.h"
@@ -81,9 +82,19 @@ class WhisperImpl
 {
 public:
 	WhisperImpl(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu);
+	std::string getAnnouncementString(void);
+	unsigned int getShortAudioBufferSizeSamples() { return pcm_buffer_short; }
+	unsigned int getMaxAudioBufferSizeSamples()   { return pcm_buffer_max; }
 	void run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& tokens);
 	~WhisperImpl();
 private:
+	// 1 second of audio is 16000 samples
+	const unsigned int pcm_buffer_min   = WHISPER_SAMPLE_RATE * 1 + (WHISPER_SAMPLE_RATE / 100); // < 1 seconds will not work with whisper
+	const unsigned int pcm_buffer_short = WHISPER_SAMPLE_RATE * 5; // < 5 seconds is short
+	const unsigned int pcm_buffer_max   = WHISPER_SAMPLE_RATE * 29; // 29s, do not let audio grow past this value
+    	
+	// const int n_samples_30s  = (1e-3 * 30000.0) * WHISPER_SAMPLE_RATE;
+
 	std::string m_modelPath;
 	
 	std::string m_vosk_model_language;
@@ -97,6 +108,6 @@ private:
 	struct whisper_context* ctx;	
 
 	std::string getLocalTimeStamp();
-}
+};
 
 #endif // WHISPER_IMPL_H

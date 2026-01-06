@@ -12,8 +12,6 @@
 #include <ResamplerWebRTC_48_16.h>
 #include <ResamplerLibResample_48_16.h>
 
-#include "WhisperImpl.h"
-
 #include <cassert>
 #include <regex>
 #include <chrono>
@@ -146,9 +144,9 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 		env_whisper_no_timestamps, env_whisper_no_fallback, env_whisper_force_cpu);
 	
 	// announce the details of the impl
-	std::string helloworld = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
-	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>();
-	res->addWord(helloworld);
+	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 10, 0, 0, 0, 100, vad->getFrameTimeMs(), cpp);
+	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) whisperImpl->getAnnouncementString().c_str(), (char*) "", 500ms, 100ms, 400ms, 1.0f, true);
+	res->addWord(std::move(wrd));
 	utterances.push_back(std::move(res));
 	
     threadRunning = true;
@@ -380,7 +378,7 @@ void VoskRecognizer::workerThreadFunc(void)
 				memcpy(leftOverData,data,length);
 			}
 			
-			noMoreData = vad->analyze((pcmf32.size() < pcm_buffer_short) ? true : false);
+			noMoreData = vad->analyze((pcmf32.size() < whisperImpl->getShortAudioBufferSizeSamples()) ? true : false);
 			
 			while (noMoreData == false)
 			{
@@ -421,7 +419,7 @@ void VoskRecognizer::workerThreadFunc(void)
 					}
 				}
 				
-				if ((detectedUttFinished == true) || (pcmf32.size() > pcm_buffer_max))
+				if ((detectedUttFinished == true) || (pcmf32.size() > whisperImpl->getMaxAudioBufferSizeSamples()))
 				{
 					
 					recoTokens.clear();
@@ -429,8 +427,16 @@ void VoskRecognizer::workerThreadFunc(void)
 					whisperImpl->run(pcmf32, recoTokens);
 					
 					tokenMutex.lock();
+					
+					// FIXME inefficient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					
+					tokens.reserve(tokens.size() + recoTokens.size());
+					for (RecognizedToken t : recoTokens)
+					{
+						tokens.push_back(std::make_unique<RecognizedToken>(t));
+					}
 
-					tokens.insert(tokens.end(), recoTokens.begin(), recoTokens.end());
+					// tokens.insert(tokens.end(), recoTokens.begin(), recoTokens.end());
 					
 					tokenMutex.unlock();
 					
@@ -497,7 +503,7 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 				}
 		
-				noMoreData = vad->analyze((pcmf32.size() < pcm_buffer_short) ? true : false);
+				noMoreData = vad->analyze((pcmf32.size() < whisperImpl->getShortAudioBufferSizeSamples()) ? true : false);
 			}
 		}
 		else
@@ -556,10 +562,10 @@ void VoskRecognizer::runTokensToWords(void)
 			bool spellResult = hpp->spelledCorrectly(replacedWord);
 			
 			std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
-				origWord, replacedWord,
+				(char*) origWord.c_str(), (char*) replacedWord.c_str(),
 				duration, relStart, relEnd, 
 				confidenceMean, spellResult);
-			words.push_back(word);
+			words.push_back(std::move(word));
 			
 			currWord = "";
 			duration = 0ms;
@@ -595,10 +601,10 @@ void VoskRecognizer::runTokensToWords(void)
 		bool spellResult = hpp->spelledCorrectly(replacedWord);
 		
 		std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
-			origWord, replacedWord,
+			(char*) origWord.c_str(), (char*) replacedWord.c_str(),
 			duration, relStart, relEnd, 
 			confidenceMean, spellResult);
-		words.push_back(word);
+		words.push_back(std::move(word));
 	}
 	
 	wordMutex.unlock();
@@ -755,7 +761,7 @@ const char* VoskRecognizer::getFinalResult(void)
 //////////////////////////////////////////////
 std::unique_ptr<RecognizedUtterance> VoskRecognizer::getFinalResultData(void)
 {
-	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>();
+	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 10, 0, 0, 0, 100, vad->getFrameTimeMs(), cpp);
 	
     utteranceMutex.lock();
     

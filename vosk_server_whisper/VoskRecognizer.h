@@ -24,6 +24,8 @@ extern "C" {
 #include <HunspellPostProc.h>
 #include <CustomPostProc.h>
 
+#include "WhisperImpl.h"
+
 //////////////////////////////////////////////
 class VoskRecognizer:public RecognizerBase
 {
@@ -68,17 +70,10 @@ private:
 
 	std::string m_configPath;
 
-	const int n_samples_30s  = (1e-3 * 30000.0) * WHISPER_SAMPLE_RATE;
-    
 	std::vector<float> pcmf32;
 	bool pcmBufferFragmented;
 	std::unique_ptr<VADFrameTiming> currFragmentStartTime;
 		
-	// 1 second of audio is 16000 samples
-	static const unsigned int pcm_buffer_min   = WHISPER_SAMPLE_RATE * 1 + (WHISPER_SAMPLE_RATE / 100); // < 1 seconds will not work with whisper
-	static const unsigned int pcm_buffer_short = WHISPER_SAMPLE_RATE * 5; // < 5 seconds is short
-	static const unsigned int pcm_buffer_max   = WHISPER_SAMPLE_RATE * 29; // 29s, do not let audio grow past this value
-	
 	VADWrapper *vad;
 	Resampler  *resample;
 	
