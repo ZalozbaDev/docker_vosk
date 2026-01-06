@@ -37,17 +37,10 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	
 	detailedResults = false;
 	
-	for (int i = 0; i < m_numberModelAnnouncements; i++)
-	{
-		std::string helloworld = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
-		for (int k = i; k < m_numberModelAnnouncements; k++)
-		{
-			helloworld = "." + helloworld; 	
-		}
-		std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
-		res->text = helloworld;
-		finalResults.push_back(std::move(res));
-	}
+	std::string helloworld = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
+	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>();
+	res->text = helloworld;
+	utterances.push_back(std::move(res));
 
 	// init static parts already here
 	
@@ -757,16 +750,16 @@ const char* VoskRecognizer::getFinalResult(void)
 }
 
 //////////////////////////////////////////////
-std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
+std::unique_ptr<RecognizedUtterance> VoskRecognizer::getFinalResultData(void)
 {
-	std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
+	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>();
 	
     finalResultMutex.lock();
     
-	if (finalResults.size() > 0)
+	if (utterances.size() > 0)
 	{
-		res = std::move(finalResults.front());
-		finalResults.pop_front();
+		res = std::move(utterances.front());
+		utterances.pop_front();
 	}
 	
     finalResultMutex.unlock();

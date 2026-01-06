@@ -68,6 +68,7 @@ public:
     int64_t     m_uStartTimeMs;
     int64_t     m_uStopTime;
     int64_t     m_uStopTimeMs;
+    int         m_frameResolutionMs;
     
     RecognizedUtterance(uint64_t frameCounterStart, uint64_t frameCounterEnd, int64_t uStartTime, int64_t uStartTimeMs,
     	int64_t uStopTime, int64_t uStopTimeMs, int frameResolutionMs)
@@ -84,14 +85,14 @@ public:
     	m_meanConfidence = 0.0f;
     	m_saneSize       = 0;
     	
-    	m_sanizited = false;
+    	m_sanitized = false;
     	
     	words.clear();
     }
     
-    addWord(std::vector<std::unique_ptr<RecognizedWord>> word)
+    void addWord(std::unique_ptr<RecognizedWord> word)
     {
-    	words.push_back(word);
+    	words.push_back(std::move(word));
     }
     
     std::string getTotalUtterance()
@@ -158,7 +159,7 @@ private:
 		// timestamps are only valid for online mode, not offline transcripts!!!
 		
 		uint64_t frameCounterDiff = m_frameCounterEnd - m_frameCounterStart;
-		float frameLenMs = frameResolutionMs * frameCounterDiff;
+		float frameLenMs = m_frameResolutionMs * frameCounterDiff;
 		int lengthInSeconds = (int) (frameLenMs + 1000);
 		
 		int maxLineLen = cpp.limitLine(m_totalUtterance, lengthInSeconds);
