@@ -105,6 +105,7 @@ int main(int argc, char **argv)
 		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true Silero" << std::endl;
 		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 czech 0 true Silero 0.9" << std::endl;
 		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 auto 0 false WebRTC -1 true" << std::endl;
+		std::cout << "Example: ./main ./ggml/ggml-model_v3.bin ./testdata/0001_citanje.wav testresults/ 2 auto 0 false WebRTC -1 true ./hsb_DE_soblex_w8_3.09.11.aff ./hsb_DE_soblex_w8_3.09.11.dic" << std::endl;
 		return 1;
 	}
 	
@@ -147,6 +148,14 @@ int main(int argc, char **argv)
 	if (argc >= 11)
 	{
 		setenv("VOSK_WHISPER_NO_FALLBACK", argv[10], 1);
+	}
+	if (argc >= 12)
+	{
+		setenv("VOSK_HUNSPELL_AFF_FILE", argv[11], 1);
+	}
+	if (argc >= 13)
+	{
+		setenv("VOSK_HUNSPELL_DIC_FILE", argv[12], 1);
 	}
 	
 	file = SndfileHandle(argv[2]) ;
