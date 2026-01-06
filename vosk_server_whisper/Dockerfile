@@ -98,6 +98,7 @@ RUN cp whisper.cpp/build/src/libwhisper.so.1 /
 RUN cp whisper.cpp/build/ggml/src/*.so       /
 RUN ln -s libwhisper.so.1 libwhisper.so
 
+# add -g3 (and maybe remove -O3) for debugging
 RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-extra-semi -Wno-unused-function -Wno-unused-parameter -Wno-missing-declarations -Wmissing-noreturn -Wno-write-strings -Wno-array-bounds -Wno-format-truncation \
 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DNDEBUG -DGGML_USE_OPENMP -DGGML_USE_CUDA \
