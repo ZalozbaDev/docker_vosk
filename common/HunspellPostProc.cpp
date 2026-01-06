@@ -6,7 +6,7 @@
 #include <HunspellPostProc.h>
 
 //////////////////////////////////////////////
-HunspellPostProc::HunspellPostProc(std::string aff, std::string dic, std::string custom)
+HunspellPostProc::HunspellPostProc(std::string aff, std::string dic)
 {
 	if ((aff.length() < 1) || (dic.length() < 1))
 	{
@@ -62,7 +62,7 @@ std::string HunspellPostProc::processLine(std::string line)
 		}
 		else
 		{
-			std::cout << "Tokenizer: " << tmp << " added to: " << retLine << std::endl;
+			std::cout << "HPP: " << tmp << " added to: " << retLine << std::endl;
 			retLine += tmp;
 		}
 		retLine += " ";

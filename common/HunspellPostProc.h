@@ -9,7 +9,7 @@
 class HunspellPostProc
 {
 public:
-	HunspellPostProc(std::string aff, std::string dic, std::string custom);
+	HunspellPostProc(std::string aff, std::string dic);
 	~HunspellPostProc(void);
 	std::string processLine(std::string line);
 	bool spelledCorrectly(std::string word);
