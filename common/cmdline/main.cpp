@@ -45,38 +45,38 @@ static std::string to_timestamp(int frameResolutionMs, uint64_t t) {
 
 static int subtitle_index = 1;
 
-static void process_subtitle(std::unique_ptr<FinalResult> res, std::ofstream& transcript, std::ofstream& subtitles, float confidenceThreshold, int frameResolutionMs)
+static void process_subtitle(std::unique_ptr<RecognizedUtterance> res, std::ofstream& transcript, std::ofstream& subtitles, float confidenceThreshold, int frameResolutionMs)
 {
 	// do not process empty text
-	if (res->text.length() > 0)
+	if (res->getTotalUtterance().length() > 0)
 	{
 		// do not process text below confidence threshold
-		if (res->confidence > confidenceThreshold)
+		if (res->getTotalConfidenceMean() > confidenceThreshold)
 		{
-			uint64_t frameCounterDiff = res->frameCounterEnd - res->frameCounterStart;
+			uint64_t frameCounterDiff = res->m_frameCounterEnd - res->m_frameCounterStart;
 			float frameLenMs = frameResolutionMs * frameCounterDiff;
 			
 			// do not process short frames if confidence filter is on (threshold > 0) 
 			if ((confidenceThreshold < 0) || (frameLenMs > 1000.0f))
 			{
-				transcript << res->text << std::endl;
+				transcript << res->getTotalUtterance() << std::endl;
 				
 				subtitles << subtitle_index << std::endl;
-				subtitles << to_timestamp(frameResolutionMs, res->frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->frameCounterEnd) << std::endl;
-				subtitles << res->text << std::endl;
+				subtitles << to_timestamp(frameResolutionMs, res->m_frameCounterStart) << " --> " << to_timestamp(frameResolutionMs, res->m_frameCounterEnd) << std::endl;
+				subtitles << res->getTotalUtterance() << std::endl;
 				subtitles << std::endl;
 				subtitle_index++;
 				
-				std::cout << res->text << std::endl;
+				std::cout << res->getTotalUtterance() << std::endl;
 			}
 			else
 			{
-				std::cout << "#### Skipping short line " << frameLenMs << "ms: " << res->text << std::endl;
+				std::cout << "#### Skipping short line " << frameLenMs << "ms: " << res->getTotalUtterance() << std::endl;
 			}
 		}
 		else
 		{
-			std::cout << "#### Skipping line with bad confidence " << res->confidence << ": " << res->text << std::endl;
+			std::cout << "#### Skipping line with bad confidence " << res->getTotalConfidenceMean() << ": " << res->getTotalUtterance() << std::endl;
 		}
 	}
 }
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			std::unique_ptr<FinalResult> res = v.getFinalResultData();
+			std::unique_ptr<RecognizedUtterance> res = v.getFinalResultData();
 			process_subtitle(std::move(res), transcript, subtitles, confidenceThreshold, frameResolutionMs);
 		}
 
@@ -249,7 +249,7 @@ int main(int argc, char **argv)
 	
 	while (v.getRecognizerBusy(false) == true)
 	{
-		std::unique_ptr<FinalResult> res = v.getFinalResultData();
+		std::unique_ptr<RecognizedUtterance> res = v.getFinalResultData();
 		process_subtitle(std::move(res), transcript, subtitles, confidenceThreshold, frameResolutionMs);
 		
 		std::this_thread::sleep_for(std::chrono::seconds(1));
