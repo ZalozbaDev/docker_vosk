@@ -12,13 +12,11 @@
 #include <ResamplerWebRTC_48_16.h>
 #include <ResamplerLibResample_48_16.h>
 
+#include "WhisperImpl.h"
+
 #include <cassert>
 #include <regex>
 #include <chrono>
-
-#ifndef WHISPER_MOCK
-#include "common.h"
-#endif
 
 using namespace std::chrono_literals;
 
@@ -39,10 +37,12 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	
 	detailedResults = false;
 	
-	std::string helloworld = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
-	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>();
-	res->text = helloworld;
-	utterances.push_back(std::move(res));
+	// capture options from envvars
+	std::string env_vosk_model_language   = "auto";
+	int         env_whisper_max_context   = -1; // use -1 for "don't change default"
+	bool        env_whisper_no_timestamps = false;
+	bool        env_whisper_no_fallback   = false;
+	bool        env_whisper_force_cpu     = false;
 
 	// init static parts already here
 	
@@ -73,10 +73,6 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     {
     	env_vosk_model_language = env_p;
     }    
-    else
-    {
-    	env_vosk_model_language = "auto";
-    }
     std::cout << "ENV setting language to '" << env_vosk_model_language << "'." << std::endl;
     
     // optional environment var
@@ -84,11 +80,6 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     if (const char *env_p = std::getenv("VOSK_WHISPER_MAX_CONTEXT"))
     {
     	env_whisper_max_context = std::atoi(env_p);
-    }
-    else
-    {
-    	// use -1 for "don't change default"
-    	env_whisper_max_context = -1;
     }
     std::cout << "ENV setting whisper max context to " << env_whisper_max_context << "." << std::endl;
     
@@ -114,21 +105,17 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     		env_whisper_no_fallback = true;
     	}
     }
-    else
-    {
-    	// default
-    	env_whisper_no_fallback = false;
-    }
     std::cout << "ENV setting whisper no fallback to " << env_whisper_no_fallback << "." << std::endl;
     
     if (const char *env_p = std::getenv("VOSK_WHISPER_USE_CPU"))
     {
         if (strcasecmp(env_p, "True") == 0)
         {
-        	default_params.use_gpu = false;
+        	env_whisper_force_cpu = true;
+        	// default_params.use_gpu = false;
         }
     }
-    std::cout << "ENV setting whisper use GPU to  " << default_params.use_gpu << "." << std::endl;
+    std::cout << "ENV setting whisper use GPU to  " << env_whisper_force_cpu << "." << std::endl;
 
     // makes sense to tie the resampler to the VAD algo used - not all combinations are possible anyway
     if (const char *env_p = std::getenv("VOSK_VAD_ALGO"))
@@ -153,7 +140,17 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
     	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);	
     }
 	m_vadFrameCounter = 0;
-	    
+	
+	// init whisper impl with all the collected options
+	whisperImpl = new WhisperImpl(m_configPath, env_vosk_model_language, env_whisper_max_context, 
+		env_whisper_no_timestamps, env_whisper_no_fallback, env_whisper_force_cpu);
+	
+	// announce the details of the impl
+	std::string helloworld = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
+	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>();
+	res->addWord(helloworld);
+	utterances.push_back(std::move(res));
+	
     threadRunning = true;
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
@@ -173,6 +170,8 @@ VoskRecognizer::~VoskRecognizer(void)
 	// now we can free all resources
 	delete(cpp);
 	delete(hpp);
+	
+	delete(whisperImpl);
 	
 	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
 	
@@ -314,9 +313,6 @@ void VoskRecognizer::workerThreadFunc(void)
 	int status;
 	bool noMoreData;
 	
-	struct whisper_context_params cparams;
-	struct whisper_context* ctx;
-
 	// splitting audio into chunks & resampling to 16kHz
 	// make this depend on the required framelength for VAD
 	const int framelen16 = vad->getRequiredFrameLength();
@@ -326,20 +322,13 @@ void VoskRecognizer::workerThreadFunc(void)
 	// leftover data buffer should not be bigger than one audio frame
 	leftOverData = new char[framelen48 * 2];
 	
-	// whisper init
-	cparams = whisper_context_default_params();
-	
-	cparams.use_gpu = default_params.use_gpu;
-	cparams.flash_attn = false;
-	cparams.dtw_token_timestamps = false;
-	
-	ctx = whisper_init_from_file_with_params(m_configPath.c_str(), cparams);
-
 	pcmf32.clear();
 	pcmBufferFragmented = false;
 	currFragmentStartTime = std::make_unique<VADFrameTiming>();
 		
 	m_recoState = VoskRecognizerState::INIT;
+	
+	std::vector<RecognizedToken> recoTokens;
 	
 	///////////////////////
 	
@@ -435,7 +424,17 @@ void VoskRecognizer::workerThreadFunc(void)
 				if ((detectedUttFinished == true) || (pcmf32.size() > pcm_buffer_max))
 				{
 					
-					runWhisper(ctx);
+					recoTokens.clear();
+					
+					whisperImpl->run(pcmf32, recoTokens);
+					
+					tokenMutex.lock();
+
+					tokens.insert(tokens.end(), recoTokens.begin(), recoTokens.end());
+					
+					tokenMutex.unlock();
+					
+					recoTokens.clear();
 					
 					// first audio buffer
 					if (pcmBufferFragmented == false)
@@ -521,8 +520,6 @@ void VoskRecognizer::workerThreadFunc(void)
 	delete[] leftOverData;
 	
 	////////////////////////
-
-	whisper_free(ctx);
 	
 	m_recoState = VoskRecognizerState::UNINIT;
 	
@@ -795,19 +792,19 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 			currStart->frameCounter, currStop->frameCounter, 
 			currStart->timeStampSeconds, currStart->timeStampMilliSeconds,
 			currStop->timeStampSeconds, currStop->timeStampMilliSeconds,
-			getFrameResolution());
+			getFrameResolution(), cpp);
 			
 		for (unsigned int i = 0; i < words.size(); i++)
 		{
-			utt.addWord(words[i]);	
+			utt->addWord(std::move(words[i]));	
 		}
 		
 		std::cout << "Promoting partial result to final: " << finalResult << ", confidence = " << confidence << std::endl;
 		
-		audioLogger->flush(utt.getTotalUtterance());
+		audioLogger->flush(utt->getTotalUtterance());
 		
 		utteranceMutex.lock();
-		utterances.push_back(std::move(res));
+		utterances.push_back(std::move(utt));
 		utteranceMutex.unlock();
 		
 		words.clear();
@@ -816,189 +813,3 @@ void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 	wordMutex.unlock();
 }
 
-// #define MEASURE_WHISPER_TIME
-
-//////////////////////////////////////////////
-void VoskRecognizer::runWhisper(struct whisper_context* ctx)
-{
-	// run whisper on the current state of audio buffer
-	whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-
-	wparams.strategy         = WHISPER_SAMPLING_GREEDY;
-	
-    wparams.print_realtime   = false;
-	wparams.print_progress   = false;
-	wparams.print_timestamps = env_whisper_no_timestamps; // !default_params.no_timestamps;
-	wparams.print_special    = default_params.print_special;
-	wparams.translate        = default_params.translate;
-	if (env_vosk_model_language == "auto")
-	{
-		wparams.language         = default_params.language.c_str();
-	}
-	else
-	{
-		wparams.language         = env_vosk_model_language.c_str();
-	}
-    wparams.detect_language  = default_params.detect_language;
-    wparams.n_threads        = default_params.n_threads;
-    wparams.n_max_text_ctx   = default_params.max_context >= 0 ? default_params.max_context : wparams.n_max_text_ctx;
-	if (env_whisper_max_context != -1)
-	{
-		wparams.n_max_text_ctx = env_whisper_max_context;
-	}
-    wparams.offset_ms        = default_params.offset_t_ms;
-    wparams.duration_ms      = default_params.duration_ms;
-
-    wparams.token_timestamps = default_params.output_wts || default_params.output_jsn_full || default_params.max_len > 0;
-    wparams.thold_pt         = default_params.word_thold;
-    wparams.max_len          = default_params.output_wts && default_params.max_len == 0 ? 60 : default_params.max_len;
-    wparams.split_on_word    = default_params.split_on_word;
-    wparams.audio_ctx        = default_params.audio_ctx;
-
-    wparams.debug_mode       = default_params.debug_mode;
-
-    wparams.tdrz_enable      = default_params.tinydiarize; // [TDRZ]
-
-    wparams.suppress_regex   = default_params.suppress_regex.empty() ? nullptr : default_params.suppress_regex.c_str();
-
-    wparams.initial_prompt   = default_params.prompt.c_str();
-
-    wparams.greedy.best_of        = default_params.best_of;
-    wparams.beam_search.beam_size = default_params.beam_size;
-
-    wparams.temperature_inc  = env_whisper_no_fallback ? 0.0f : default_params.temperature_inc;
-    wparams.temperature      = default_params.temperature;
-
-    wparams.entropy_thold    = default_params.entropy_thold;
-    wparams.logprob_thold    = default_params.logprob_thold;
-
-    wparams.no_timestamps    = default_params.no_timestamps;
-	    
-	// need minimum audio length
-	if (pcmf32.size() < pcm_buffer_min)
-	{
-		pcmf32.insert(pcmf32.cend(), pcm_buffer_min - pcmf32.size(), 0.0f);
-	}
-	
-	// we have a valid instance --> run recognition
-	if (ctx)
-	{
-		tokenMutex.lock();
-		
-		tokens.clear();
-		
-		std::cout << "Push audio to whisper, size=" << pcmf32.size() << std::endl;
-		
-#ifdef MEASURE_WHISPER_TIME
-		auto start = std::chrono::high_resolution_clock::now();
-#endif
-
-		// this can degrade accuracy if n_processors > 1
-		int whisper_call_result = whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), default_params.n_processors);
-		
-#ifdef MEASURE_WHISPER_TIME
-		auto end = std::chrono::high_resolution_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-
-		std::cout << "whisper call took "	
-              << duration.count()
-              << " milliseconds\n";
-#endif
-		
-		if (whisper_call_result != 0) 
-		{
-			// announce the error instead of crashing
-			std::string errorText = getLocalTimeStamp().append(": Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.");
-			// const char * text = "Zmylk při spóznawanju. Spytajće prošu pozdźišo hišće raz.";
-			
-			// TBD rather push an utterance than a token???
-			std::unique_ptr<RecognizedToken> newResult = std::make_unique<RecognizedToken>(const_cast<char*>(errorText.c_str()), 5000, 200, 4800, 1.0f);
-			tokens.push_back(std::move(newResult));
-		}
-		else
-		{
-			const int n_segments = whisper_full_n_segments(ctx);
-			for (int i = 0; i < n_segments; ++i) {
-				const char * text = whisper_full_get_segment_text(ctx, i);
-				int64_t t0 = 0;
-				int64_t t1 = 0;
-		
-				// timestamps currently unused anyway?
-				if (env_whisper_no_timestamps == false)
-				{
-					t0 = whisper_full_get_segment_t0(ctx, i);
-					t1 = whisper_full_get_segment_t1(ctx, i);
-				}
-				
-				// std::vector<float> tokenProbs;
-				const int n_tokens = whisper_full_n_tokens(ctx, i);
-				// fprintf(stderr,"tokens: %d\n",n_tokens);
-				for (int j = 0; j < n_tokens; j++) {
-					auto token = std::string(whisper_full_get_token_text(ctx, i, j));
-					float probability = whisper_full_get_token_p(ctx, i, j);
-					// std::cout << token << '\t' << probability << std::endl;
-					// fprintf(stderr,"token: %s %f\n",token,probability);
-					
-					// do not use probs from empty tokens and special tokens
-					if (!token.empty() && token.front() != '[' && token.back() != ']')
-					{
-						// just collect all tokens
-						std::unique_ptr<RecognizedToken> token = std::make_unique<RecognizedToken>(const_cast<char*>(token), 1000, 200, 800, probability);
-						tokens.push_back(std::move(token));
-						// tokenProbs.push_back(probability);
-					}
-					else
-					{
-						// std::cout << "Excluding token " << token << " from confidence!" << std::endl;	
-					}
-				}
-				
-				// TODO could eventually be used for confidence as well
-				// float noSpeech = whisper_full_get_segment_no_speech_prob(ctx, i);
-				// std::cout << "Segment " << i << '\t' << noSpeech << " no speech prob." << std::endl;
-				
-				// Compute mean
-				
-				/*
-				float probSum = 0.0f;
-				for (float val : tokenProbs) {
-					probSum += val;
-				}
-				float probMean = probSum / tokenProbs.size();
-				*/
-
-				// Compute standard deviation
-				/*
-				float varianceSum = 0.0f;
-				for (float val : tokenProbs) {
-					varianceSum += (val - probMean) * (val - probMean);
-				}
-				float stddev = std::sqrt(varianceSum / tokenProbs.size()); // Population std dev
-				*/
-				
-				// std::cout << "Sequence confidence: Mean = " << probMean << ", stddev = " << stddev << "." << std::endl;
-				
-				// std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(const_cast<char*>(text), (unsigned int) t0, (unsigned int) t1, (probMean - stddev));
-				// partialResult.push_back(std::move(newResult));
-			}
-		}
-		
-		tokenMutex.unlock();
-	}
-	else
-	{
-		tokenMutex.lock();
-		
-		tokens.clear();
-		
-		// supply a dummy result
-		std::string errorText = (getLocalTimeStamp().append(": System je přećežene. Spytajće prošu pozdźišo hišće raz."));
-		// const char * text = "System je přećežene. Spytajće prošu pozdźišo hišće raz.";
-		
-		// TBD rather push an utterance than a token???
-		std::unique_ptr<RecognizedToken> newResult = std::make_unique<RecognizedToken>(const_cast<char*>(errorText.c_str()), 5000, 200, 4800, 1.0f);
-		tokens.push_back(std::move(newResult));
-		
-		tokenMutex.unlock();
-	}
-}
