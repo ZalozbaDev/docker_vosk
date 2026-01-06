@@ -97,7 +97,7 @@ private:
 	
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];
-	char finalResultBuffer[1000];
+	char finalResultBuffer[100000];
 	bool detailedResults;
 	
 	void promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop);
