@@ -207,6 +207,9 @@ private:
 		
 		// 4) set new maximum of (usable) words
 		m_saneSize = i;
+		
+		// avoid second sanitizing :-D
+		m_sanitized = true;
     }
 };
 
