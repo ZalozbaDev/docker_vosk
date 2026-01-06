@@ -90,7 +90,7 @@ RUN cd whisper.cpp && git checkout v1.7.4
 RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=$NVIDIA_CUDA_ARCHITECTURE && cmake --build build -j --config Release
 
 COPY common/*.cpp  common/*.h /
-COPY vosk_server_whisper/VoskRecognizer.cpp vosk_server_whisper/VoskRecognizer.h /
+COPY vosk_server_whisper/*.cpp vosk_server_whisper/*.h /
 
 # RUN find /whisper.cpp/ -name "*.o"
 
@@ -108,6 +108,7 @@ RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
 asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp \
 RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp RepetitionRemover.cpp \
 ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp \
+WhisperImpl.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -lpthread -lhunspell  -licuio -licuuc -lonnxruntime -lresample -lwhisper -lggml -lggml-cpu -lggml-base -L/ -L/onnxruntime-linux-x64-1.12.1/lib/ 
 
