@@ -1,0 +1,97 @@
+#include "WhisperPool.h"
+
+std::mutex WhisperPool::instance_mutex;
+std::vector<std::unique_ptr<WhisperImpl>> WhisperPool::instances;
+std::condition_variable WhisperPool::instance_notify;
+	
+std::string WhisperPool::m_modelPath;
+	
+std::string WhisperPool::m_vosk_model_language;
+int WhisperPool::m_whisper_max_context;
+bool WhisperPool::m_whisper_no_timestamps;
+bool WhisperPool::m_whisper_no_fallback;
+bool WhisperPool::m_whisper_force_cpu;
+
+//////////////////////////////////////////////
+WhisperPool::WhisperPool()
+{
+}
+
+//////////////////////////////////////////////
+void WhisperPool::setWhisperParams(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu)
+{
+	m_modelPath = modelPath;
+	
+	m_vosk_model_language   = vosk_model_language;
+	m_whisper_max_context   = whisper_max_context;
+	m_whisper_no_timestamps = whisper_no_timestamps;
+	m_whisper_no_fallback   = whisper_no_fallback;
+	m_whisper_force_cpu     = whisper_force_cpu;
+}
+
+//////////////////////////////////////////////
+void WhisperPool::allocate(std::size_t size)
+{
+	if (instances.size() != size)
+	{
+		std::unique_lock<std::mutex> instances_lock{instance_mutex};
+		
+		if (instances.size() > size)
+		{
+			while (instances.size() > size)
+			{
+				instances.pop_back();
+			}
+		}
+		else
+		{
+			while (instances.size() < size)
+			{
+				std::unique_ptr<WhisperImpl> inst = std::make_unique<WhisperImpl>(m_modelPath, 
+					m_vosk_model_language, m_whisper_max_context, m_whisper_no_timestamps, 
+					m_whisper_no_fallback, m_whisper_force_cpu);		
+				instances.push_back(std::move(inst));
+			}
+		}
+		
+	}
+	
+}
+
+//////////////////////////////////////////////
+std::unique_ptr<WhisperImpl> WhisperPool::getInstance(void)
+{
+	std::unique_lock<std::mutex> instances_lock{instance_mutex};
+	
+	while (true)
+	{
+		if (instances.size() > 0)
+		{
+			std::unique_ptr<WhisperImpl> inst = std::move(instances.back());
+			instances.pop_back();
+			return inst;
+		}
+		else
+		{
+			instance_notify.wait(instances_lock);
+		}
+	}
+}
+
+//////////////////////////////////////////////
+void WhisperPool::releaseInstance(std::unique_ptr<WhisperImpl> inst)
+{
+	std::unique_lock<std::mutex> instances_lock{instance_mutex};
+
+	instances.push_back(std::move(inst));
+	
+	instances_lock.unlock();
+	
+	instance_notify.notify_one();
+}
+
+//////////////////////////////////////////////
+WhisperPool::~WhisperPool()
+{
+	allocate(0);
+}
