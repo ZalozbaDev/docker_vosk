@@ -1,5 +1,7 @@
 #include "WhisperPool.h"
 
+#include <iostream>
+
 std::mutex WhisperPool::instance_mutex;
 std::vector<std::unique_ptr<WhisperImpl>> WhisperPool::instances;
 std::condition_variable WhisperPool::instance_notify;
@@ -41,6 +43,7 @@ void WhisperPool::allocate(std::size_t size)
 			while (instances.size() > size)
 			{
 				instances.pop_back();
+				std::cout << "WhisperPool::allocate: REMOVE, total instances = " << instances.size() << "." << std::endl;
 			}
 		}
 		else
@@ -51,6 +54,8 @@ void WhisperPool::allocate(std::size_t size)
 					m_vosk_model_language, m_whisper_max_context, m_whisper_no_timestamps, 
 					m_whisper_no_fallback, m_whisper_force_cpu);		
 				instances.push_back(std::move(inst));
+				
+				std::cout << "WhisperPool::allocate: GROW, total instances = " << instances.size() << "." << std::endl;
 			}
 		}
 		
@@ -69,11 +74,14 @@ std::unique_ptr<WhisperImpl> WhisperPool::getInstance(void)
 		{
 			std::unique_ptr<WhisperImpl> inst = std::move(instances.back());
 			instances.pop_back();
+			std::cout << "WhisperPool::getInstance: remaining = " << instances.size() << "." << std::endl;
 			return inst;
 		}
 		else
 		{
+			std::cout << "WhisperPool::getInstance: waiting for other user to release instance." << std::endl;
 			instance_notify.wait(instances_lock);
+			std::cout << "WhisperPool::getInstance: notify() for newly available instance." << std::endl;
 		}
 	}
 }
@@ -86,6 +94,8 @@ void WhisperPool::releaseInstance(std::unique_ptr<WhisperImpl> inst)
 	instances.push_back(std::move(inst));
 	
 	instances_lock.unlock();
+
+	std::cout << "WhisperPool::releaseInstance: available = " << instances.size() << "." << std::endl;
 	
 	instance_notify.notify_one();
 }
@@ -93,5 +103,4 @@ void WhisperPool::releaseInstance(std::unique_ptr<WhisperImpl> inst)
 //////////////////////////////////////////////
 WhisperPool::~WhisperPool()
 {
-	allocate(0);
 }
