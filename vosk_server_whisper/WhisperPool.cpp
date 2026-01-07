@@ -14,6 +14,9 @@ bool WhisperPool::m_whisper_no_timestamps;
 bool WhisperPool::m_whisper_no_fallback;
 bool WhisperPool::m_whisper_force_cpu;
 
+int WhisperPool::number_users = 0;
+std::mutex WhisperPool::user_mutex;
+
 //////////////////////////////////////////////
 WhisperPool::WhisperPool()
 {
@@ -34,6 +37,12 @@ void WhisperPool::setWhisperParams(std::string modelPath, std::string vosk_model
 //////////////////////////////////////////////
 void WhisperPool::allocate(std::size_t size)
 {
+	std::unique_lock<std::mutex> users_lock{user_mutex};
+	
+	number_users++;
+
+	std::cout << "WhisperPool::allocate: total users = " << number_users << "." << std::endl;
+	
 	if (instances.size() != size)
 	{
 		std::unique_lock<std::mutex> instances_lock{instance_mutex};
@@ -98,6 +107,25 @@ void WhisperPool::releaseInstance(std::unique_ptr<WhisperImpl> inst)
 	std::cout << "WhisperPool::releaseInstance: available = " << instances.size() << "." << std::endl;
 	
 	instance_notify.notify_one();
+}
+
+//////////////////////////////////////////////
+void WhisperPool::unregister()
+{
+	std::unique_lock<std::mutex> users_lock{user_mutex};
+	
+	number_users--;
+
+	std::cout << "WhisperPool::unregister: total users = " << number_users << "." << std::endl;
+	
+	if (number_users == 0)
+	{
+		while (instances.size() > 0)
+		{
+			instances.pop_back();
+			std::cout << "WhisperPool::unregister: REMOVE, total instances = " << instances.size() << "." << std::endl;
+		}
+	}
 }
 
 //////////////////////////////////////////////

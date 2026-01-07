@@ -150,15 +150,21 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	m_vadFrameCounter = 0;
 	
 	// init whisper impl with all the collected options
-	whisperImpl = new WhisperImpl(m_configPath, env_vosk_model_language, env_whisper_max_context, 
+	WhisperPool::setWhisperParams(m_configPath, env_vosk_model_language, env_whisper_max_context, 
 		env_whisper_no_timestamps, env_whisper_no_fallback, env_whisper_force_cpu);
+	WhisperPool::allocate(1);
+	
+	// temporalily allocate the instance for the announcement string
+	std::unique_ptr<WhisperImpl> whisperInst = WhisperPool::getInstance();
 	
 	// announce the details of the impl
 	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 10, 0, 0, 0, 100, vad->getFrameTimeMs(), cpp);
-	std::string voskAnnouncementString = whisperImpl->getAnnouncementString();
+	std::string voskAnnouncementString = whisperInst->getAnnouncementString();
 	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) voskAnnouncementString.c_str(), (char*) voskAnnouncementString.c_str(), 500ms, 100ms, 400ms, 1.0f, true);
 	res->addWord(std::move(wrd));
 	utterances.push_back(std::move(res));
+	
+	WhisperPool::releaseInstance(std::move(whisperInst));
 	
     threadRunning = true;
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
@@ -180,7 +186,7 @@ VoskRecognizer::~VoskRecognizer(void)
 	delete(cpp);
 	delete(hpp);
 	
-	delete(whisperImpl);
+	WhisperPool::unregister();
 	
 	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
 	
@@ -339,6 +345,12 @@ void VoskRecognizer::workerThreadFunc(void)
 	
 	std::vector<RecognizedToken> recoTokens;
 	
+	// temporalily allocate the instance for the "short buffer" value
+	std::unique_ptr<WhisperImpl> whisperInst = WhisperPool::getInstance();
+	unsigned int shortAudioBufferSizeSamples = whisperInst->getShortAudioBufferSizeSamples();
+	unsigned int maxAudioBufferSizeSamples = whisperInst->getMaxAudioBufferSizeSamples();
+	WhisperPool::releaseInstance(std::move(whisperInst));
+
 	///////////////////////
 	
 	std::cout << "RECO_THREAD cfg load OK" << std::endl;
@@ -389,7 +401,7 @@ void VoskRecognizer::workerThreadFunc(void)
 				memcpy(leftOverData,data,length);
 			}
 			
-			noMoreData = vad->analyze((pcmf32.size() < whisperImpl->getShortAudioBufferSizeSamples()) ? true : false);
+			noMoreData = vad->analyze((pcmf32.size() < shortAudioBufferSizeSamples) ? true : false);
 			
 			while (noMoreData == false)
 			{
@@ -430,12 +442,16 @@ void VoskRecognizer::workerThreadFunc(void)
 					}
 				}
 				
-				if ((detectedUttFinished == true) || (pcmf32.size() > whisperImpl->getMaxAudioBufferSizeSamples()))
+				if ((detectedUttFinished == true) || (pcmf32.size() > maxAudioBufferSizeSamples))
 				{
 					
 					recoTokens.clear();
 					
-					whisperImpl->run(pcmf32, recoTokens);
+					std::unique_ptr<WhisperImpl> whisperInst = WhisperPool::getInstance();
+					
+					whisperInst->run(pcmf32, recoTokens);
+					
+					WhisperPool::releaseInstance(std::move(whisperInst));
 					
 					tokenMutex.lock();
 					
@@ -514,7 +530,7 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 				}
 		
-				noMoreData = vad->analyze((pcmf32.size() < whisperImpl->getShortAudioBufferSizeSamples()) ? true : false);
+				noMoreData = vad->analyze((pcmf32.size() < shortAudioBufferSizeSamples) ? true : false);
 			}
 		}
 		else

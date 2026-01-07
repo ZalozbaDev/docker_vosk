@@ -14,12 +14,16 @@ public:
 	static void allocate(std::size_t size);
 	static std::unique_ptr<WhisperImpl> getInstance(void);
 	static void releaseInstance(std::unique_ptr<WhisperImpl> inst);
+	static void unregister();
 	~WhisperPool();
 private:
 	WhisperPool();
 	static std::mutex instance_mutex;
 	static std::vector<std::unique_ptr<WhisperImpl>> instances;
 	static std::condition_variable instance_notify;
+	
+	static int number_users;
+	static std::mutex user_mutex;
 	
 	static std::string m_modelPath;
 	

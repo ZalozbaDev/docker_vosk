@@ -24,7 +24,7 @@ extern "C" {
 #include <HunspellPostProc.h>
 #include <CustomPostProc.h>
 
-#include "WhisperImpl.h"
+#include "WhisperPool.h"
 
 //////////////////////////////////////////////
 class VoskRecognizer:public RecognizerBase
@@ -80,8 +80,6 @@ private:
 	char* leftOverData;
 	int leftOverDataLen = 0;
 	
-	WhisperImpl *whisperImpl;
-
 	void runTokensToWords(void);
 
 	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
