@@ -143,6 +143,12 @@ int whisper_full_parallel(
                                    int   n_samples,
                                    int   n_processors);
 
+int whisper_full_n_tokens (struct whisper_context * ctx, int segment);
+
+const char * whisper_full_get_token_text           (struct whisper_context * ctx, int i_segment, int j);
+
+float whisper_full_get_token_p           (struct whisper_context * ctx, int i_segment, int j);
+
 int whisper_full_n_segments           (struct whisper_context * ctx);
 
 int64_t whisper_full_get_segment_t0           (struct whisper_context * ctx, int i_segment);

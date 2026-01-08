@@ -66,9 +66,24 @@ int whisper_full_parallel(
 	return whisper_full(ctx, params, samples, n_samples);
 }
 
+int whisper_full_n_tokens (struct whisper_context * ctx, int segment)
+{
+	return 5;
+}
+
 int whisper_full_n_segments(struct whisper_context * ctx)
 {
 	return resultSegments;	
+}
+
+const char * whisper_full_get_token_text(struct whisper_context * ctx, int i_segment, int j)
+{
+	return resultText;
+}
+
+float whisper_full_get_token_p           (struct whisper_context * ctx, int i_segment, int j)
+{
+	return 0.93f;	
 }
 
 int64_t whisper_full_get_segment_t0(struct whisper_context * ctx, int i_segment)

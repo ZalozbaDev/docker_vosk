@@ -10,6 +10,8 @@
 #include "whisper_mock.h"
 #endif
 
+#include <thread>
+
 // command-line parameters from whisper.cpp/examples/main/main.cpp
 struct whisper_params {
     int32_t n_threads     = std::min(4, (int32_t) std::thread::hardware_concurrency());
