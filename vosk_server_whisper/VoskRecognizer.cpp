@@ -775,6 +775,10 @@ const char* VoskRecognizer::getFinalResult(void)
 			res += "] }";
 		}
 	}
+	else
+	{
+		res += " --\" }";
+	}
 		
     utteranceMutex.unlock();
     
