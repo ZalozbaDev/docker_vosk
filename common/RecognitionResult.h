@@ -3,6 +3,9 @@
 
 #include <vector>
 #include <chrono>
+#include <iostream>
+
+#include <cassert>
 
 #include "CustomPostProc.h" 
 
@@ -176,20 +179,25 @@ private:
 		
 		uint64_t frameCounterDiff = m_frameCounterEnd - m_frameCounterStart;
 		float frameLenMs = m_frameResolutionMs * frameCounterDiff;
-		int lengthInSeconds = (int) (frameLenMs + 1000);
+		int lengthInSeconds = ((int) (frameLenMs + 1000)) / 1000;
 		
 		int maxLineLen = m_cpp->limitLine(m_totalUtterance, lengthInSeconds);
-		if (maxLineLen == -1)
+		
+		if (maxLineLen > 0)
 		{
-			maxLineLen = m_totalUtterance.length();
+			std::cout << "Apply line length limit of " << maxLineLen << " characters." << std::endl;
 		}
 		
 		// 3) recreate total utterance based on limited string (until longer)
 		// always need to do this to use replaced words
 		m_totalUtterance = "";
 		unsigned int i = 0;
-		while ((m_totalUtterance.length() <= ((unsigned int) maxLineLen)) && (i < words.size()))
+		bool exit_limit = false;
+		
+		while ((i < words.size()) && (exit_limit == false))
 		{
+			std::size_t oldUttLength = m_totalUtterance.length();
+			
 			if (i == 0)
 			{
 				m_totalUtterance = words[i]->m_replacer;
@@ -201,8 +209,35 @@ private:
 			
 			m_meanConfidence += words[i]->m_meanConfidence;
 			
+			// apply line length limit (this is a hard limit)
+			// -1 means do not limit length
+			if (maxLineLen > 0)
+			{
+				if (m_totalUtterance.length() >= ((unsigned int) maxLineLen))
+				{
+					m_totalUtterance = m_totalUtterance.substr(0, (std::size_t) maxLineLen);
+					
+					// must also apply limit to the current word (that exceeds length)
+					std::size_t newWordLen = maxLineLen - oldUttLength;
+					
+					// assert(newWordLen >= 0);
+					
+					std::cout << "Reduce current word nr. " << i << " from " << words[i]->m_replacer.length() 
+						      << " to " << newWordLen << " characters." << std::endl;
+					
+				    // only apply if the word must actually be chopped
+					if (newWordLen < words[i]->m_replacer.length())
+					{
+						words[i]->m_replacer = words[i]->m_replacer.substr(0, newWordLen);
+					}
+					
+					exit_limit = true;
+				}
+			}
+			
 			i++;
 		}
+		
 		m_meanConfidence = m_meanConfidence / ((float) i);
 		
 		// 4) set new maximum of (usable) words
