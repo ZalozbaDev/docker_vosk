@@ -22,22 +22,14 @@
   #define RECIKTSLIB "recikts64rel.so"
 #endif
 
-int VoskRecognizer::voskRecognizerInstanceId = 1;
 
 //////////////////////////////////////////////
-VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness)
+VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness) : 
+RecognizerBase(modelId, sample_rate, configPath, aggressiveness)
 {
 	char status;
 	
-	std::cout << "vosk_recognizer_new, instance=" << voskRecognizerInstanceId << " sample_rate=" << sample_rate << std::endl;
-
-	m_modelInstanceId = modelId;
-	m_instanceId      = voskRecognizerInstanceId++;
-	m_inputSampleRate = sample_rate;
-	
 	m_libraryLoaded   = false;
-	
-	m_recoState = VoskRecognizerState::UNINIT;
 	
 	loadLibrary();
 	
@@ -46,7 +38,12 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 	
 	std::cout << recikts_version() << std::endl;
 	
-	m_configPath = std::string(configPath);
+	
+	
+	
+	
+	
+	
 	
     audioLogger = new AudioLogger(std::string(PREFIX "logs/"), m_instanceId);
     
@@ -136,8 +133,9 @@ VoskRecognizer::~VoskRecognizer(void)
 	delete(vad);
 	delete(resample);
 	
-	partialResult.clear();
-	finalResults.clear();
+	tokens.clear();
+	words.clear();
+	utterances.clear();
 	
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
@@ -228,28 +226,6 @@ void VoskRecognizer::unloadLibrary(void)
 	if (status != 0) libraryError();
 	
 	m_libraryLoaded = false;
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::setDetailedResult(bool detailsOn)
-{
-	if (detailsOn == true)
-	{
-		detailedResults = true;	
-	}
-	else
-	{
-		detailedResults = false;	
-	}
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::setTimeStamp(int64_t seconds, int64_t uSeconds)
-{
-	// std::cout << "TIMESTAMP: " << seconds << "." << uSeconds << "s" << std::endl;
-	clientTimeStamp = std::chrono::system_clock::from_time_t(seconds) + std::chrono::microseconds(uSeconds);
-	auto timeStampPrint = std::chrono::system_clock::to_time_t(clientTimeStamp);
-	std::cout << "TIMESTAMP: " << std::ctime(&timeStampPrint) << std::endl;
 }
 
 //////////////////////////////////////////////

@@ -31,35 +31,25 @@ public:
 	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=2);
 	virtual ~VoskRecognizer(void);
 	
-	virtual int getInstanceId(void)                               override { return m_instanceId; }
-	virtual int getModelInstanceId(void)                          override { return m_modelInstanceId; }
-	virtual float getSampleRate(void)                             override { return m_inputSampleRate; }
-	virtual void setDetailedResult(bool detailsOn)                override;
-	virtual int acceptWaveform(const char *data, int length)      override;
-	virtual bool getRecognizerBusy(bool audioQueueOnly = false)   override;
-	virtual const char* getPartialResult(void)                    override;
-	virtual const char* getFinalResult(void)                      override;
-	virtual bool getPartialStatus(void)                           override;
-	virtual std::unique_ptr<FinalResult> getFinalResultData(void) override;
-	virtual int getFrameResolution(void)                          override;
+	virtual int getInstanceId(void)                                       override { return m_instanceId; }
+	virtual int getModelInstanceId(void)                                  override { return m_modelInstanceId; }
+	virtual float getSampleRate(void)                                     override { return m_inputSampleRate; }
+	virtual int acceptWaveform(const char *data, int length)              override;
+	virtual bool getRecognizerBusy(bool audioQueueOnly = false)           override;
+	virtual const char* getPartialResult(void)                            override;
+	virtual const char* getFinalResult(void)                              override;
+	virtual bool getPartialStatus(void)                                   override;
+	virtual std::unique_ptr<RecognizedUtterance> getFinalResultData(void) override;
+	virtual int getFrameResolution(void)                                  override;
 
 	// TBD move to base?
-	void setTimeStamp(int64_t seconds, int64_t uSeconds);
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);
 	
 private:
 	static const ssize_t m_processingSampleRate = 16000;
 	
-	static int voskRecognizerInstanceId;
-
-	int m_instanceId;
-	int m_modelInstanceId;
-	float m_inputSampleRate;
 	bool m_libraryLoaded;
-	VoskRecognizerState m_recoState;
 	uint64_t m_vadFrameCounter;
-	
-	std::string m_configPath;
 
 	void *libmInstance;
 	void *recInstance;
@@ -115,18 +105,20 @@ private:
 	
 	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
 	
-	std::vector<std::unique_ptr<RecognitionResult>> partialResult;
-	std::mutex partialResultMutex;
+	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
+	std::mutex tokenMutex;
 	
-	std::deque<std::unique_ptr<FinalResult>>        finalResults;
-	std::mutex finalResultMutex;
+	std::vector<std::unique_ptr<RecognizedWord>>     words;
+	std::mutex wordMutex;
+	
+	std::deque<std::unique_ptr<RecognizedUtterance>> utterances;
+	std::mutex utteranceMutex;
 	
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];
-	char finalResultBuffer[1000];
-	bool detailedResults;
+	char finalResultBuffer[100000];
 	
-	void promoteToFinalResult(void);
+	void promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop);
 	
 	AudioLogger *audioLogger;
 	

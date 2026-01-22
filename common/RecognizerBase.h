@@ -33,12 +33,11 @@ public:
 class RecognizerBase
 {
 public:
-	RecognizerBase()                                 = default;
+	RecognizerBase(int modelId, float sample_rate, const char *configPath, int aggressiveness);
 	
 	virtual int getInstanceId(void)                                       = 0;
 	virtual int getModelInstanceId(void)                                  = 0;
 	virtual float getSampleRate(void)                                     = 0;
-	virtual void setDetailedResult(bool detailsOn)                        = 0;
 	virtual int acceptWaveform(const char *data, int length)              = 0;
 	virtual bool getRecognizerBusy(bool audioQueueOnly = false)           = 0;
 //	virtual void runTokenToWords(void)                                    = 0;
@@ -50,6 +49,19 @@ public:
 	
 	virtual ~RecognizerBase();
 	std::string getLocalTimeStamp(void);
+	void setDetailedResult(bool detailsOn);
+	void setTimeStamp(int64_t seconds, int64_t uSeconds);
+	
+protected:
+	static int voskRecognizerInstanceId;
+	
+	bool detailedResults;
+	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
+	
+	int m_instanceId;
+	int m_modelInstanceId;
+	float m_inputSampleRate;
+
 };
 
 #endif // RECOGNIZER_BASE_H

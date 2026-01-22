@@ -18,31 +18,20 @@
 
 using namespace std::chrono_literals;
 
-int VoskRecognizer::voskRecognizerInstanceId = 1;
-
 //////////////////////////////////////////////
-VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness)
+VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness) : 
+RecognizerBase(modelId, sample_rate, configPath, aggressiveness)
 {
-	std::cout << "vosk_recognizer_new, instance=" << voskRecognizerInstanceId << " sample_rate=" << sample_rate << std::endl;
-
-	m_modelInstanceId = modelId;
-	m_instanceId      = voskRecognizerInstanceId++;
-	m_inputSampleRate = sample_rate;
 	
-	m_recoState = VoskRecognizerState::UNINIT;
-	
-	m_configPath = std::string(configPath);
-	
-	detailedResults = false;
-	
-	// capture options from envvars
-	std::string env_vosk_model_language   = "auto";
+	// capture recognizer-specific options from envvars
 	int         env_whisper_max_context   = -1; // use -1 for "don't change default"
 	bool        env_whisper_no_timestamps = false;
 	bool        env_whisper_no_fallback   = false;
 	bool        env_whisper_force_cpu     = false;
+	std::string env_vosk_model_language   = "auto";
 
-	// init static parts already here
+	
+	
 	
 	// adjust pre/post buffers here if needed
 	
@@ -201,28 +190,6 @@ VoskRecognizer::~VoskRecognizer(void)
 	
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::setDetailedResult(bool detailsOn)
-{
-	if (detailsOn == true)
-	{
-		detailedResults = true;	
-	}
-	else
-	{
-		detailedResults = false;	
-	}
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::setTimeStamp(int64_t seconds, int64_t uSeconds)
-{
-	// std::cout << "TIMESTAMP: " << seconds << "." << uSeconds << "s" << std::endl;
-	clientTimeStamp = std::chrono::system_clock::from_time_t(seconds) + std::chrono::microseconds(uSeconds);
-	auto timeStampPrint = std::chrono::system_clock::to_time_t(clientTimeStamp);
-	std::cout << "TIMESTAMP: " << std::ctime(&timeStampPrint) << std::endl;
 }
 
 //////////////////////////////////////////////

@@ -36,7 +36,6 @@ public:
 	virtual int getInstanceId(void)                                       override { return m_instanceId; }
 	virtual int getModelInstanceId(void)                                  override { return m_modelInstanceId; }
 	virtual float getSampleRate(void)                                     override { return m_inputSampleRate; }
-	virtual void setDetailedResult(bool detailsOn)                        override;
 	virtual int acceptWaveform(const char *data, int length)              override;
 	virtual bool getRecognizerBusy(bool audioQueueOnly = false)           override;
 	virtual const char* getPartialResult(void)                            override;
@@ -46,7 +45,6 @@ public:
 	virtual int getFrameResolution(void)                                  override;
 
 	// TBD move to base?
-	void setTimeStamp(int64_t seconds, int64_t uSeconds);
 	void resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood);
 	
 private:
@@ -54,11 +52,7 @@ private:
 	
 	static int voskRecognizerInstanceId;
 
-	int m_instanceId;
-	int m_modelInstanceId;
-	float m_inputSampleRate;
 	bool m_libraryLoaded;
-	VoskRecognizerState m_recoState;
 	uint64_t m_vadFrameCounter;
 	
 	std::thread *recoWorkerThread;
@@ -67,8 +61,6 @@ private:
 	std::mutex audioPacketMutex;
 	std::condition_variable audioPacketNotify;
 	void workerThreadFunc(void);
-
-	std::string m_configPath;
 
 	std::vector<float> pcmf32;
 	bool pcmBufferFragmented;
@@ -82,8 +74,6 @@ private:
 	
 	void runTokensToWords(void);
 
-	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
-	
 	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
 	std::mutex tokenMutex;
 	
@@ -96,7 +86,6 @@ private:
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];
 	char finalResultBuffer[100000];
-	bool detailedResults;
 	
 	void promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop);
 	void runWhisper(struct whisper_context* ctx);
