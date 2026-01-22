@@ -16,14 +16,6 @@ extern "C" {
 #include "vosk_api.h"
 }
 
-#include <VADWrapper.h>
-#include <Resampler.h>
-#include <RecognitionResult.h>
-#include <AudioLogger.h>
-
-#include <HunspellPostProc.h>
-#include <CustomPostProc.h>
-
 //////////////////////////////////////////////
 class VoskRecognizer:public RecognizerBase
 {
@@ -97,9 +89,6 @@ private:
 	
 	static void recikts_callback(struct recikts_callback_dat dat, void *userdata);
 	
-	VADWrapper *vad;
-	Resampler  *resample;
-
 	char* leftOverData;
 	int leftOverDataLen = 0;
 	
@@ -119,13 +108,7 @@ private:
 	char finalResultBuffer[100000];
 	
 	void promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop);
-	
-	AudioLogger *audioLogger;
-	
-	std::string subword_regex;
-	
-	HunspellPostProc *hpp;
-	CustomPostProc *cpp;
+		std::string subword_regex;
 	
 	static const int64_t longPauseSeconds = 10;
 	int64_t lastUttStopTime;

@@ -7,11 +7,6 @@
 #include <string.h>
 #include <dlfcn.h>
 
-#include <VADWrapperWebRTC.h>
-#include <VADWrapperSilero.h>
-#include <ResamplerWebRTC_48_16.h>
-#include <ResamplerLibResample_48_16.h>
-
 #include <cassert>
 #include <regex>
 
@@ -25,7 +20,7 @@
 
 //////////////////////////////////////////////
 VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness) : 
-RecognizerBase(modelId, sample_rate, configPath, aggressiveness)
+RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSampleRate)
 {
 	char status;
 	
@@ -45,16 +40,6 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness)
 	
 	
 	
-    audioLogger = new AudioLogger(std::string(PREFIX "logs/"), m_instanceId);
-    
-    if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
-    {
-        if (strcasecmp(env_p, "True") == 0)
-        {
-        	audioLogger->activate();	
-        }
-    }
-    
     if (const char *env_p = std::getenv("VOSK_SUBWORD_REGEX"))
     {
     	subword_regex = std::string(env_p);
@@ -65,37 +50,6 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness)
     	subword_regex = std::string("");	
     }
 
-    hpp = new HunspellPostProc("", "", "");
-
-    std::string replacement_file = "";
-    if (const char *env_p = std::getenv("VOSK_REPLACEMENT_FILE"))
-    {
-    	replacement_file = env_p;
-    }
-    cpp = new CustomPostProc(true, replacement_file, true);
-    
-    // makes sense to tie the resampler to the VAD algo used - not all combinations are possible anyway
-    if (const char *env_p = std::getenv("VOSK_VAD_ALGO"))
-    {
-        if (strcasecmp(env_p, "Silero") == 0)
-        {
-        	std::cout << "ENV setting VAD algo to Silero." << std::endl;
-        	resample = new ResamplerLibResample_48_16();
-        	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
-        }
-        else
-        {
-        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
-        	resample = new ResamplerWebRTC_48_16();
-        	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 5, 5, 5, 5);
-        }
-    }
-    else
-    {
-       	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
-       	resample = new ResamplerWebRTC_48_16();
-    	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 5, 5, 5, 5);	
-    }
 	m_vadFrameCounter = 0;
 	    
     threadRunning = true;

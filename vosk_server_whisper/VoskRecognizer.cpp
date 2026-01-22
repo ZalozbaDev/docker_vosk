@@ -7,11 +7,6 @@
 #include <string.h>
 #include <dlfcn.h>
 
-#include <VADWrapperWebRTC.h>
-#include <VADWrapperSilero.h>
-#include <ResamplerWebRTC_48_16.h>
-#include <ResamplerLibResample_48_16.h>
-
 #include <cassert>
 #include <regex>
 #include <chrono>
@@ -20,7 +15,7 @@ using namespace std::chrono_literals;
 
 //////////////////////////////////////////////
 VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness) : 
-RecognizerBase(modelId, sample_rate, configPath, aggressiveness)
+RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSampleRate)
 {
 	
 	// capture recognizer-specific options from envvars
@@ -35,35 +30,6 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness)
 	
 	// adjust pre/post buffers here if needed
 	
-	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
-    
-    if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
-    {
-        if (strcasecmp(env_p, "True") == 0)
-        {
-        	audioLogger->activate();	
-        }
-    }
-    
-    std::string hunspell_aff_file = "";
-    if (const char *env_p = std::getenv("VOSK_HUNSPELL_AFF_FILE"))
-    {
-    	hunspell_aff_file = env_p;
-    }
-    std::string hunspell_dic_file = "";
-    if (const char *env_p = std::getenv("VOSK_HUNSPELL_DIC_FILE"))
-    {
-    	hunspell_dic_file = env_p;
-    }
-    hpp = new HunspellPostProc(hunspell_aff_file, hunspell_dic_file);
-
-    std::string replacement_file = "";
-    if (const char *env_p = std::getenv("VOSK_REPLACEMENT_FILE"))
-    {
-    	replacement_file = env_p;
-    }
-    cpp = new CustomPostProc(true, replacement_file, false, 30); // limit to max. 30 characters per second of audio, reduces impact of hallucinations
-    
     // optional environment var
     // - --language            ("en", "czech", ...)
     if (const char *env_p = std::getenv("VOSK_MODEL_LANGUAGE"))
@@ -114,28 +80,6 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness)
     }
     std::cout << "ENV setting whisper use GPU to  " << env_whisper_force_cpu << "." << std::endl;
 
-    // makes sense to tie the resampler to the VAD algo used - not all combinations are possible anyway
-    if (const char *env_p = std::getenv("VOSK_VAD_ALGO"))
-    {
-        if (strcasecmp(env_p, "Silero") == 0)
-        {
-        	std::cout << "ENV setting VAD algo to Silero." << std::endl;
-        	resample = new ResamplerLibResample_48_16();
-        	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
-        }
-        else
-        {
-        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
-        	resample = new ResamplerWebRTC_48_16();
-        	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);
-        }
-    }
-    else
-    {
-       	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
-       	resample = new ResamplerWebRTC_48_16();
-    	vad = new VADWrapperWebRTC(aggressiveness, m_processingSampleRate, 15, 15, 5, 5);	
-    }
 	m_vadFrameCounter = 0;
 	
 	// init whisper impl with all the collected options

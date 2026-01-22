@@ -8,6 +8,15 @@
 
 #include "RecognitionResult.h"
 
+#include <VADWrapper.h>
+#include <Resampler.h>
+#include <RecognitionResult.h>
+#include <AudioLogger.h>
+
+#include <HunspellPostProc.h>
+#include <CustomPostProc.h>
+
+
 enum VoskRecognizerState {UNINIT, INIT};
 
 class AudioPacket
@@ -33,7 +42,7 @@ public:
 class RecognizerBase
 {
 public:
-	RecognizerBase(int modelId, float sample_rate, const char *configPath, int aggressiveness);
+	RecognizerBase(int modelId, float sample_rate, const char *configPath, int aggressiveness, const ssize_t processingSampleRate);
 	
 	virtual int getInstanceId(void)                                       = 0;
 	virtual int getModelInstanceId(void)                                  = 0;
@@ -61,6 +70,17 @@ protected:
 	int m_instanceId;
 	int m_modelInstanceId;
 	float m_inputSampleRate;
+
+	VoskRecognizerState m_recoState;
+	std::string m_configPath;
+
+	AudioLogger *audioLogger;
+	
+	HunspellPostProc *hpp;
+	CustomPostProc *cpp;
+
+	VADWrapper *vad;
+	Resampler  *resample;
 
 };
 

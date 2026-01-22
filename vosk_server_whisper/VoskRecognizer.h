@@ -16,14 +16,6 @@ extern "C" {
 #include "vosk_api.h"
 }
 
-#include <VADWrapper.h>
-#include <Resampler.h>
-#include <RecognitionResult.h>
-#include <AudioLogger.h>
-
-#include <HunspellPostProc.h>
-#include <CustomPostProc.h>
-
 #include "WhisperPool.h"
 
 //////////////////////////////////////////////
@@ -66,9 +58,6 @@ private:
 	bool pcmBufferFragmented;
 	std::unique_ptr<VADFrameTiming> currFragmentStartTime;
 		
-	VADWrapper *vad;
-	Resampler  *resample;
-	
 	char* leftOverData;
 	int leftOverDataLen = 0;
 	
@@ -90,10 +79,6 @@ private:
 	void promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop);
 	void runWhisper(struct whisper_context* ctx);
 	
-	AudioLogger *audioLogger;
-	
-	HunspellPostProc *hpp;
-	CustomPostProc *cpp;
 };
 
 #endif // VOSK_RECOGNIZER_H
