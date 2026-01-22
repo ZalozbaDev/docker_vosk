@@ -85,7 +85,20 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
 //////////////////////////////////////////////////////////////////////////////
 RecognizerBase::~RecognizerBase()
 {
+
+	// now we can free all resources
+	delete(cpp);
+	delete(hpp);
 	
+	delete(audioLogger);
+	
+	delete(vad);
+	delete(resample);
+
+	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
+
+	// don't decrease, let every instance get a unique ID
+	// voskRecognizerInstanceId--;
 }
 
 //////////////////////////////////////////////////////////////////////////////

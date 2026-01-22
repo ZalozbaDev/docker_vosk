@@ -75,17 +75,8 @@ VoskRecognizer::~VoskRecognizer(void)
 
 	// now we can free all resources
 	
-	delete(cpp);
-	delete(hpp);
-	
-	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
-	
-	delete(audioLogger);
 	
 	unloadLibrary();
-	
-	delete(vad);
-	delete(resample);
 	
 	tokens.clear();
 	words.clear();

@@ -116,24 +116,13 @@ VoskRecognizer::~VoskRecognizer(void)
 	delete(recoWorkerThread);
 
 	// now we can free all resources
-	delete(cpp);
-	delete(hpp);
 	
 	WhisperPool::unregister();
-	
-	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
-	
-	delete(audioLogger);
-	
-	delete(vad);
-	delete(resample);
 	
 	tokens.clear();
 	words.clear();
 	utterances.clear();
 	
-	// don't decrease, let every instance get a unique ID
-	// voskRecognizerInstanceId--;
 }
 
 //////////////////////////////////////////////
