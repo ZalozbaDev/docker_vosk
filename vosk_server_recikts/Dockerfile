@@ -65,7 +65,7 @@ RUN cp vosk-api/src/vosk_api.h /
 RUN cp vosk-server/websocket-cpp/asr_server.cpp /
 
 COPY common/*.cpp  common/*.h /
-COPY vosk_server_recikts/recikts.h vosk_server_recikts/VoskRecognizer.cpp vosk_server_recikts/VoskRecognizer.h /
+COPY vosk_server_recikts/*.h vosk_server_recikts/*.cpp /
 
 RUN mkdir -p /data/
 
@@ -74,7 +74,7 @@ RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -o recikts_server -I. \
 -I/webrtc-audio-processing/webrtc/ -DPREFIX=\"/data/\" \
 -I/onnxruntime-linux-x64-1.12.1/include/ \
 asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
-ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp \
+ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp RecIKTSImpl.cpp RepetitionRemover.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -ldl -lpthread -lhunspell -licuio -licuuc -lonnxruntime -lresample -L/onnxruntime-linux-x64-1.12.1/lib/
 # -I/boost_1_76_0/ 
