@@ -19,6 +19,8 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 {
 	recIktsImpl = new RecIKTSImpl(m_configPath);
 	
+	// this is now hard-coded in runTokensToWords()
+	
 	/*	
     if (const char *env_p = std::getenv("VOSK_SUBWORD_REGEX"))
     {
@@ -38,7 +40,7 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	utterances.push_back(std::move(res));	
 	
     lastUttStopTime = 0;
-    longPauseBetweenUtterances = true;
+    checkUtterancePause = false;
 }
 
 //////////////////////////////////////////////
@@ -67,6 +69,9 @@ void VoskRecognizer::workerThreadFunc(void)
 	m_recoState = VoskRecognizerState::INIT;
 	
 	std::vector<RecognizedToken> recoTokens;
+	
+	lastUttStopTime = 0;
+	checkUtterancePause = false;
 	
 	///////////////////////
 	
@@ -141,6 +146,20 @@ void VoskRecognizer::workerThreadFunc(void)
 					if ((currStart->valid == false) && (uttStatus != VADWrapperState::IDLE))
 					{
 						currStart = vad->getUtteranceStart();
+						
+						if (checkUtterancePause == true)
+						{
+							// evaluate the pause between utterances and signal this to the recognizer
+							if ((currStart->timeStampSeconds - lastUttStopTime) > longPauseSeconds)
+							{
+								recIktsImpl->startUtterance(true);	
+							}
+							else
+							{
+								recIktsImpl->startUtterance(false);	
+							}
+							checkUtterancePause = false;	
+						}
 					}
 					if ((currStop->valid == false) && (uttStatus == VADWrapperState::POSTBUF))
 					{
@@ -194,6 +213,9 @@ void VoskRecognizer::workerThreadFunc(void)
 					assert(currStop->valid == true);
 					
 					promoteToFinalResult(std::move(currStart), std::move(currStop));
+					
+					lastUttStopTime = currStop->timeStampSeconds;
+					checkUtterancePause = true;
 				}
 		
 				noMoreData = vad->analyze();

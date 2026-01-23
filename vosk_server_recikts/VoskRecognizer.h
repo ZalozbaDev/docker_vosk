@@ -39,7 +39,7 @@ private:
 	
 	static const int64_t longPauseSeconds = 10;
 	int64_t lastUttStopTime;
-	bool longPauseBetweenUtterances;
+	bool checkUtterancePause;
 };
 
 #endif // VOSK_RECOGNIZER_H
