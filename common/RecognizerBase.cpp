@@ -136,3 +136,98 @@ void RecognizerBase::setTimeStamp(int64_t seconds, int64_t uSeconds)
 	std::cout << "TIMESTAMP: " << std::ctime(&timeStampPrint) << std::endl;
 }
 
+//////////////////////////////////////////////
+bool RecognizerBase::getRecognizerBusy(bool audioQueueOnly)
+{
+	bool busy = false;
+	
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+	if (audioQueueOnly == true)
+	{
+		// poll input queue only
+		return 	(audioPackets.size() > 2) ? true : false;
+	}
+
+	// polling for finished
+	
+	if (audioPackets.size() > 0)
+	{
+		busy = true;
+	}
+	audioPacketLock.unlock();
+	
+	//
+	
+	tokenMutex.lock();
+	if (tokens.size() > 0)
+	{
+		busy = true;
+	}
+	tokenMutex.unlock();
+	
+	//
+	
+	wordMutex.lock();
+	if (words.size() > 0)
+	{
+		busy = true;
+	}
+	wordMutex.unlock();
+	
+	//
+	
+    utteranceMutex.lock();
+	if (utterances.size() > 0)
+	{
+		busy = true;
+	}
+    utteranceMutex.unlock();
+    
+	return busy;
+}
+
+//////////////////////////////////////////////
+int RecognizerBase::acceptWaveform(const char *data, int length)
+{
+	int retVal;
+	
+	if ((m_inputSampleRate != 48000) || (m_processingSampleRate != 16000))
+	{
+		// only 48kHz-->16kHz is supported (both VAD and recognizer)
+		// e.g. Jitsi provides 48 kHz so we need to downsample 1:3
+		std::cout << "Unsupported sampling rates input " << m_inputSampleRate << " Hz and processing " << m_processingSampleRate << "Hz." << std::endl;
+		assert(false);	
+	}
+	
+	// create object and copy all data
+	std::unique_ptr packet = std::make_unique<AudioPacket>();
+	packet->length      = length;
+	packet->data        = new char[length];
+	packet->arrivalTime = std::chrono::system_clock::now();
+	memcpy(packet->data, data, length);
+	
+	// push to queue and notify worker
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+	audioPackets.push_back(std::move(packet));
+	audioPacketLock.unlock();
+	audioPacketNotify.notify_one();
+	
+	// std::cout << "acceptWaveform push -->" << std::endl;
+			
+	// access final results queue to compute return value
+    utteranceMutex.lock();
+	if (utterances.size() > 0)
+	{
+		// at least one final utterance can be read
+		retVal = 1;
+	}
+	else
+	{
+		// no final utterance available (maybe partial)
+		retVal = 0;
+	}
+	utteranceMutex.unlock();
+	
+	return retVal;
+}
+	

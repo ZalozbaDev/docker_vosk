@@ -28,8 +28,6 @@ public:
 	virtual int getInstanceId(void)                                       override { return m_instanceId; }
 	virtual int getModelInstanceId(void)                                  override { return m_modelInstanceId; }
 	virtual float getSampleRate(void)                                     override { return m_inputSampleRate; }
-	virtual int acceptWaveform(const char *data, int length)              override;
-	virtual bool getRecognizerBusy(bool audioQueueOnly = false)           override;
 	virtual const char* getPartialResult(void)                            override;
 	virtual const char* getFinalResult(void)                              override;
 	virtual bool getPartialStatus(void)                                   override;
@@ -63,15 +61,6 @@ private:
 	
 	void runTokensToWords(void);
 
-	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
-	std::mutex tokenMutex;
-	
-	std::vector<std::unique_ptr<RecognizedWord>>     words;
-	std::mutex wordMutex;
-	
-	std::deque<std::unique_ptr<RecognizedUtterance>> utterances;
-	std::mutex utteranceMutex;
-	
 	// to avoid early deletion of string objects, use preallocated memory for the most recent string
 	char partialResultBuffer[1000];
 	char finalResultBuffer[100000];

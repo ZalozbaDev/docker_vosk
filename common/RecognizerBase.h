@@ -47,8 +47,6 @@ public:
 	virtual int getInstanceId(void)                                       = 0;
 	virtual int getModelInstanceId(void)                                  = 0;
 	virtual float getSampleRate(void)                                     = 0;
-	virtual int acceptWaveform(const char *data, int length)              = 0;
-	virtual bool getRecognizerBusy(bool audioQueueOnly = false)           = 0;
 //	virtual void runTokenToWords(void)                                    = 0;
 	virtual const char* getPartialResult(void)                            = 0;
 	virtual const char* getFinalResult(void)                              = 0;
@@ -60,6 +58,8 @@ public:
 	std::string getLocalTimeStamp(void);
 	void setDetailedResult(bool detailsOn);
 	void setTimeStamp(int64_t seconds, int64_t uSeconds);
+	bool getRecognizerBusy(bool audioQueueOnly = false);
+	int acceptWaveform(const char *data, int length);
 	
 protected:
 	static int voskRecognizerInstanceId;
@@ -82,6 +82,15 @@ protected:
 	VADWrapper *vad;
 	Resampler  *resample;
 
+	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
+	std::mutex tokenMutex;
+	
+	std::vector<std::unique_ptr<RecognizedWord>>     words;
+	std::mutex wordMutex;
+	
+	std::deque<std::unique_ptr<RecognizedUtterance>> utterances;
+	std::mutex utteranceMutex;
+	
 };
 
 #endif // RECOGNIZER_BASE_H
