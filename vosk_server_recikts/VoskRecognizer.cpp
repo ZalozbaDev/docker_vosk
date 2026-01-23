@@ -10,38 +10,14 @@
 #include <cassert>
 #include <regex>
 
-#ifndef PREFIX
-  #define PREFIX "/"
-#endif
-#ifndef RECIKTSLIB
-  #define RECIKTSLIB "recikts64rel.so"
-#endif
-
 
 //////////////////////////////////////////////
 VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness) : 
 RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSampleRate)
 {
-	char status;
+	recIktsImpl = new RecIKTSImpl(m_configPath);
 	
-	m_libraryLoaded   = false;
-	
-	loadLibrary();
-	
-	status = recikts_callback_register(VoskRecognizer::recikts_callback, this);
-	checkRecognizerError(status, "recikts_callback_register");
-	
-	// for annoucement of recognizer
-	// packet->arrivalTime = std::chrono::system_clock::now();
-	std::cout << recikts_version() << std::endl;
-	
-	
-	
-	
-	
-	
-	
-	
+	/*	
     if (const char *env_p = std::getenv("VOSK_SUBWORD_REGEX"))
     {
     	subword_regex = std::string(env_p);
@@ -51,135 +27,27 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
     {
     	subword_regex = std::string("");	
     }
+    */
 
-	m_vadFrameCounter = 0;
-	    
-    threadRunning = true;
-    recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
-    
+	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 125, 0, 0, 2, 0, vad->getFrameTimeMs(), cpp);
+	std::string voskAnnouncementString = recIktsImpl->getAnnouncementString();
+	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) voskAnnouncementString.c_str(), (char*) voskAnnouncementString.c_str(), 2000ms, 100ms, 1900ms, 1.0f, true);
+	res->addWord(std::move(wrd));
+	utterances.push_back(std::move(res));	
+	
     lastUttStopTime = 0;
     longPauseBetweenUtterances = true;
-    
-    clientTimeStamp = std::chrono::system_clock::now();
 }
 
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
-	// clear audio queue and finalize thread
-	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
-	audioPackets.clear();
-	threadRunning = false;
-	audioPacketLock.unlock();
-	audioPacketNotify.notify_one();
-	recoWorkerThread->join();
-	delete(recoWorkerThread);
-
-	// now we can free all resources
-	
-	
-	unloadLibrary();
-	
-	tokens.clear();
-	words.clear();
-	utterances.clear();
-	
-	// don't decrease, let every instance get a unique ID
-	// voskRecognizerInstanceId--;
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::loadLibrary(void)
-{
-	int status;
-	Lmid_t newlmid;
-	
-	libmInstance = dlmopen(LM_ID_NEWLM, "/lib/x86_64-linux-gnu/libm.so.6", RTLD_NOW);
-	if (libmInstance != NULL)
-	{
-		status = dlinfo(libmInstance, RTLD_DI_LMID, &newlmid);
-		
-		if (status == 0)
-		{
-			recInstance = dlmopen(newlmid, PREFIX RECIKTSLIB, RTLD_NOW);
-			
-			if (recInstance != NULL)
-			{
-				recikts_version           = (const char* (*)())                     dlsym(recInstance, "recikts_version");
-				recikts_callback_register = (char (*)(recikts_callback_fnc, void*)) dlsym(recInstance, "recikts_callback_register");
-				cfgikts_load              = (char (*)(const char*, cfgikts*))       dlsym(recInstance, "cfgikts_load");
-				recikts_start             = (char (*)(cfgikts))                     dlsym(recInstance, "recikts_start");
-				recikts_audio             = (char (*)(int16_t*, uint32_t))          dlsym(recInstance, "recikts_audio");
-				recikts_restart           = (char (*)(char))                        dlsym(recInstance, "recikts_restart");
-				recikts_stop              = (char (*)())                            dlsym(recInstance, "recikts_stop");
-				cfgikts_free              = (char (*)(cfgikts*))                    dlsym(recInstance, "cfgikts_free");
-				recikts_err               = (char (*)(char*, int))                  dlsym(recInstance, "recikts_err");
-				
-				if ((recikts_version != NULL)   && (recikts_callback_register != NULL) &&
-					(cfgikts_load != NULL)  && (recikts_start != NULL) &&
-					(recikts_audio != NULL) && (recikts_restart != NULL) &&
-					(recikts_stop != NULL)  && (cfgikts_free != NULL) &&
-					(recikts_err != NULL))
-				{
-					m_libraryLoaded = true;
-				}
-				
-				if (m_libraryLoaded == false)
-				{
-					std::cout << "One or more functions from the recikts library could not be resolved!" << std::endl;
-					libraryError();
-					dlclose(recInstance);	
-				}
-			}
-		}
-		
-		if (m_libraryLoaded == false)
-		{
-			libraryError();
-			dlclose(libmInstance);	
-		}
-	}
-	
-	if (m_libraryLoaded == false)
-	{
-		libraryError();	
-	}
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::libraryError(void)
-{
-	char* err = dlerror();
-	
-	if (err == NULL)
-	{
-		std::cout << "No error occurred for last library operation." << std::endl;
-	} 
-	else 
-	{
-		std::cout << err << std::endl;		
-	}
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::unloadLibrary(void)
-{
-	int status;
-	
-	status = dlclose(recInstance);
-	if (status != 0) libraryError();
-	
-	status = dlclose(libmInstance);
-	if (status != 0) libraryError();
-	
-	m_libraryLoaded = false;
+	delete(recIKTSImpl);
 }
 
 //////////////////////////////////////////////
 void VoskRecognizer::workerThreadFunc(void)
 {
-	char initStatus;
-	
 	bool threadAlive;
 	
 	int status;
@@ -194,12 +62,6 @@ void VoskRecognizer::workerThreadFunc(void)
 	// leftover data buffer should not be bigger than one audio frame
 	leftOverData = new char[framelen48 * 2];
 	
-	initStatus = cfgikts_load(m_configPath.c_str(), &recikts_cfg);
-	checkRecognizerError(initStatus, "cfgikts_load");
-		
-	initStatus = recikts_start(recikts_cfg);
-	checkRecognizerError(initStatus, "recikts_start");
-		
 	m_recoState = VoskRecognizerState::INIT;
 	
 	///////////////////////
@@ -271,8 +133,7 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					std::unique_ptr<VADFrame> chunk = vad->getNextChunk();
 					
-					status = recikts_audio(chunk->samples, chunk->m_numberSamples);
-					checkRecognizerError(status, "recikts_audio");
+					recIktsInst->consume(chunk->samples, chunk->m_numberSamples);
 					
 					audioLogger->addChunk(std::move(chunk));
 					
@@ -290,13 +151,10 @@ void VoskRecognizer::workerThreadFunc(void)
 				// here we assume that all callbacks from recikts have happened and there is nothing pending
 				if (detectedUttFinished == true)
 				{
-					// flush results, but don't indicate new speaker yet
-					recikts_restart(0);
+					// TBD think about when to announce the "restart"
+					recIKTSInst->flush(longPauseBetweenUtterances);
 					
 					promoteToFinalResult();
-
-					// restart again but now consider the hint whether speaker has changed
-					recikts_restart((longPauseBetweenUtterances == true) ? 1 : 0);
 				}
 		
 				noMoreData = vad->analyze();
@@ -321,15 +179,96 @@ void VoskRecognizer::workerThreadFunc(void)
 	
 	delete[] leftOverData;
 
-    initStatus = recikts_stop();
-    checkRecognizerError(initStatus, "recikts_stop");
-                
-    initStatus = cfgikts_free(&recikts_cfg);
-    checkRecognizerError(initStatus, "cfgikts_free");
+    // initStatus = recikts_stop();
+    // initStatus = cfgikts_free(&recikts_cfg);
 	
 	m_recoState = VoskRecognizerState::UNINIT;
 	
 	std::cout << "RECO_THREAD goodbye" << std::endl;
+}
+
+//////////////////////////////////////////////
+void VoskRecognizer::runTokensToWords(void)
+{
+	tokenMutex.lock();
+	
+	wordMutex.lock();
+	
+	std::string currWord = "";
+	std::chrono::milliseconds duration = 0ms;
+	std::chrono::milliseconds relStart = 0ms;
+	std::chrono::milliseconds relEnd   = 0ms;
+	std::vector<float>        tokenConfidences;
+	bool newWord = true;
+	
+	std::regex subword_delim("#");
+		
+	for (auto&& token : tokens)
+	{
+		// check new word
+		if ((token->m_text[0] != '#') && (currWord.length() > 0))
+		{
+			float confidenceSum = 0.0f;
+			for (float val : tokenConfidences) {
+				confidenceSum += val;
+			}
+			float confidenceMean = confidenceSum / tokenConfidences.size();
+			
+			std::string origWord = cpp->sanitizeWord(currWord);
+			std::string replacedWord = cpp->replaceWord(origWord);
+			bool spellResult = hpp->spelledCorrectly(replacedWord);
+			
+			std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
+				(char*) origWord.c_str(), (char*) replacedWord.c_str(),
+				duration, relStart, relEnd, 
+				confidenceMean, spellResult);
+			words.push_back(std::move(word));
+			
+			currWord = "";
+			duration = 0ms;
+			relStart = 0ms;
+			relEnd   = 0ms;
+			tokenConfidences.clear();
+			newWord = true;
+		}
+		
+		// initial space removed when word is stored
+		currWord += std::regex_replace(token->m_text, subword, "");
+		if (newWord == true)
+		{
+			relStart = token->m_relStart;
+			newWord = false;
+		}
+		duration += token->m_duration;
+		relEnd = token->m_relEnd;
+		tokenConfidences.push_back(token->m_confidence);
+	}
+	
+	// remaining (sub-)word after all tokens parsed
+	if (currWord.length() > 0)
+	{
+		float confidenceSum = 0.0f;
+		for (float val : tokenConfidences) {
+			confidenceSum += val;
+		}
+		float confidenceMean = confidenceSum / tokenConfidences.size();
+		
+		std::string origWord = cpp->sanitizeWord(currWord);
+		std::string replacedWord = cpp->replaceWord(origWord);
+		bool spellResult = hpp->spelledCorrectly(replacedWord);
+		
+		std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
+			(char*) origWord.c_str(), (char*) replacedWord.c_str(),
+			duration, relStart, relEnd, 
+			confidenceMean, spellResult);
+		words.push_back(std::move(word));
+	}
+	
+	wordMutex.unlock();
+	
+	tokens.clear();
+	
+	tokenMutex.unlock();
 }
 
 //////////////////////////////////////////////
@@ -377,12 +316,6 @@ const char* VoskRecognizer::getPartialResult(void)
 	strncpy(partialResultBuffer, res.c_str(), sizeof(partialResultBuffer) - 1);
 	
 	return partialResultBuffer;	
-}
-
-//////////////////////////////////////////////
-bool VoskRecognizer::getPartialStatus(void)
-{
-	return ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? true : false);
 }
 
 //////////////////////////////////////////////
@@ -532,42 +465,3 @@ void VoskRecognizer::promoteToFinalResult(void)
 	partialResultMutex.unlock();
 }
 
-//////////////////////////////////////////////
-void VoskRecognizer::resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood)
-{
-	std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(word, startTimeMs, endTimeMs, negLogLikelihood);
-	
-	partialResult.push_back(std::move(newResult));	
-	
-	// we assume that the callbacks are only triggered by recikts_audio() so we don't have to guess
-	// when an utterance shall be considered final
-	/*
-	if (partialResult.size() == 0)
-	{
-		partialResult.push_back(std::move(newResult));	
-	}
-	else
-	{
-		// timestamps hopefully show if a new utterance starts (e.g. last one has been flushed)
-		if (newResult->start < partialResult.back()->end)
-		{
-			promoteToFinalResult();
-		}
-
-		partialResult.push_back(std::move(newResult));		
-	}
-	*/
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::recikts_callback(struct recikts_callback_dat dat, void *userdata){
-	VoskRecognizer* inst;
-	
-	if(dat.word[0]){
-		printf("Result [%i-%i ms]: %s [%.1f]\n",dat.tstart,dat.tend,dat.word,dat.nld);
-		fflush(stdout);
-
-		inst = static_cast<VoskRecognizer*>(userdata);
-		inst->resultCallback(dat.word, dat.tstart, dat.tend, dat.nld);
-	}
-}

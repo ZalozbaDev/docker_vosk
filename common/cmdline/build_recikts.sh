@@ -26,7 +26,7 @@ recikts_out/RecognizerBase.cpp \
 recikts_out/vosk_api_wrapper.cpp recikts_out/VoskRecognizer.cpp recikts_out/VADWrapperWebRTC.cpp recikts_out/VADWrapperSilero.cpp recikts_out/SileroVadIterator.cpp recikts_out/AudioLogger.cpp \
 recikts_out/ResamplerLibResample_48_16.cpp recikts_out/ResamplerWebRTC_48_16.cpp recikts_out/RepetitionRemover.cpp \
 recikts_out/HunspellPostProc.cpp recikts_out/CustomPostProc.cpp \
-main.cpp \
+RecIKTSImpl.cpp main.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -ldl -lpthread -lhunspell -licuio -licuuc -lsndfile -lonnxruntime -lresample -Lonnxruntime-linux-x64-1.12.1/lib/
 

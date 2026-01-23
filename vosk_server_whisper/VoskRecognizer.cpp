@@ -17,7 +17,6 @@ using namespace std::chrono_literals;
 VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness) : 
 RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSampleRate)
 {
-	
 	// capture recognizer-specific options from envvars
 	int         env_whisper_max_context   = -1; // use -1 for "don't change default"
 	bool        env_whisper_no_timestamps = false;
@@ -25,11 +24,6 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	bool        env_whisper_force_cpu     = false;
 	std::string env_vosk_model_language   = "auto";
 
-	
-	
-	
-	// adjust pre/post buffers here if needed
-	
     // optional environment var
     // - --language            ("en", "czech", ...)
     if (const char *env_p = std::getenv("VOSK_MODEL_LANGUAGE"))
@@ -80,8 +74,6 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
     }
     std::cout << "ENV setting whisper use GPU to  " << env_whisper_force_cpu << "." << std::endl;
 
-	m_vadFrameCounter = 0;
-	
 	// init whisper impl with all the collected options
 	WhisperPool::setWhisperParams(m_configPath, env_vosk_model_language, env_whisper_max_context, 
 		env_whisper_no_timestamps, env_whisper_no_fallback, env_whisper_force_cpu);
@@ -91,16 +83,13 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	std::unique_ptr<WhisperImpl> whisperInst = WhisperPool::getInstance();
 	
 	// announce the details of the impl
-	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 10, 0, 0, 0, 100, vad->getFrameTimeMs(), cpp);
+	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 125, 0, 0, 2, 0, vad->getFrameTimeMs(), cpp);
 	std::string voskAnnouncementString = whisperInst->getAnnouncementString();
-	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) voskAnnouncementString.c_str(), (char*) voskAnnouncementString.c_str(), 500ms, 100ms, 400ms, 1.0f, true);
+	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) voskAnnouncementString.c_str(), (char*) voskAnnouncementString.c_str(), 2000ms, 100ms, 1900ms, 1.0f, true);
 	res->addWord(std::move(wrd));
 	utterances.push_back(std::move(res));
 	
 	WhisperPool::releaseInstance(std::move(whisperInst));
-	
-    threadRunning = true;
-    recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
 
 //////////////////////////////////////////////
@@ -445,215 +434,3 @@ void VoskRecognizer::runTokensToWords(void)
 	
 	tokenMutex.unlock();
 }
-
-//////////////////////////////////////////////
-//
-// return string variants:
-//
-// no detailed result:
-//
-// { "partial" : "my partial recognition" }
-//
-// with detailed result:
-// 
-// { "partial" : "my partial recognition", "listen" : "false" }
-// { "partial" : "my partial recognition", "listen" : "true" }
-//
-//////////////////////////////////////////////
-const char* VoskRecognizer::getPartialResult(void)
-{
-	runTokensToWords();
-	
-	std::string res = "{ \"partial\" : \"";
-	
-	wordMutex.lock();
-	
-	if (words.size() > 0)
-	{
-		for (unsigned int i = 0; i < words.size(); i++)
-		{
-			res += words[i]->m_text;
-			if (i < (words.size() - 1))
-			{
-				res += " ";
-			}
-		}
-	}
-	
-	wordMutex.unlock();
-	
-	if (detailedResults == false)
-	{
-		res += "\" }";
-	}
-	else
-	{
-		// return whether VAD has triggered (e.g. is collecting samples)
-		res += "\", \"listen\" : \"";
-		res += ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? "true" : "false");
-		res += "\" }";
-	}
-	
-	memset(partialResultBuffer, 0, sizeof(partialResultBuffer));
-	strncpy(partialResultBuffer, res.c_str(), sizeof(partialResultBuffer) - 1);
-	
-	return partialResultBuffer;	
-}
-
-//////////////////////////////////////////////
-bool VoskRecognizer::getPartialStatus(void)
-{
-	return ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? true : false);
-}
-
-//////////////////////////////////////////////
-//
-// return string variants:
-//
-// no detailed result:
-//
-// { "text" : "my final recognition result" }
-//
-// with detailed result (old):
-// 
-// { "text" : "my final recognition result", "start" : "1234567", "startMs" : "345", "stop" : "1234569", "stopMs" : "765"}
-//
-// with detailed result (new):
-// 
-// { "text" : "my final recognition result", "start" : "1234567", "startMs" : "345", "stop" : "1234569", "stopMs" : "765",
-//   "result": [ { "conf": "1", "end": "1.11", "spell": "true", "start": "0.87", "word": "my"}, 
-//               { "conf": "0.8", "end": ""1.53"", "spell": "true", "start": "1.11", "word": "final" } ] }
-//
-//////////////////////////////////////////////
-const char* VoskRecognizer::getFinalResult(void)
-{
-	std::string res = "{ \"text\" : \"-- ";
-    int64_t uStartTime = 0;
-    int64_t uStartTimeMs = 0;
-    int64_t uStopTime = 0;
-    int64_t uStopTimeMs = 0;
-	
-    utteranceMutex.lock();
-    
-	if (utterances.size() > 0)
-	{
-		std::unique_ptr<RecognizedUtterance> fin = std::move(utterances.front());
-		utterances.pop_front();
-		res += fin->getTotalUtterance();
-		
-		uStartTime   = fin->m_uStartTime;
-		uStartTimeMs = fin->m_uStartTimeMs;
-		uStopTime    = fin->m_uStopTime;
-		uStopTimeMs  = fin->m_uStopTimeMs;
-		
-		if (detailedResults == false)
-		{
-			res += " --\" }";
-		}
-		else
-		{
-			res += " --\", \"start\" : \"";
-			res += std::to_string(uStartTime);
-			res += "\", \"startMs\" : \"";
-			res += std::to_string(uStartTimeMs);
-			res += "\", \"stop\" : \"";
-			res += std::to_string(uStopTime);
-			res += "\", \"stopMs\" : \"";
-			res += std::to_string(uStopTimeMs);
-			res += "\" ";
-			
-			// word-level results
-			res += ", \"result\": [ ";
-			for (unsigned int i = 0; i < fin->getNumberWords(); i++)
-			{
-				if (i > 0)
-				{
-					res += ", ";	
-				}
-				std::unique_ptr<RecognizedWord> word = fin->popWord(i);
-				res += "{ \"conf\": \""  + std::to_string(word->m_meanConfidence)   + "\", ";
-				res +=  " \"end\": \""   + std::to_string(word->m_relEnd.count())   + "\", ";
-				res +=  " \"spell\": \"" + std::to_string(word->m_correctSpelling)  + "\", ";
-				res +=  " \"start\": \"" + std::to_string(word->m_relStart.count()) + "\", ";
-				res +=  " \"word\": \""  + word->m_replacer                         + "\" } ";
-			}
-			res += "] }";
-		}
-	}
-	else
-	{
-		res += " --\" }";
-	}
-		
-    utteranceMutex.unlock();
-    
-	std::cout << "Final result: " << res << std::endl;
-	
-	// FIXME shall log if text would not fit buffer!
-	memset(finalResultBuffer, 0, sizeof(finalResultBuffer));
-	strncpy(finalResultBuffer, res.c_str(), sizeof(finalResultBuffer) - 1);
-	
-	return finalResultBuffer;	
-}
-
-//////////////////////////////////////////////
-std::unique_ptr<RecognizedUtterance> VoskRecognizer::getFinalResultData(void)
-{
-	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 10, 0, 0, 0, 100, vad->getFrameTimeMs(), cpp);
-	
-    utteranceMutex.lock();
-    
-	if (utterances.size() > 0)
-	{
-		res = std::move(utterances.front());
-		utterances.pop_front();
-	}
-	
-    utteranceMutex.unlock();
-    
-	return res;
-}
-
-//////////////////////////////////////////////
-int VoskRecognizer::getFrameResolution(void)
-{
-	return vad->getFrameTimeMs();
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop)
-{
-	std::string finalResult;
-	float confidence = 0.0f;
-	
-	runTokensToWords();
-	
-	wordMutex.lock();
-	
-	if (words.size() > 0)
-	{
-		std::unique_ptr<RecognizedUtterance> utt = std::make_unique<RecognizedUtterance>(
-			currStart->frameCounter, currStop->frameCounter, 
-			currStart->timeStampSeconds, currStart->timeStampMilliSeconds,
-			currStop->timeStampSeconds, currStop->timeStampMilliSeconds,
-			getFrameResolution(), cpp);
-			
-		for (unsigned int i = 0; i < words.size(); i++)
-		{
-			utt->addWord(std::move(words[i]));	
-		}
-		
-		std::cout << "Promoting partial result to final: " << finalResult << ", confidence = " << confidence << std::endl;
-		
-		audioLogger->flush(utt->getTotalUtterance());
-		
-		utteranceMutex.lock();
-		utterances.push_back(std::move(utt));
-		utteranceMutex.unlock();
-		
-		words.clear();
-	}
-	
-	wordMutex.unlock();
-}
-

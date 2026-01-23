@@ -43,28 +43,27 @@ class RecognizerBase
 {
 public:
 	RecognizerBase(int modelId, float sample_rate, const char *configPath, int aggressiveness, const ssize_t processingSampleRate);
-	
-	virtual int getInstanceId(void)                                       = 0;
-	virtual int getModelInstanceId(void)                                  = 0;
-	virtual float getSampleRate(void)                                     = 0;
-//	virtual void runTokenToWords(void)                                    = 0;
-	virtual const char* getPartialResult(void)                            = 0;
-	virtual const char* getFinalResult(void)                              = 0;
-	virtual bool getPartialStatus(void)                                   = 0;
-	virtual std::unique_ptr<RecognizedUtterance> getFinalResultData(void) = 0;
-	virtual int getFrameResolution(void)                                  = 0;
-	
 	virtual ~RecognizerBase();
+	
+	int getInstanceId(void)       { return m_instanceId; }
+	int getModelInstanceId(void)  { return m_modelInstanceId; }
+	float getSampleRate(void)     { return m_inputSampleRate; }
 	std::string getLocalTimeStamp(void);
 	void setDetailedResult(bool detailsOn);
 	void setTimeStamp(int64_t seconds, int64_t uSeconds);
 	bool getRecognizerBusy(bool audioQueueOnly = false);
 	int acceptWaveform(const char *data, int length);
+	bool getPartialStatus(void);
+	const char* getPartialResult(void);
+	const char* getFinalResult(void);
+	std::unique_ptr<RecognizedUtterance> getFinalResultData(void);
+	int getFrameResolution(void);
 	
 protected:
 	static int voskRecognizerInstanceId;
 	
 	bool detailedResults;
+	
 	std::chrono::time_point<std::chrono::system_clock> clientTimeStamp;
 	
 	int m_instanceId;
@@ -82,6 +81,15 @@ protected:
 	VADWrapper *vad;
 	Resampler  *resample;
 
+	uint64_t m_vadFrameCounter;
+	
+	std::thread *recoWorkerThread;
+	bool threadRunning;
+	std::deque<std::unique_ptr<AudioPacket>> audioPackets;
+	std::mutex audioPacketMutex;
+	std::condition_variable audioPacketNotify;
+	virtual void workerThreadFunc(void) = 0;
+	
 	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
 	std::mutex tokenMutex;
 	
@@ -91,6 +99,11 @@ protected:
 	std::deque<std::unique_ptr<RecognizedUtterance>> utterances;
 	std::mutex utteranceMutex;
 	
+	virtual void runTokensToWords(void) = 0;
+
+	// to avoid early deletion of string objects, use preallocated memory for the most recent string
+	char partialResultBuffer[1000];
+	char finalResultBuffer[100000];
 };
 
 #endif // RECOGNIZER_BASE_H
