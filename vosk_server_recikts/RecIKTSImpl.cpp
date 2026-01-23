@@ -52,7 +52,7 @@ std::string RecIKTSImpl::getAnnouncementString(void)
 	std::string versionStr = std::string(recikts_version());
 	std::string modelStr = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
 	
-	return versionStr + " : " + modelStr;
+	return "recikts " + versionStr + " : " + modelStr;
 }
 
 //////////////////////////////////////////////

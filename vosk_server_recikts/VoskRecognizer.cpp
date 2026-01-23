@@ -161,6 +161,7 @@ void VoskRecognizer::workerThreadFunc(void)
 							checkUtterancePause = false;	
 						}
 					}
+					
 					if ((currStop->valid == false) && (uttStatus == VADWrapperState::POSTBUF))
 					{
 						currStop = vad->getUtteranceStop();
@@ -211,11 +212,12 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					assert(currStart->valid == true);
 					assert(currStop->valid == true);
-					
-					promoteToFinalResult(std::move(currStart), std::move(currStop));
-					
+
+					// save values before invalidating instances
 					lastUttStopTime = currStop->timeStampSeconds;
 					checkUtterancePause = true;
+
+					promoteToFinalResult(std::move(currStart), std::move(currStop));
 				}
 		
 				noMoreData = vad->analyze();
