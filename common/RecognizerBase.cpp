@@ -84,7 +84,7 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
     clientTimeStamp = std::chrono::system_clock::now();
     
     threadRunning = true;    
-    recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
+    recoWorkerThread = new std::thread(&RecognizerBase::workerThreadFunc, this);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -208,11 +208,11 @@ int RecognizerBase::acceptWaveform(const char *data, int length)
 {
 	int retVal;
 	
-	if ((m_inputSampleRate != 48000) || (m_processingSampleRate != 16000))
+	if ((m_inputSampleRate != 48000) || (getProcessingSampleRate() != 16000))
 	{
 		// only 48kHz-->16kHz is supported (both VAD and recognizer)
 		// e.g. Jitsi provides 48 kHz so we need to downsample 1:3
-		std::cout << "Unsupported sampling rates input " << m_inputSampleRate << " Hz and processing " << m_processingSampleRate << "Hz." << std::endl;
+		std::cout << "Unsupported sampling rates input " << m_inputSampleRate << " Hz and processing " << getProcessingSampleRate() << "Hz." << std::endl;
 		assert(false);	
 	}
 	

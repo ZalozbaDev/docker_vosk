@@ -9,7 +9,9 @@
 
 #include <cassert>
 #include <regex>
+#include <chrono>
 
+using namespace std::chrono_literals;
 
 //////////////////////////////////////////////
 VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness) : 
@@ -42,7 +44,7 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
-	delete(recIKTSImpl);
+	delete(recIktsImpl);
 }
 
 //////////////////////////////////////////////
@@ -63,6 +65,8 @@ void VoskRecognizer::workerThreadFunc(void)
 	leftOverData = new char[framelen48 * 2];
 	
 	m_recoState = VoskRecognizerState::INIT;
+	
+	std::vector<RecognizedToken> recoTokens;
 	
 	///////////////////////
 	
@@ -122,6 +126,8 @@ void VoskRecognizer::workerThreadFunc(void)
 				unsigned int availableChunks = vad->getAvailableChunks();
 				VADWrapperState uttStatus;
 				bool detectedUttFinished = false;
+				std::unique_ptr<VADFrameTiming> currStart = std::make_unique<VADFrameTiming>();
+				std::unique_ptr<VADFrameTiming> currStop = std::make_unique<VADFrameTiming>();
 				
 				assert(availableChunks > 0);
 				
@@ -131,9 +137,19 @@ void VoskRecognizer::workerThreadFunc(void)
 				{
 					uttStatus = vad->getUtteranceStatus();
 					
+					// get the utterance start and stop properties from VAD wrapper
+					if ((currStart->valid == false) && (uttStatus != VADWrapperState::IDLE))
+					{
+						currStart = vad->getUtteranceStart();
+					}
+					if ((currStop->valid == false) && (uttStatus == VADWrapperState::POSTBUF))
+					{
+						currStop = vad->getUtteranceStop();
+					}
+					
 					std::unique_ptr<VADFrame> chunk = vad->getNextChunk();
 					
-					recIktsInst->consume(chunk->samples, chunk->m_numberSamples);
+					recIktsImpl->consumeAudio(chunk->samples, chunk->m_numberSamples);
 					
 					audioLogger->addChunk(std::move(chunk));
 					
@@ -152,9 +168,32 @@ void VoskRecognizer::workerThreadFunc(void)
 				if (detectedUttFinished == true)
 				{
 					// TBD think about when to announce the "restart"
-					recIKTSInst->flush(longPauseBetweenUtterances);
+					recIktsImpl->finalizeUtterance();
 					
-					promoteToFinalResult();
+					recIktsImpl->getRecognizedTokens(recoTokens);
+					
+					tokenMutex.lock();
+					
+					// FIXME inefficient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					
+					tokens.reserve(tokens.size() + recoTokens.size());
+					for (RecognizedToken t : recoTokens)
+					{
+						tokens.push_back(std::make_unique<RecognizedToken>(t));
+					}
+
+					tokenMutex.unlock();
+					
+					recoTokens.clear();
+					
+					// as opposed to whisper, where we need to check scenarios with fragmented audio buffers
+					// with recikts everything is already processed and we have one scenario only 
+					// (not fragmented, utterance finished)
+					
+					assert(currStart->valid == true);
+					assert(currStop->valid == true);
+					
+					promoteToFinalResult(std::move(currStart), std::move(currStop));
 				}
 		
 				noMoreData = vad->analyze();
@@ -175,13 +214,10 @@ void VoskRecognizer::workerThreadFunc(void)
 		}		
 	}
 		
-	promoteToFinalResult();
+	// promoteToFinalResult();
 	
 	delete[] leftOverData;
 
-    // initStatus = recikts_stop();
-    // initStatus = cfgikts_free(&recikts_cfg);
-	
 	m_recoState = VoskRecognizerState::UNINIT;
 	
 	std::cout << "RECO_THREAD goodbye" << std::endl;
@@ -233,7 +269,7 @@ void VoskRecognizer::runTokensToWords(void)
 		}
 		
 		// initial space removed when word is stored
-		currWord += std::regex_replace(token->m_text, subword, "");
+		currWord += std::regex_replace(token->m_text, subword_delim, "");
 		if (newWord == true)
 		{
 			relStart = token->m_relStart;
@@ -270,198 +306,3 @@ void VoskRecognizer::runTokensToWords(void)
 	
 	tokenMutex.unlock();
 }
-
-//////////////////////////////////////////////
-const char* VoskRecognizer::getPartialResult(void)
-{
-	std::string res = "{ \"partial\" : \"";
-	
-	partialResultMutex.lock();
-	
-	if (partialResult.size() > 0)
-	{
-		for (unsigned int i = 0; i < partialResult.size(); i++)
-		{
-			res += partialResult[i]->text;
-			if (i < (partialResult.size() - 1))
-			{
-				res += " ";
-			}
-		}
-	}
-	
-	partialResultMutex.unlock();
-	
-	if (detailedResults == false)
-	{
-		res += "\" }";
-	}
-	else
-	{
-		// return whether VAD has triggered (e.g. is collecting samples)
-		res += "\", \"listen\" : \"";
-		res += ((vad->getUtteranceStatus() != VADWrapperState::IDLE) ? "true" : "false");
-		res += "\" }";
-	}
-		
-	if (subword_regex.length() > 0)
-	{
-		std::regex subword(subword_regex);
-		res = std::regex_replace(res, subword, "");
-	}
-	
-	std::cout << "Partial result: " << res << std::endl;
-	
-	memset(partialResultBuffer, 0, sizeof(partialResultBuffer));
-	strncpy(partialResultBuffer, res.c_str(), sizeof(partialResultBuffer) - 1);
-	
-	return partialResultBuffer;	
-}
-
-//////////////////////////////////////////////
-const char* VoskRecognizer::getFinalResult(void)
-{
-	std::string res = "{ \"text\" : \"-- ";
-    int64_t uStartTime = 0;
-    int64_t uStartTimeMs = 0;
-    int64_t uStopTime = 0;
-    int64_t uStopTimeMs = 0;
-	
-    finalResultMutex.lock();
-    
-	if (finalResults.size() > 0)
-	{
-		std::unique_ptr<FinalResult> fin = std::move(finalResults.front());
-		finalResults.pop_front();
-		res += fin->text;
-		
-		uStartTime   = fin->uStartTime;
-		uStartTimeMs = fin->uStartTimeMs;
-		uStopTime    = fin->uStopTime;
-		uStopTimeMs  = fin->uStopTimeMs;
-	}
-	
-    finalResultMutex.unlock();
-    
-	if (detailedResults == false)
-	{
-		res += " --\" }";
-	}
-	else
-	{
-		res += " --\", \"start\" : \"";
-		res += std::to_string(uStartTime);
-		res += "\", \"startMs\" : \"";
-		res += std::to_string(uStartTimeMs);
-		res += "\", \"stop\" : \"";
-		res += std::to_string(uStopTime);
-		res += "\", \"stopMs\" : \"";
-		res += std::to_string(uStopTimeMs);
-		res += "\" }";
-	}
-		
-	std::cout << "Final result: " << res << std::endl;
-	
-	memset(finalResultBuffer, 0, sizeof(finalResultBuffer));
-	strncpy(finalResultBuffer, res.c_str(), sizeof(finalResultBuffer) - 1);
-	
-	return finalResultBuffer;	
-}
-
-//////////////////////////////////////////////
-std::unique_ptr<FinalResult> VoskRecognizer::getFinalResultData(void)
-{
-	std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
-	
-    finalResultMutex.lock();
-    
-	if (finalResults.size() > 0)
-	{
-		res = std::move(finalResults.front());
-		finalResults.pop_front();
-	}
-	
-    finalResultMutex.unlock();
-    
-	return res;
-}
-
-//////////////////////////////////////////////
-int VoskRecognizer::getFrameResolution(void)
-{
-	return vad->getFrameTimeMs();
-}
-
-//////////////////////////////////////////////
-void VoskRecognizer::promoteToFinalResult(void)
-{
-	std::string finalResult;
-	
-	partialResultMutex.lock();
-	
-	if (partialResult.size() > 0)
-	{
-		for (unsigned int i = 0; i < partialResult.size(); i++)
-		{
-			finalResult += partialResult[i]->text;
-			if (i < (partialResult.size() - 1))
-			{
-				finalResult += " ";
-			}
-		}
-		
-		std::cout << "Promoting partial result to final: " << finalResult << std::endl;
-		
-		std::unique_ptr<FinalResult> res = std::make_unique<FinalResult>();
-		
-		if (subword_regex.length() > 0)
-		{
-			std::regex subword(subword_regex);
-			finalResult = std::regex_replace(finalResult, subword, "");
-		}
-		
-		std::cout << "Raw final result: " << finalResult << std::endl;
-		
-		// try to fix various shortcomings of the result
-		std::string spellResult = hpp->processLine(cpp->processLine(finalResult));
-
-		audioLogger->flush(spellResult);
-				
-		res->text = spellResult;
-		
-		res->frameCounterStart = vad->getUtteranceStartFrameCtr();
-		res->frameCounterEnd   = vad->getUtteranceStopFrameCtr();
-		
-		res->uStartTime   = vad->getUtteranceStart();
-		res->uStartTimeMs = vad->getUtteranceStartMs();
-		res->uStopTime    = vad->getUtteranceStop();
-		res->uStopTimeMs  = vad->getUtteranceStopMs();
-		
-		// calculate the hint whether the speaker has changed
-		if (res->uStartTime >= lastUttStopTime)
-		{
-			if ((res->uStartTime - lastUttStopTime) > longPauseSeconds)
-			{
-				std::cout << ">>>> HINT: new speaker <<<<" << std::endl;
-				longPauseBetweenUtterances = true;
-			}
-			else
-			{
-				std::cout << "<<<< HINT: speaker unchanged >>>>" << std::endl;
-				longPauseBetweenUtterances = false;
-			}
-		}
-		lastUttStopTime = res->uStopTime;
-		
-		finalResultMutex.lock();
-		
-		finalResults.push_back(std::move(res));
-		
-		finalResultMutex.unlock();
-		
-		partialResult.clear();
-	}
-	
-	partialResultMutex.unlock();
-}
-

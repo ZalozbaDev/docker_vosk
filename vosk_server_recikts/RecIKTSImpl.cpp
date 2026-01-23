@@ -7,12 +7,16 @@
   #define RECIKTSLIB "recikts64rel.so"
 #endif
 
+#include <dlfcn.h>
+
 //////////////////////////////////////////////
 RecIKTSImpl::RecIKTSImpl(std::string configPath)
 {
 	char initStatus;
 	
 	m_libraryLoaded   = false;
+	
+	m_configPath = configPath;
 	
 	loadLibrary();
 	
@@ -31,6 +35,8 @@ RecIKTSImpl::~RecIKTSImpl()
 {
 	char initStatus;
 	
+	tokens.clear();
+	
     initStatus = recikts_stop();
     checkRecognizerError(initStatus, "recikts_stop");
                 
@@ -44,33 +50,18 @@ RecIKTSImpl::~RecIKTSImpl()
 std::string RecIKTSImpl::getAnnouncementString(void)
 {
 	std::string versionStr = std::string(recikts_version());
-	std::string modelStr = std::regex_replace(m_modelPath, std::regex("(\\/|\\.)"), "-");
+	std::string modelStr = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
 	
 	return versionStr + " : " + modelStr;
 }
 
 //////////////////////////////////////////////
-void RecIKTSImpl::consume(int16_t* buf,uint32_t samples)
+void RecIKTSImpl::startUtterance(bool longPauseBetweenUtterances)
 {
 	char status;
 	if (m_libraryLoaded == true)
 	{
-		status = recikts_audio(buf, samples)
-		checkRecognizerError(status, "recikts_audio");
-	}
-	else
-	{
-		std::cout << "recikts library not loaded, no recognition!" << std::endl;	
-	}
-}
-
-//////////////////////////////////////////////
-void RecIKTSImpl::flush(bool longPauseBetweenUtterances)
-{
-	char status;
-	if (m_libraryLoaded == true)
-	{
-		recikts_restart((longPauseBetweenUtterances == true) ? 1 : 0);		
+		status = recikts_restart((longPauseBetweenUtterances == true) ? 1 : 0);
 		checkRecognizerError(status, "recikts_restart");
 	}
 	else
@@ -80,7 +71,49 @@ void RecIKTSImpl::flush(bool longPauseBetweenUtterances)
 }
 
 //////////////////////////////////////////////
-void VoskRecognizer::loadLibrary(void)
+void RecIKTSImpl::consumeAudio(int16_t* buf,uint32_t samples)
+{
+	char status;
+	if (m_libraryLoaded == true)
+	{
+		status = recikts_audio(buf, samples);
+		checkRecognizerError(status, "recikts_audio");
+	}
+	else
+	{
+		std::cout << "recikts library not loaded, no recognition!" << std::endl;	
+	}
+}
+
+//////////////////////////////////////////////
+void RecIKTSImpl::finalizeUtterance(void)
+{
+	char status;
+	if (m_libraryLoaded == true)
+	{
+		// recikts_restart((longPauseBetweenUtterances == true) ? 1 : 0);
+		status = recikts_restart(0);
+		checkRecognizerError(status, "recikts_restart");
+	}
+	else
+	{
+		std::cout << "recikts library not loaded, no recognition!" << std::endl;	
+	}
+}
+
+//////////////////////////////////////////////
+void RecIKTSImpl::getRecognizedTokens(std::vector<RecognizedToken>& retTokens)
+{
+	for (RecognizedToken t : tokens)
+	{
+		retTokens.push_back(t);
+	}
+	
+	tokens.clear();
+}
+
+//////////////////////////////////////////////
+void RecIKTSImpl::loadLibrary(void)
 {
 	int status;
 	Lmid_t newlmid;
@@ -138,7 +171,7 @@ void VoskRecognizer::loadLibrary(void)
 }
 
 //////////////////////////////////////////////
-void VoskRecognizer::libraryError(void)
+void RecIKTSImpl::libraryError(void)
 {
 	char* err = dlerror();
 	
@@ -153,7 +186,7 @@ void VoskRecognizer::libraryError(void)
 }
 
 //////////////////////////////////////////////
-void VoskRecognizer::unloadLibrary(void)
+void RecIKTSImpl::unloadLibrary(void)
 {
 	int status;
 	
@@ -187,11 +220,11 @@ void RecIKTSImpl::checkRecognizerError(char status, const char *functionName)
 }
 
 //////////////////////////////////////////////
-void VoskRecognizer::resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood)
+void RecIKTSImpl::resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood)
 {
-	std::unique_ptr<RecognitionResult> newResult = std::make_unique<RecognitionResult>(word, startTimeMs, endTimeMs, negLogLikelihood);
+	RecognizedToken t(word, 1000, startTimeMs, endTimeMs, negLogLikelihood);
 	
-	partialResult.push_back(std::move(newResult));	
+	tokens.push_back(t);	
 }
 
 //////////////////////////////////////////////

@@ -22,12 +22,13 @@ class VoskRecognizer:public RecognizerBase
 {
 public:
 	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=2);
+	virtual ssize_t getProcessingSampleRate(void)  override { return m_processingSampleRate; }
 	virtual ~VoskRecognizer(void);
 
 protected:
 	virtual void runTokensToWords(void) override;
 	virtual void workerThreadFunc(void) override;
-
+	
 private:
 	static const ssize_t m_processingSampleRate = 16000;
 	
@@ -35,8 +36,6 @@ private:
 	int leftOverDataLen = 0;
 	
 	RecIKTSImpl* recIktsImpl;
-	
-	void promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop);
 	
 	static const int64_t longPauseSeconds = 10;
 	int64_t lastUttStopTime;

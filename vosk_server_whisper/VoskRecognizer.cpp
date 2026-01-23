@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <dlfcn.h>
 
 #include <cassert>
 #include <regex>

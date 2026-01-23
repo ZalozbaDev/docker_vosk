@@ -23,6 +23,7 @@ class VoskRecognizer:public RecognizerBase
 {
 public:
 	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=2);
+	virtual ssize_t getProcessingSampleRate(void)  override { return m_processingSampleRate; }
 	virtual ~VoskRecognizer(void);
 	
 protected:
@@ -38,8 +39,6 @@ private:
 		
 	char* leftOverData;
 	int leftOverDataLen = 0;
-
-	void promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop);
 };
 
 #endif // VOSK_RECOGNIZER_H

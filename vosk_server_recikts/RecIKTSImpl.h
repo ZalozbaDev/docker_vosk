@@ -12,12 +12,16 @@ class RecIKTSImpl
 public:
 	RecIKTSImpl(std::string configPath);
 	std::string getAnnouncementString(void);
-	void consume(int16_t* buf,uint32_t samples);
-	void flush(bool longPauseBetweenUtterances);
+	void startUtterance(bool longPauseBetweenUtterances);
+	void consumeAudio(int16_t* buf,uint32_t samples);
+	void finalizeUtterance();
+	void getRecognizedTokens(std::vector<RecognizedToken>& tokens);
 	~RecIKTSImpl();
 private:
 	bool m_libraryLoaded;
 
+	std::string m_configPath;
+	
 	void loadLibrary(void);
 	void unloadLibrary(void);
 	void libraryError(void);
@@ -42,6 +46,8 @@ private:
 	
 	void *libmInstance;
 	void *recInstance;
+	
+	std::vector<RecognizedToken> tokens;
 
 };
 
