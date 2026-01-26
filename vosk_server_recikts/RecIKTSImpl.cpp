@@ -222,7 +222,61 @@ void RecIKTSImpl::checkRecognizerError(char status, const char *functionName)
 //////////////////////////////////////////////
 void RecIKTSImpl::resultCallback(char* word, unsigned int startTimeMs, unsigned int endTimeMs, float negLogLikelihood)
 {
-	RecognizedToken t(word, 1000, startTimeMs, endTimeMs, negLogLikelihood);
+	float token_confidence = 0.0;
+	
+	// suggested mapping of recikts confidence to a range between 0.0 .. 1.0 like whisper(.cpp)
+	//
+	// 0 --> 1
+	// 1 --> 0.79
+	// 2 --> 0.63
+	// 3 --> 0.5
+	// 5 --> 0.31
+	// 10 --> 0.1
+	//
+	// simple and stupid implementation that should be sufficient
+	
+	if (negLogLikelihood <= 10.0)
+	{
+		token_confidence = 0.1;
+	}
+	if (negLogLikelihood <= 7.0)
+	{
+		token_confidence = 0.2;
+	}
+	if (negLogLikelihood <= 5.0)
+	{
+		token_confidence = 0.3;
+	}
+	if (negLogLikelihood <= 4.0)
+	{
+		token_confidence = 0.4;
+	}
+	if (negLogLikelihood <= 3.0)
+	{
+		token_confidence = 0.5;
+	}
+	if (negLogLikelihood <= 2.0)
+	{
+		token_confidence = 0.6;
+	}
+	if (negLogLikelihood <= 1.5)
+	{
+		token_confidence = 0.7;
+	}
+	if (negLogLikelihood <= 1.0)
+	{
+		token_confidence = 0.8;
+	}
+	if (negLogLikelihood <= 0.5)
+	{
+		token_confidence = 0.9;
+	}
+	if (negLogLikelihood <= 0.001)
+	{
+		token_confidence = 1.0;
+	}
+		
+	RecognizedToken t(word, 1000, startTimeMs, endTimeMs, token_confidence);
 	
 	tokens.push_back(t);	
 }
