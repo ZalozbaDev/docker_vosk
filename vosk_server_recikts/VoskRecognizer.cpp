@@ -33,7 +33,10 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
     }
     */
 
-	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 125, 0, 0, 2, 0, vad->getFrameTimeMs(), cpp);
+    cpp->setConvertCase(true);
+    
+    
+	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 250, 0, 0, 3, 0, vad->getFrameTimeMs(), cpp);
 	std::string voskAnnouncementString = recIktsImpl->getAnnouncementString();
 	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) voskAnnouncementString.c_str(), (char*) voskAnnouncementString.c_str(), 2000ms, 100ms, 1900ms, 1.0f, true);
 	res->addWord(std::move(wrd));

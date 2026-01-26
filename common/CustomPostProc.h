@@ -10,11 +10,14 @@ class CustomPostProc
 public:
 	CustomPostProc(bool active, std::string replacementFile, bool convertCase = false, int maxCharsPerSecond = -1);
 	~CustomPostProc(void);
+
+	// allow to alter the flag after construction
+	void setConvertCase(bool convertCase) { convCase = convertCase; }
+	
 	// legacy all-in-one function
 	std::string processLine(std::string line, int lengthInSeconds = -1);
 	
 	// split functions
-	
 	std::string sanitizeWord(std::string word);
 	int limitLine(std::string line, int lengthInSeconds);
 	std::string replaceWord(std::string word);
