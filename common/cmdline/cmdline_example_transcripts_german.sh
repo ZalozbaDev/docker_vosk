@@ -17,17 +17,16 @@ sox ./tmp_audio_stripped.wav -r 48000 -c 1 -b 16 ./tmp_audio_stripped_resampled.
 export VOSK_MODEL_LANGUAGE=de
 
 LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main \
-../../../whisper-large-v3-turbo-german-ggml/ggml-model.bin \
-tmp_audio_stripped_resampled.wav \
+~/whisper_models/primeline/whisper-large-v3-german/ggml-model.bin tmp_audio_stripped_resampled.wav \
 tmpoutdir/
 
-TRANSCRIPTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.srt/')
+TRANSCRIPTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.de.srt/')
 
 echo "Writing transcript file $TRANSCRIPTFILE"
 
 mv tmpoutdir/subtitles.srt $TRANSCRIPTFILE
 
-TEXTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.txt/')
+TEXTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.de.txt/')
 
 echo "Writing transcript file $TEXTFILE"
 
