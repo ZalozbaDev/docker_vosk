@@ -109,6 +109,7 @@ void VoskRecognizer::workerThreadFunc(void)
 	// make this depend on the required framelength for VAD
 	const int framelen16 = vad->getRequiredFrameLength();
 	const int framelen48 = framelen16 * 3;
+	const int framelen8  = framelen16 / 2;
 	int16_t buf[framelen16];
 	
 	// leftover data buffer should not be bigger than one audio frame
@@ -151,25 +152,83 @@ void VoskRecognizer::workerThreadFunc(void)
 			int length = packet->length;
 			std::chrono::time_point<std::chrono::system_clock> arrivalTime = packet->arrivalTime;
 			
-			while(leftOverDataLen + length >= framelen48 * 2){
-
-				int useLen = framelen48 * 2 - leftOverDataLen;
-				memcpy(leftOverData + leftOverDataLen, data, useLen);
-				data += useLen;
-				length -= useLen;
-				leftOverDataLen = 0;
-				
-				resample->resample((const int16_t*)leftOverData, buf, framelen48);
-		
-				status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
+			if (m_inputSampleRate == 48000)
+			{
+				// 48 --> 16
+				while(leftOverDataLen + length >= framelen48 * 2){
+	
+					int useLen = framelen48 * 2 - leftOverDataLen;
+					memcpy(leftOverData + leftOverDataLen, data, useLen);
+					data += useLen;
+					length -= useLen;
+					leftOverDataLen = 0;
+					
+					resample->resample((const int16_t*)leftOverData, buf, framelen48);
 			
-				if (status == -1)
-				{
-					std::cout << "VAD processing error!" << std::endl;	
+					status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
+				
+					if (status == -1)
+					{
+						std::cout << "VAD processing error!" << std::endl;	
+					}
+					
+					// every VAD frame covers a defined amount of audio
+					arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
 				}
 				
-				// every VAD frame covers a defined amount of audio
-				arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
+			}
+			else
+			{
+				if (m_inputSampleRate == 8000)
+				{
+					// 8 --> 16
+					while(leftOverDataLen + length >= framelen8 * 2){
+		
+						int useLen = framelen8 * 2 - leftOverDataLen;
+						memcpy(leftOverData + leftOverDataLen, data, useLen);
+						data += useLen;
+						length -= useLen;
+						leftOverDataLen = 0;
+						
+						resamplePhone->resample((const int16_t*) leftOverData, buf, framelen8);
+				
+						status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
+					
+						if (status == -1)
+						{
+							std::cout << "VAD processing error!" << std::endl;	
+						}
+						
+						// every VAD frame covers a defined amount of audio
+						arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
+					}
+					
+				}
+				else
+				{
+					// 16 --> 16 copy
+					while(leftOverDataLen + length >= framelen16 * 2){
+		
+						int useLen = framelen16 * 2 - leftOverDataLen;
+						memcpy(leftOverData + leftOverDataLen, data, useLen);
+						data += useLen;
+						length -= useLen;
+						leftOverDataLen = 0;
+						
+						// just copy, don't resample
+						memcpy(buf, leftOverData, framelen16);
+				
+						status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
+					
+						if (status == -1)
+						{
+							std::cout << "VAD processing error!" << std::endl;	
+						}
+						
+						// every VAD frame covers a defined amount of audio
+						arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
+					}
+				}
 			}
 
 			if (length > 0)
