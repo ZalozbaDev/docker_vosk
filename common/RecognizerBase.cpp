@@ -9,6 +9,7 @@
 #include <VADWrapperWebRTC.h>
 #include <VADWrapperSilero.h>
 #include <ResamplerWebRTC_48_16.h>
+#include <ResamplerWebRTC_8_16.h>
 #include <ResamplerLibResample_48_16.h>
 
 int RecognizerBase::voskRecognizerInstanceId = 1;
@@ -63,12 +64,14 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
         {
         	std::cout << "ENV setting VAD algo to Silero." << std::endl;
         	resample = new ResamplerLibResample_48_16();
+        	// TBD libresample impl of phone quality to 16kHz
         	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
         }
         else
         {
         	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
         	resample = new ResamplerWebRTC_48_16();
+        	resamplePhone = new ResamplerWebRTC_8_16();
         	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);
         }
     }
@@ -76,6 +79,7 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
     {
        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
        	resample = new ResamplerWebRTC_48_16();
+        resamplePhone = new ResamplerWebRTC_8_16();
     	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);	
     }
 	
@@ -106,6 +110,7 @@ RecognizerBase::~RecognizerBase()
 	delete(audioLogger);
 	
 	delete(vad);
+	delete(resamplePhone);
 	delete(resample);
 
 	tokens.clear();
@@ -208,10 +213,9 @@ int RecognizerBase::acceptWaveform(const char *data, int length)
 {
 	int retVal;
 	
-	if ((m_inputSampleRate != 48000) || (getProcessingSampleRate() != 16000))
+	if (((m_inputSampleRate != 48000) && ((m_inputSampleRate != 16000) && ((m_inputSampleRate != 8000)) || (getProcessingSampleRate() != 16000))
 	{
-		// only 48kHz-->16kHz is supported (both VAD and recognizer)
-		// e.g. Jitsi provides 48 kHz so we need to downsample 1:3
+		// only a certain set of input sample rates, and one fixed processing sample rate supported
 		std::cout << "Unsupported sampling rates input " << m_inputSampleRate << " Hz and processing " << getProcessingSampleRate() << "Hz." << std::endl;
 		assert(false);	
 	}
