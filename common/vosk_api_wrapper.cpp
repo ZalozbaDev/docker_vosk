@@ -119,7 +119,7 @@ void vosk_recognizer_set_timestamp(VoskRecognizer *recognizer, struct timeval *t
 {
 	
 #ifdef VERBOSE_API_USAGE
-	printf("vosk_recognizer_set_timestamp, seconds=%ld, uSeconds=%ld.\n", recognizer->getInstanceId(), timestamp->tv_sec, timestamp->tv_usec);
+	printf("vosk_recognizer_set_timestamp, instance=%d, seconds=%ld, uSeconds=%ld.\n", recognizer->getInstanceId(), timestamp->tv_sec, timestamp->tv_usec);
 #endif
 
 	recognizer->setTimeStamp((int64_t) timestamp->tv_sec, (int64_t) timestamp->tv_usec);
@@ -130,7 +130,7 @@ void vosk_recognizer_set_sample_rate(VoskRecognizer *recognizer, float sample_ra
 {
 	
 // #ifdef VERBOSE_API_USAGE
-	printf("vosk_recognizer_set_sample_rate, rate=%.2f.\n", recognizer->getInstanceId(), sample_rate);
+	printf("vosk_recognizer_set_sample_rate, instance=%d, rate=%.2f.\n", recognizer->getInstanceId(), sample_rate);
 // #endif
 
 	recognizer->setSampleRate(sample_rate);

@@ -64,11 +64,11 @@ RUN apt install -y libboost-all-dev libhunspell-dev  libicu-dev libresample1-dev
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
-RUN cd vosk-api && git checkout 1053cfa0f80039d2956de7e05a05c0b8db90c3c0
+RUN cd vosk-api && git checkout 3e8fc75896c0ce73bb516c09d97e16fb8177a448
 
 # get VOSK server implementation
 RUN git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
-RUN cd vosk-server && git checkout 21147c33e383f45b942846c9f713789d8bca41d1
+RUN cd vosk-server && git checkout ccfbd9bcd6b2a3420b1f52d6284665da7e1ebf64
 
 # get ONNX runtime (for Silero)
 RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.12.1/onnxruntime-linux-x64-1.12.1.tgz
@@ -108,7 +108,7 @@ RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
 -I/onnxruntime-linux-x64-1.12.1/include/ \
 asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp \
 RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp RepetitionRemover.cpp \
-ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp \
+ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp ResamplerWebRTC_8_16.cpp \
 WhisperImpl.cpp WhisperPool.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -lpthread -lhunspell  -licuio -licuuc -lonnxruntime -lresample -lwhisper -lggml -lggml-cpu -lggml-base -L/ -L/onnxruntime-linux-x64-1.12.1/lib/ 

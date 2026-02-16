@@ -213,7 +213,7 @@ int RecognizerBase::acceptWaveform(const char *data, int length)
 {
 	int retVal;
 	
-	if (((m_inputSampleRate != 48000) && ((m_inputSampleRate != 16000) && ((m_inputSampleRate != 8000)) || (getProcessingSampleRate() != 16000))
+	if (((m_inputSampleRate != 48000) && (m_inputSampleRate != 16000) && (m_inputSampleRate != 8000)) || (getProcessingSampleRate() != 16000))
 	{
 		// only a certain set of input sample rates, and one fixed processing sample rate supported
 		std::cout << "Unsupported sampling rates input " << m_inputSampleRate << " Hz and processing " << getProcessingSampleRate() << "Hz." << std::endl;

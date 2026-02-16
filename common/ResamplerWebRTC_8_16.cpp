@@ -28,7 +28,7 @@ bool ResamplerWebRTC_8_16::resample(const int16_t* source, int16_t* target, cons
 }
 
 //////////////////////////////////////////////
-ResamplerWebRTC_8_16::~ResamplerWebRTC_48_16()
+ResamplerWebRTC_8_16::~ResamplerWebRTC_8_16()
 {
 	
 }
