@@ -53,6 +53,7 @@ public:
 	int getInstanceId(void)       { return m_instanceId; }
 	int getModelInstanceId(void)  { return m_modelInstanceId; }
 	float getSampleRate(void)     { return m_inputSampleRate; }
+	void setSampleRate(float rate) { m_inputSampleRate = rate; }
 	
 	std::string getLocalTimeStamp(void);
 	void setDetailedResult(bool detailsOn);
@@ -88,6 +89,7 @@ protected:
 
 	VADWrapper *vad;
 	Resampler  *resample;
+	Resampler  *resamplePhone;
 
 	uint64_t m_vadFrameCounter;
 	
