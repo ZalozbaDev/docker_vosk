@@ -68,7 +68,7 @@ RUN cd vosk-api && git checkout 3e8fc75896c0ce73bb516c09d97e16fb8177a448
 
 # get VOSK server implementation
 RUN git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
-RUN cd vosk-server && git checkout ccfbd9bcd6b2a3420b1f52d6284665da7e1ebf64
+RUN cd vosk-server && git checkout be33a8916a8e1e36e519f66cef5d52c9fd24e2e3
 
 # get ONNX runtime (for Silero)
 RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.12.1/onnxruntime-linux-x64-1.12.1.tgz
