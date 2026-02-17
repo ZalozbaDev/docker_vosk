@@ -3,6 +3,9 @@
 
 #include <cassert>
 
+#include <MuLawDecoder.h>
+
+
 //////////////////////////////////////////////
 ResamplerWebRTC_8_16::ResamplerWebRTC_8_16()
 {
@@ -13,16 +16,27 @@ ResamplerWebRTC_8_16::ResamplerWebRTC_8_16()
 //////////////////////////////////////////////
 bool ResamplerWebRTC_8_16::resample(const int16_t* source, int16_t* target, const int sourceFrameLenSamples) 
 {
-	int16_t intermediate[fixedBufferSize48khz];
+	int16_t intermediatePCM8[sourceFrameLenSamples * 2];
+	
+	int16_t intermediatePCM48[fixedBufferSize48khz];
 	
 	// WebRTC resampler can only cope with fixed buffer sizes
-	assert(sourceFrameLenSamples == fixedBufferSize8khz);
+	assert(sourceFrameLenSamples == (fixedBufferSize8khz / 2));
+	
+	size_t converted = MuLawDecoder::Convert(
+		(uint8_t*) source,
+		sourceFrameLenSamples,
+		intermediatePCM8,
+		sourceFrameLenSamples
+    );
+	
+    assert(converted == sourceFrameLenSamples);
 	
 	// upsample 8 to 48 first
-	WebRtcSpl_Resample8khzTo48khz(source, intermediate, &m_resamplestate_8_to_48, tmp);
+	WebRtcSpl_Resample8khzTo48khz(intermediatePCM8, intermediatePCM48, &m_resamplestate_8_to_48, tmp);
 	
 	// now resample from 48 kHz to 16 kHz
-	WebRtcSpl_Resample48khzTo16khz(intermediate, target, &m_resamplestate_48_to_16, tmp);
+	WebRtcSpl_Resample48khzTo16khz(intermediatePCM48, target, &m_resamplestate_48_to_16, tmp);
 	
 	return true;
 }

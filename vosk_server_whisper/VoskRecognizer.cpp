@@ -181,7 +181,9 @@ void VoskRecognizer::workerThreadFunc(void)
 			{
 				if (m_inputSampleRate == 8000)
 				{
-					// 8 --> 16
+					// 8 --> 16 as 16 bit
+#if 0
+
 					while(leftOverDataLen + length >= framelen8 * 2){
 		
 						int useLen = framelen8 * 2 - leftOverDataLen;
@@ -203,6 +205,34 @@ void VoskRecognizer::workerThreadFunc(void)
 						arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
 					}
 					
+#endif
+
+#if 1
+
+					// 8 --> 16 as uLaw
+					while(leftOverDataLen + length >= framelen8){
+		
+						int useLen = framelen8 - leftOverDataLen;
+						memcpy(leftOverData + leftOverDataLen, data, useLen);
+						data += useLen;
+						length -= useLen;
+						leftOverDataLen = 0;
+						
+						resamplePhone->resample((const int16_t*) leftOverData, buf, framelen8);
+				
+						status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
+					
+						if (status == -1)
+						{
+							std::cout << "VAD processing error!" << std::endl;	
+						}
+						
+						// every VAD frame covers a defined amount of audio
+						arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
+					}
+					
+#endif
+
 				}
 				else
 				{
