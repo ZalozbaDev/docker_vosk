@@ -36,19 +36,18 @@ public:
     }
 
 private:
-    static int16_t DecodeSample(uint8_t muLawByte)
-    {
-        muLawByte = ~muLawByte;
-
-        int sign     = muLawByte & 0x80;
-        int exponent = (muLawByte >> 4) & 0x07;
-        int mantissa =  muLawByte & 0x0F;
-
-        int sample = ((mantissa << 4) + 0x08) << exponent;
-        sample -= 0x84;
-
-        return sign ? -sample : sample;
-    }
+	static int16_t DecodeSample(uint8_t muLawByte)
+	{
+		muLawByte = ~muLawByte;
+	
+		int sign     = muLawByte & 0x80;
+		int exponent = (muLawByte >> 4) & 0x07;
+		int mantissa =  muLawByte & 0x0F;
+	
+		int sample = ((mantissa | 0x10) << (exponent + 3)) - 132;
+	
+		return sign ? -sample : sample;
+	}
 };
 
 #endif
