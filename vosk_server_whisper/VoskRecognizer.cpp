@@ -207,6 +207,7 @@ void VoskRecognizer::workerThreadFunc(void)
 				else
 				{
 					// 16 --> 16 copy
+					// TBD this is currently broken!
 					while(leftOverDataLen + length >= framelen16 * 2){
 		
 						int useLen = framelen16 * 2 - leftOverDataLen;
