@@ -139,18 +139,29 @@ void VoskRecognizer::workerThreadFunc(void)
 	
 		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 		
-		if (audioPackets.size() > 0)
+		// collect at least 10 packets to not break the VAD algo :-( 
+		if (audioPackets.size() > 10)
 		{
-			std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
-			audioPackets.pop_front();
+			std::vector<char> audioData;
+			std::chrono::time_point<std::chrono::system_clock> arrivalTime;
+			
+			while (audioPackets.size() > 0)
+			{
+				std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
+				audioPackets.pop_front();
+				
+				audioData.insert(audioData.end(), packet->data, packet->data + packet->length);
+				
+				arrivalTime = packet->arrivalTime;
+			}
 
 			audioPacketLock.unlock();
 		
-			// std::cout << "RECO_THREAD <-- pop" << std::endl;
+			// std::cout << "RECO_THREAD <-- pop " << audioData.size() << " samples." << std::endl;
 
-			char *data = packet->data;
-			int length = packet->length;
-			std::chrono::time_point<std::chrono::system_clock> arrivalTime = packet->arrivalTime;
+			char *data = &audioData[0];
+			int length = audioData.size();
+			// std::chrono::time_point<std::chrono::system_clock> arrivalTime = packet->arrivalTime;
 			
 			if (m_inputSampleRate == 48000)
 			{
@@ -216,6 +227,9 @@ void VoskRecognizer::workerThreadFunc(void)
 						memcpy(leftOverData + leftOverDataLen, data, useLen);
 						data += useLen;
 						length -= useLen;
+
+						// std::cout << "useLen=" << useLen << ", length=" << length << ", leftover=" << leftOverDataLen << "." << std::endl;
+						
 						leftOverDataLen = 0;
 						
 						resamplePhone->resample((const int16_t*) leftOverData, buf, framelen8);
