@@ -1,0 +1,118 @@
+# docker build -f vosk_server_whisper/Dockerfile.minimal --progress=plain -t vosk_server_whisper_minimal .
+
+# rebuild from scratch
+# <... same cmdline ...>  -t vosk_server_whisper . --no-cache
+
+############################################################
+# 1️⃣ BUILDER STAGE
+############################################################
+FROM nvidia/cuda:12.3.2-devel-ubuntu24.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    cmake \
+    meson \
+    ninja-build \
+    wget \
+    libabsl-dev \
+    libboost-all-dev \
+    libhunspell-dev \
+    libicu-dev \
+    libresample1-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+############################################################
+# WebRTC (selten geändert → früh im Layer)
+############################################################
+RUN git clone https://github.com/ZalozbaDev/webrtc-audio-processing.git \
+ && cd webrtc-audio-processing \
+ && git checkout 001d483d0c761f004e1888307acccc87d3520ec8 \
+ && meson setup build -Dprefix=/opt/webrtc \
+ && ninja -C build \
+ && ninja -C build install
+
+############################################################
+# ONNX Runtime
+############################################################
+RUN wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.12.1/onnxruntime-linux-x64-1.12.1.tgz \
+ && tar xzf onnxruntime-linux-x64-1.12.1.tgz \
+ && mv onnxruntime-linux-x64-1.12.1 /opt/onnxruntime
+
+############################################################
+# Vosk
+############################################################
+RUN git clone https://github.com/ZalozbaDev/vosk-api.git \
+ && cd vosk-api \
+ && git checkout 3e8fc75896c0ce73bb516c09d97e16fb8177a448
+
+RUN git clone https://github.com/ZalozbaDev/vosk-server.git \
+ && cd vosk-server \
+ && git checkout be33a8916a8e1e36e519f66cef5d52c9fd24e2e3
+
+############################################################
+# whisper.cpp
+############################################################
+RUN git clone https://github.com/ZalozbaDev/whisper.cpp.git \
+ && cd whisper.cpp \
+ && git checkout v1.7.4 \
+ && cmake -B build \
+      -DGGML_CUDA=1 \
+      -DCMAKE_BUILD_TYPE=Release \
+ && cmake --build build -j
+
+############################################################
+# Eigener Code zuletzt (maximales Caching!)
+############################################################
+COPY common/ /build/common/
+COPY vosk_server_whisper/ /build/app/
+
+WORKDIR /build/app
+
+RUN g++ -std=c++17 -O3 -DNDEBUG -DGGML_USE_OPENMP -DGGML_USE_CUDA \
+    -fopenmp -pthread -fPIC \
+    -I/build/whisper.cpp/include \
+    -I/build/whisper.cpp/ggml/include \
+    -I/opt/webrtc/include \
+    -I/opt/onnxruntime/include \
+    *.cpp \
+    -L/build/whisper.cpp/build/src \
+    -L/opt/onnxruntime/lib \
+    -lwhisper -lggml -lggml-cpu -lggml-base \
+    -lonnxruntime -lhunspell -licuuc -licuio -lresample \
+    -o vosk_whisper_server
+
+############################################################
+# 2️⃣ RUNTIME STAGE (minimal)
+############################################################
+FROM nvidia/cuda:12.3.2-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libhunspell-1.7-0 \
+    libicu74 \
+    libresample1 \
+    libgomp1 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# nur benötigte Artefakte kopieren
+COPY --from=builder /build/app/vosk_whisper_server .
+COPY --from=builder /build/whisper.cpp/build/src/libwhisper.so* /usr/lib/
+COPY --from=builder /build/whisper.cpp/build/ggml/src/*.so /usr/lib/
+COPY --from=builder /opt/onnxruntime/lib/libonnxruntime.so* /usr/lib/
+
+COPY vosk_server_whisper/startme.sh .
+RUN chmod +x startme.sh
+
+RUN mkdir -p /logs /model /whisper
+
+CMD ["./startme.sh"]
