@@ -227,14 +227,24 @@ int RecognizerBase::acceptWaveform(const char *data, int length)
 	packet->arrivalTime = std::chrono::system_clock::now();
 	memcpy(packet->data, data, length);
 	
+#if 0	
+	
+	auto now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+                        - std::chrono::duration_cast<std::chrono::milliseconds>(seconds);
+
+	std::cout << "acceptWaveform push len=" << length << ", time=" << seconds.count() << "." << milliseconds.count() << std::endl;
+	
+#endif
+			
 	// push to queue and notify worker
 	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 	audioPackets.push_back(std::move(packet));
 	audioPacketLock.unlock();
 	audioPacketNotify.notify_one();
 	
-	// std::cout << "acceptWaveform push -->" << std::endl;
-			
 	// access final results queue to compute return value
     utteranceMutex.lock();
 	if (utterances.size() > 0)
