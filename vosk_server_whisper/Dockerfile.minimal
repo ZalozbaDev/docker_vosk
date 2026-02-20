@@ -4,9 +4,9 @@
 # <... same cmdline ...>  -t vosk_server_whisper . --no-cache
 
 ############################################################
-# 1️⃣ BUILDER STAGE
+# 1. BUILDER STAGE
 ############################################################
-FROM nvidia/cuda:12.3.2-devel-ubuntu24.04 AS builder
+FROM nvidia/cuda:12.6.3-devel-ubuntu24.04 AS vosk_cuda_builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -63,9 +63,14 @@ RUN git clone https://github.com/ZalozbaDev/whisper.cpp.git \
  && git checkout v1.7.4 \
  && cmake -B build \
       -DGGML_CUDA=1 \
+      -DCMAKE_CUDA_ARCHITECTURES="86" \
       -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
  && cmake --build build -j
 
+#       -DCMAKE_CUDA_ARCHITECTURES="80;86;89" \
+
+ 
 ############################################################
 # Eigener Code zuletzt (maximales Caching!)
 ############################################################
@@ -81,16 +86,18 @@ RUN g++ -std=c++17 -O3 -DNDEBUG -DGGML_USE_OPENMP -DGGML_USE_CUDA \
     -I/opt/webrtc/include \
     -I/opt/onnxruntime/include \
     *.cpp \
+    ../common/*.cpp \
     -L/build/whisper.cpp/build/src \
     -L/opt/onnxruntime/lib \
-    -lwhisper -lggml -lggml-cpu -lggml-base \
+    -L/usr/local/cuda/lib64/stubs/ \
+    -lwhisper -lggml -lggml-cpu -lggml-base -lcuda \
     -lonnxruntime -lhunspell -licuuc -licuio -lresample \
     -o vosk_whisper_server
 
 ############################################################
-# 2️⃣ RUNTIME STAGE (minimal)
+# 2. RUNTIME STAGE (minimal)
 ############################################################
-FROM nvidia/cuda:12.3.2-runtime-ubuntu24.04
+FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -105,10 +112,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # nur benötigte Artefakte kopieren
-COPY --from=builder /build/app/vosk_whisper_server .
-COPY --from=builder /build/whisper.cpp/build/src/libwhisper.so* /usr/lib/
-COPY --from=builder /build/whisper.cpp/build/ggml/src/*.so /usr/lib/
-COPY --from=builder /opt/onnxruntime/lib/libonnxruntime.so* /usr/lib/
+COPY --from=vosk_cuda_builder /build/app/vosk_whisper_server .
+COPY --from=vosk_cuda_builder /build/whisper.cpp/build/src/libwhisper.so* /usr/lib/
+COPY --from=vosk_cuda_builder /build/whisper.cpp/build/ggml/src/*.so /usr/lib/
+COPY --from=vosk_cuda_builder /opt/onnxruntime/lib/libonnxruntime.so* /usr/lib/
 
 COPY vosk_server_whisper/startme.sh .
 RUN chmod +x startme.sh
