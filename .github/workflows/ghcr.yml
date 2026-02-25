@@ -64,7 +64,7 @@ jobs:
           platforms: |
             linux/amd64
             linux/arm64
-          context: vosk_server_whisper/
+          context: .
           file: vosk_server_whisper/Dockerfile
           load: false
           push: true
