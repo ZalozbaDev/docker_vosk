@@ -64,6 +64,7 @@ jobs:
           platforms: |
             linux/amd64
             linux/arm64
+          build-args: NVIDIA_DRIVER_VERSION=590.48.01
           context: .
           file: vosk_server_whisper/Dockerfile
           load: false
