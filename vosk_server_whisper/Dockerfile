@@ -1,5 +1,5 @@
-FROM ubuntu:noble
-MAINTAINER Daniel Sobe <daniel.sobe@sorben.com>
+FROM nvidia/cuda:13.1.1-cudnn-devel-ubuntu24.04
+LABEL org.opencontainers.image.authors="Daniel Sobe <daniel.sobe@sorben.com>"
 
 # normal call
 # use the "./detect_whisper_options.sh" script for cmdline args!
@@ -22,9 +22,9 @@ RUN apt-get install -y locales
 RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen
 
-ENV LC_ALL en_US.UTF-8 
-ENV LANG en_US.UTF-8  
-ENV LANGUAGE en_US:en     
+ENV LC_ALL=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
 
 ########################################################
 # Install all dependencies for compilation
@@ -46,16 +46,6 @@ RUN cd webrtc-audio-processing && meson . build -Dprefix=$PWD/install && ninja -
 ############################################
 # Build vosk server wrapper and whisper glue code
 ############################################
-
-
-RUN apt install -y nvidia-cuda-toolkit 
-
-ARG NVIDIA_DRIVER_PACKAGE
-ARG NVIDIA_DRIVER_VERSION
-ARG NVIDIA_CUDA_ARCHITECTURE 
-
-# try to force a fixed version
-RUN apt install -y $NVIDIA_DRIVER_PACKAGE=$NVIDIA_DRIVER_VERSION
 
 # get boost source code for some boost header files 
 #RUN wget -q https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz \
@@ -87,7 +77,10 @@ RUN cd whisper.cpp && git checkout v1.7.4
 # assure all cuda dependencies are built
 # -DCUDA_DOCKER_ARCH=sm_61 
 # TBD how to specify???
-RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=$NVIDIA_CUDA_ARCHITECTURE && cmake --build build -j --config Release
+# Ref: https://stackoverflow.com/a/53464012
+ENV=CUDA_MAIN_VERSION=13.1
+ENV=LD_LIBRARY_PATH /usr/local/cuda-${CUDA_MAIN_VERSION}/compat:$LD_LIBRARY_PATH
+RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=89 && cmake --build build -j --config Release
 
 COPY common/*.cpp  common/*.h /
 COPY vosk_server_whisper/*.cpp vosk_server_whisper/*.h /
@@ -102,7 +95,7 @@ RUN ln -s libwhisper.so.1 libwhisper.so
 RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-extra-semi -Wno-unused-function -Wno-unused-parameter -Wno-missing-declarations -Wmissing-noreturn -Wno-write-strings -Wno-array-bounds -Wno-format-truncation \
 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DNDEBUG -DGGML_USE_OPENMP -DGGML_USE_CUDA \
--pthread -fopenmp -fPIC -march=native -mtune=native \ 
+-pthread -fopenmp -fPIC -march=native -mtune=native \
 -DVAD_FRAME_CONVERT_FLOAT \
 -I. -I/whisper.cpp/ -I/whisper.cpp/examples/ -I/whisper.cpp/include/ -I/whisper.cpp/ggml/include/ -I/webrtc-audio-processing/webrtc/ \
 -I/onnxruntime-linux-x64-1.12.1/include/ \
