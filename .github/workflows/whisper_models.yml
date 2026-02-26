@@ -73,5 +73,4 @@ jobs:
           docker run -e MODEL=${{matrix.model}} --mount type=bind,source=./cache,target=/cache/ --mount type=bind,source=./whisper_models,target=/output/ ghcr.io/janshafiqdl/mudrowak:main /convert.sh
       - name: Package model
         run: |
-          ls
-          oras push ghcr.io/janshafiqdl/docker_vosk/model-${{matrix.profile}}:${{ github.sha }} './'
+          oras push ghcr.io/janshafiqdl/docker_vosk/model-${{matrix.profile}}:${{ github.sha }} './whisper_models'
