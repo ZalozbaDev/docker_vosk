@@ -70,7 +70,7 @@ jobs:
         run: |
           mkdir cache
           mkdir whisper_models
-          docker run -e MODEL=${{matrix.model}} --mount type=bind,source=./cache,target=/cache/ --mount type=bind,source=./whisper_models,target=/output/ -it ghcr.io/janshafiqdl/mudrowak:main /convert.sh
+          docker run -e MODEL=${{matrix.model}} --mount type=bind,source=./cache,target=/cache/ --mount type=bind,source=./whisper_models,target=/output/ ghcr.io/janshafiqdl/mudrowak:main /convert.sh
       - name: Package model
         run: |
           ls
