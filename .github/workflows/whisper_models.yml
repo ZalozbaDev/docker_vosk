@@ -74,4 +74,4 @@ jobs:
       - name: Package model
         run: |
           ls
-          oras push ghcr.io/janshafiqdl/docker_vosk/model-${{matrix.model}}:${{ github.sha }} './'
+          oras push ghcr.io/janshafiqdl/docker_vosk/model-${{matrix.profile}}:${{ github.sha }} './'
