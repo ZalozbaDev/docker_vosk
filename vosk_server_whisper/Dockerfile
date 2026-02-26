@@ -78,8 +78,8 @@ RUN cd whisper.cpp && git checkout v1.7.4
 # -DCUDA_DOCKER_ARCH=sm_61 
 # TBD how to specify???
 # Ref: https://stackoverflow.com/a/53464012
-ENV=CUDA_MAIN_VERSION=13.1
-ENV=LD_LIBRARY_PATH /usr/local/cuda-${CUDA_MAIN_VERSION}/compat:$LD_LIBRARY_PATH
+ENV CUDA_MAIN_VERSION=13.1
+ENV LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_MAIN_VERSION}/compat:$LD_LIBRARY_PATH
 RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=89 && cmake --build build -j --config Release
 
 COPY common/*.cpp  common/*.h /
