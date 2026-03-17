@@ -139,12 +139,14 @@ void VoskRecognizer::workerThreadFunc(void)
 	
 		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 		
-		// collect at least 10 packets to not break the VAD algo :-( 
-		if (audioPackets.size() > 10)
+		// collect at least minimum number packets to not break the VAD algo :-(
+		// this computation is dependent on the VAD algo params (dirrrrty!!!)
+		if (audioPackets.size() >= m_minNumberAudioPackages)
 		{
 			std::vector<char> audioData;
 			std::chrono::time_point<std::chrono::system_clock> arrivalTime;
 			
+			// accumulate all audio packets in the queue at once 
 			while (audioPackets.size() > 0)
 			{
 				std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
@@ -165,7 +167,7 @@ void VoskRecognizer::workerThreadFunc(void)
 			
 			if (m_inputSampleRate == 48000)
 			{
-				// 48 --> 16
+				// 48 --> 16 with 16 bit samples
 				while(leftOverDataLen + length >= framelen48 * 2){
 	
 					int useLen = framelen48 * 2 - leftOverDataLen;
@@ -192,34 +194,6 @@ void VoskRecognizer::workerThreadFunc(void)
 			{
 				if (m_inputSampleRate == 8000)
 				{
-					// 8 --> 16 as 16 bit
-#if 0
-
-					while(leftOverDataLen + length >= framelen8 * 2){
-		
-						int useLen = framelen8 * 2 - leftOverDataLen;
-						memcpy(leftOverData + leftOverDataLen, data, useLen);
-						data += useLen;
-						length -= useLen;
-						leftOverDataLen = 0;
-						
-						resamplePhone->resample((const int16_t*) leftOverData, buf, framelen8);
-				
-						status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
-					
-						if (status == -1)
-						{
-							std::cout << "VAD processing error!" << std::endl;	
-						}
-						
-						// every VAD frame covers a defined amount of audio
-						arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
-					}
-					
-#endif
-
-#if 1
-
 					// 8 --> 16 as uLaw
 					while(leftOverDataLen + length >= framelen8){
 		
@@ -244,14 +218,11 @@ void VoskRecognizer::workerThreadFunc(void)
 						// every VAD frame covers a defined amount of audio
 						arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
 					}
-					
-#endif
-
 				}
 				else
 				{
-					// 16 --> 16 copy
-					// TBD this is currently broken!
+					// 16 --> 16 with 16 bit samples --> copy
+					// TBD not yet tested
 					while(leftOverDataLen + length >= framelen16 * 2){
 		
 						int useLen = framelen16 * 2 - leftOverDataLen;
