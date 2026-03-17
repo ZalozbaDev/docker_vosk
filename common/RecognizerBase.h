@@ -50,10 +50,12 @@ public:
 	virtual ssize_t getProcessingSampleRate(void)  = 0;
 	virtual ~RecognizerBase();
 	
-	int getInstanceId(void)       { return m_instanceId; }
-	int getModelInstanceId(void)  { return m_modelInstanceId; }
-	float getSampleRate(void)     { return m_inputSampleRate; }
-	void setSampleRate(float rate) { m_inputSampleRate = rate; }
+	int getInstanceId(void)                  { return m_instanceId; }
+	int getModelInstanceId(void)             { return m_modelInstanceId; }
+	float getSampleRate(void)                { return m_inputSampleRate; }
+	void setSampleRate(float rate)           { m_inputSampleRate = rate; }
+	void setSampleFormat(const char *format) { m_sampleFormat = std::string(format); }
+	void setChunklen(int length)             { m_audioChunkLength = length; }
 	
 	std::string getLocalTimeStamp(void);
 	void setDetailedResult(bool detailsOn);
@@ -78,6 +80,8 @@ protected:
 	int m_instanceId;
 	int m_modelInstanceId;
 	float m_inputSampleRate;
+	std::string m_sampleFormat;
+	int m_audioChunkLength;
 
 	VoskRecognizerState m_recoState;
 	std::string m_configPath;

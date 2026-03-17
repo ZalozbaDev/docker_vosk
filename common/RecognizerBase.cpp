@@ -28,6 +28,10 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
 	m_recoState = VoskRecognizerState::UNINIT;
 	m_configPath = std::string(configPath);
 	
+	// safe defaults
+	m_sampleFormat = "PCMS16LE";
+	m_audioChunkLength = 48000;
+	
 	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
     
     if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
