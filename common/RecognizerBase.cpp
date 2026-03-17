@@ -423,7 +423,7 @@ const char* RecognizerBase::getPartialResult(void)
 //////////////////////////////////////////////
 const char* RecognizerBase::getFinalResult(void)
 {
-	std::string res = "{ \"text\" : \"-- ";
+	std::string res = "{ \"text\" : \"";
     int64_t uStartTime = 0;
     int64_t uStartTimeMs = 0;
     int64_t uStopTime = 0;
@@ -444,7 +444,7 @@ const char* RecognizerBase::getFinalResult(void)
 		
 		if (detailedResults == false)
 		{
-			res += " --\" }";
+			res += "\" }";
 		}
 		else
 		{
@@ -478,7 +478,7 @@ const char* RecognizerBase::getFinalResult(void)
 	}
 	else
 	{
-		res += " --\" }";
+		res += "\" }";
 	}
 		
     utteranceMutex.unlock();
