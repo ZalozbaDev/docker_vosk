@@ -159,8 +159,8 @@ void RecognizerBase::setDetailedResult(bool detailsOn)
 void RecognizerBase::setSampleRate(float rate)
 {
 	m_inputSampleRate = rate;
-	recomputeMinNumberAudioPackages();
 	std::cout << "RecognizerBase::setSampleRate=" << m_inputSampleRate << std::endl;
+	recomputeMinNumberAudioPackages();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -168,16 +168,16 @@ void RecognizerBase::setSampleFormat(const char *format)
 {
 	std::string tmpFormat(format);
 	m_isULawSampleFormat = (tmpFormat == "ULAW") ? true : false;
-	recomputeMinNumberAudioPackages();
 	std::cout << "RecognizerBase::setSampleFormat ULAW=" << m_isULawSampleFormat << std::endl;
+	recomputeMinNumberAudioPackages();
 }
 
 //////////////////////////////////////////////////////////////////////////////
 void RecognizerBase::setChunklen(int length)
 {
 	m_audioChunkLength = length;
-	recomputeMinNumberAudioPackages();
 	std::cout << "RecognizerBase::setChunklen=" << m_audioChunkLength << std::endl;
+	recomputeMinNumberAudioPackages();
 }
 
 //////////////////////////////////////////////////////////////////////////////
