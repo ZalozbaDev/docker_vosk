@@ -32,7 +32,7 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
 	// safe defaults
 	m_isULawSampleFormat = false;
 	m_audioChunkLength = 48000;
-	m_minNumberAudioPackages = 0;
+	m_minNumberAudioPackages = 1;
 	
 	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
     
@@ -88,27 +88,11 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
         resamplePhone = new ResamplerWebRTC_8_16();
     	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);	
     }
-	
-	m_vadFrameCounter = 0;
-	
-    clientTimeStamp = std::chrono::system_clock::now();
-    
-    threadRunning = true;    
-    recoWorkerThread = new std::thread(&RecognizerBase::workerThreadFunc, this);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 RecognizerBase::~RecognizerBase()
 {
-	// clear audio queue and finalize thread
-	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
-	audioPackets.clear();
-	threadRunning = false;
-	audioPacketLock.unlock();
-	audioPacketNotify.notify_one();
-	recoWorkerThread->join();
-	delete(recoWorkerThread);
-
 	// now we can free all resources
 	delete(cpp);
 	delete(hpp);

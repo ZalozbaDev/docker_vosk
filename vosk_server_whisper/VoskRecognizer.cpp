@@ -89,11 +89,29 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	utterances.push_back(std::move(res));
 	
 	WhisperPool::releaseInstance(std::move(whisperInst));
+	
+	// finally start the recognizer thread
+	m_vadFrameCounter = 0;
+	
+    clientTimeStamp = std::chrono::system_clock::now();
+    
+    threadRunning = true;    
+    recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
 
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
+	// clear audio queue and finalize thread
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+	audioPackets.clear();
+	threadRunning = false;
+	audioPacketLock.unlock();
+	audioPacketNotify.notify_one();
+	recoWorkerThread->join();
+	delete(recoWorkerThread);
+
+	// only now we can unregister our instances
 	WhisperPool::unregister();
 }
 
@@ -146,6 +164,8 @@ void VoskRecognizer::workerThreadFunc(void)
 			std::vector<char> audioData;
 			std::chrono::time_point<std::chrono::system_clock> arrivalTime;
 			
+			// std::cout << "RECO_THREAD <-- pop " << audioPackets.size() << " packets." << std::endl;
+			
 			// accumulate all audio packets in the queue at once 
 			while (audioPackets.size() > 0)
 			{
@@ -159,7 +179,7 @@ void VoskRecognizer::workerThreadFunc(void)
 
 			audioPacketLock.unlock();
 		
-			// std::cout << "RECO_THREAD <-- pop " << audioData.size() << " samples." << std::endl;
+			// std::cout << "RECO_THREAD <-- assembled " << audioData.size() << " samples." << std::endl;
 
 			char *data = &audioData[0];
 			int length = audioData.size();

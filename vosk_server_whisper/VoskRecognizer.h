@@ -28,7 +28,7 @@ public:
 	
 protected:
 	virtual void runTokensToWords(void) override;
-	virtual void workerThreadFunc(void) override;
+	void workerThreadFunc(void);
 
 private:
 	static const ssize_t m_processingSampleRate = 16000;

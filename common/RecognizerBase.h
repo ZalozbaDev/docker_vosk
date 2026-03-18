@@ -103,7 +103,6 @@ protected:
 	std::deque<std::unique_ptr<AudioPacket>> audioPackets;
 	std::mutex audioPacketMutex;
 	std::condition_variable audioPacketNotify;
-	virtual void workerThreadFunc(void) = 0;
 	
 	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
 	std::mutex tokenMutex;
