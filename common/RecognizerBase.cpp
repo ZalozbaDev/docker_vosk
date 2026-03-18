@@ -432,7 +432,7 @@ const char* RecognizerBase::getFinalResult(void)
 		}
 		else
 		{
-			res += " --\", \"start\" : \"";
+			res += "\", \"start\" : \"";
 			res += std::to_string(uStartTime);
 			res += "\", \"startMs\" : \"";
 			res += std::to_string(uStartTimeMs);
