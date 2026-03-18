@@ -9,6 +9,7 @@
 #include <VADWrapperWebRTC.h>
 #include <VADWrapperSilero.h>
 #include <ResamplerWebRTC_48_16.h>
+#include <ResamplerWebRTC_8_16.h>
 #include <ResamplerLibResample_48_16.h>
 
 int RecognizerBase::voskRecognizerInstanceId = 1;
@@ -22,10 +23,16 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
 	m_instanceId      = voskRecognizerInstanceId++;
 	m_inputSampleRate = sample_rate;
 	
+	
 	detailedResults = false;
 	
 	m_recoState = VoskRecognizerState::UNINIT;
 	m_configPath = std::string(configPath);
+	
+	// safe defaults
+	m_isULawSampleFormat = false;
+	m_audioChunkLength = 48000;
+	m_minNumberAudioPackages = 1;
 	
 	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
     
@@ -63,12 +70,14 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
         {
         	std::cout << "ENV setting VAD algo to Silero." << std::endl;
         	resample = new ResamplerLibResample_48_16();
+        	// TBD libresample impl of phone quality to 16kHz
         	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
         }
         else
         {
         	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
         	resample = new ResamplerWebRTC_48_16();
+        	resamplePhone = new ResamplerWebRTC_8_16();
         	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);
         }
     }
@@ -76,29 +85,14 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
     {
        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
        	resample = new ResamplerWebRTC_48_16();
+        resamplePhone = new ResamplerWebRTC_8_16();
     	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);	
     }
-	
-	m_vadFrameCounter = 0;
-	
-    clientTimeStamp = std::chrono::system_clock::now();
-    
-    threadRunning = true;    
-    recoWorkerThread = new std::thread(&RecognizerBase::workerThreadFunc, this);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 RecognizerBase::~RecognizerBase()
 {
-	// clear audio queue and finalize thread
-	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
-	audioPackets.clear();
-	threadRunning = false;
-	audioPacketLock.unlock();
-	audioPacketNotify.notify_one();
-	recoWorkerThread->join();
-	delete(recoWorkerThread);
-
 	// now we can free all resources
 	delete(cpp);
 	delete(hpp);
@@ -106,6 +100,7 @@ RecognizerBase::~RecognizerBase()
 	delete(audioLogger);
 	
 	delete(vad);
+	delete(resamplePhone);
 	delete(resample);
 
 	tokens.clear();
@@ -142,6 +137,69 @@ void RecognizerBase::setDetailedResult(bool detailsOn)
 	{
 		detailedResults = false;	
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+void RecognizerBase::setSampleRate(float rate)
+{
+	m_inputSampleRate = rate;
+	std::cout << "RecognizerBase::setSampleRate=" << m_inputSampleRate << std::endl;
+	recomputeMinNumberAudioPackages();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+void RecognizerBase::setSampleFormat(const char *format)
+{
+	std::string tmpFormat(format);
+	m_isULawSampleFormat = (tmpFormat == "ULAW") ? true : false;
+	std::cout << "RecognizerBase::setSampleFormat ULAW=" << m_isULawSampleFormat << std::endl;
+	recomputeMinNumberAudioPackages();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+void RecognizerBase::setChunklen(int length)
+{
+	m_audioChunkLength = length;
+	std::cout << "RecognizerBase::setChunklen=" << m_audioChunkLength << std::endl;
+	recomputeMinNumberAudioPackages();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+void RecognizerBase::recomputeMinNumberAudioPackages(void)
+{
+	// how many packages need to be collected before audio processing
+	// to not break our (broken) VAD algorithm?
+	// TBD this can be removed once the algo is fixed
+	
+	
+	
+	float tmpAudioChunkLen = (float) m_audioChunkLength;
+	// take care of different sample sizes
+	if (m_isULawSampleFormat == false)
+	{
+		// buffer only contains half the samples at 16 bit
+		tmpAudioChunkLen = tmpAudioChunkLen / 2;
+	}
+	
+	float packetsPerSecond = m_inputSampleRate / tmpAudioChunkLen;
+	
+	// assure at least 80ms of audio to be collected before processing
+	// which is equal to 12,5 packets / second
+	if (packetsPerSecond < 12.5f)
+	{
+		m_minNumberAudioPackages = 1;	
+	}
+	else
+	{
+		// accumulate packets to meet the 80ms goal
+		//
+		// 48kHz PCM16SE with packets=4096 --> 2 packets --> 85ms  audio 
+		// 8kHz ULAW with packets=160      --> 5 packets --> 100ms audio
+
+		m_minNumberAudioPackages = ((int) (packetsPerSecond / 12.5f)) + 1;
+	}
+	
+	std::cout << "RecognizerBase::recomputeMinNumberAudioPackages = " << m_minNumberAudioPackages << std::endl;
 }
 
 //////////////////////////////////////////////
@@ -207,30 +265,50 @@ bool RecognizerBase::getRecognizerBusy(bool audioQueueOnly)
 int RecognizerBase::acceptWaveform(const char *data, int length)
 {
 	int retVal;
+	bool validSampleConfig = true;
 	
-	if ((m_inputSampleRate != 48000) || (getProcessingSampleRate() != 16000))
+	// verify allowed combinations of sample rate & sample format
+	if (getProcessingSampleRate() != 16000) validSampleConfig = false;
+	if (((m_inputSampleRate == 48000) || (m_inputSampleRate == 16000)) && (m_isULawSampleFormat == true)) validSampleConfig = false;
+	if ((m_inputSampleRate == 8000) && (m_isULawSampleFormat == false)) validSampleConfig = false;
+	
+	// supported, store data and notify consumer
+	if (validSampleConfig == true)
 	{
-		// only 48kHz-->16kHz is supported (both VAD and recognizer)
-		// e.g. Jitsi provides 48 kHz so we need to downsample 1:3
-		std::cout << "Unsupported sampling rates input " << m_inputSampleRate << " Hz and processing " << getProcessingSampleRate() << "Hz." << std::endl;
-		assert(false);	
+	
+		// create object and copy all data
+		std::unique_ptr packet = std::make_unique<AudioPacket>();
+		packet->length      = length;
+		packet->data        = new char[length];
+		packet->arrivalTime = std::chrono::system_clock::now();
+		memcpy(packet->data, data, length);
+	
+#if 0	
+	
+		auto now = std::chrono::system_clock::now();
+		auto duration = now.time_since_epoch();
+		auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+		auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+							- std::chrono::duration_cast<std::chrono::milliseconds>(seconds);
+	
+		std::cout << "acceptWaveform push len=" << length << ", time=" << seconds.count() << "." << milliseconds.count() << std::endl;
+	
+#endif
+			
+		// push to queue and notify worker
+		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+		audioPackets.push_back(std::move(packet));
+		audioPacketLock.unlock();
+		audioPacketNotify.notify_one();
+
+	}
+	else
+	{
+		std::cout << "Error! Unsupported combination of sample rate " << m_inputSampleRate 
+		          << "Hz and sample size " << ((m_isULawSampleFormat == true) ? "8" : "16") << "bit!"
+		          << std::endl;
 	}
 	
-	// create object and copy all data
-	std::unique_ptr packet = std::make_unique<AudioPacket>();
-	packet->length      = length;
-	packet->data        = new char[length];
-	packet->arrivalTime = std::chrono::system_clock::now();
-	memcpy(packet->data, data, length);
-	
-	// push to queue and notify worker
-	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
-	audioPackets.push_back(std::move(packet));
-	audioPacketLock.unlock();
-	audioPacketNotify.notify_one();
-	
-	// std::cout << "acceptWaveform push -->" << std::endl;
-			
 	// access final results queue to compute return value
     utteranceMutex.lock();
 	if (utterances.size() > 0)
@@ -329,7 +407,7 @@ const char* RecognizerBase::getPartialResult(void)
 //////////////////////////////////////////////
 const char* RecognizerBase::getFinalResult(void)
 {
-	std::string res = "{ \"text\" : \"-- ";
+	std::string res = "{ \"text\" : \"";
     int64_t uStartTime = 0;
     int64_t uStartTimeMs = 0;
     int64_t uStopTime = 0;
@@ -350,7 +428,7 @@ const char* RecognizerBase::getFinalResult(void)
 		
 		if (detailedResults == false)
 		{
-			res += " --\" }";
+			res += "\" }";
 		}
 		else
 		{
@@ -384,7 +462,7 @@ const char* RecognizerBase::getFinalResult(void)
 	}
 	else
 	{
-		res += " --\" }";
+		res += "\" }";
 	}
 		
     utteranceMutex.unlock();
