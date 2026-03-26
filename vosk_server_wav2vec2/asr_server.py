@@ -118,9 +118,10 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                     word_text = asr_pipeline["processor"].decode(word_ids).strip()
                     start_s = start_frame * frame_shift_s
                     end_s = end_frame * frame_shift_s
-                    word_confs.append((word_text, word_conf, len(word_scores), start_s, end_s))
-                    results.append({"conf": word_conf, "end": end_s, "start": start_s, "word": word_text})
-                weighted_word_mean = (sum(conf * n for _, conf, n, _, _ in word_confs)/ sum(n for _, _, n, _, _ in word_confs))
+                    spelling = hobj.spell(word_text)
+                    word_confs.append((word_text, word_conf, len(word_scores), start_s, end_s, spelling))
+                    results.append({"conf": word_conf, "end": end_s, "start": start_s, "word": word_text, "spelling": spelling})
+                weighted_word_mean = (sum(conf * n for _, conf, n, _, _, _ in word_confs)/ sum(n for _, _, n, _, _, _ in word_confs))
                 t2 = time.time()
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
@@ -183,6 +184,12 @@ async def start():
     args.sample_rate = float(os.environ.get('ASR_SAMPLE_RATE', 16000))
     args.verbose_output = os.environ.get('ASR_VERBOSE_OUTPUT', 'false').lower() == 'true'
     args.onnx = os.environ.get('ASR_ONNX', 'false').lower() == 'true'
+
+    if args.verbose_output:
+        import hunspell
+        global hobj
+        hobj = hunspell.HunSpell("hsb.dic", "hsb.aff")
+
 
     if len(sys.argv) > 1:
         args.model_name = sys.argv[1]

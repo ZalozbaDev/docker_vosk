@@ -72,6 +72,8 @@ python asr_server.py
 
 Please adjust environment variables as needed. When `ASR_ONNX=true`, the server will attempt to load an ONNX model from `./onnx/wav2vec2.onnx`. `ASR_MODEL_NAME` is ignored in ONNX mode. You can download the ONNX model from Hugging Face (Korla/onnx-models) or export it yourself.
 
+Make sure that you have the `hsb.dic` and `hsb.aff` files in the same directory as `asr_server.py` if you have `ASR_VERBOSE_OUTPUT=true` to enable spelling checks.
+
 You can also pass model name as the first positional CLI arg:
 
 ```bash
