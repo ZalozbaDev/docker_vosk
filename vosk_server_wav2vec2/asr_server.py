@@ -1,5 +1,4 @@
 import os
-from platform import processor
 import sys
 import asyncio
 import websockets
@@ -44,11 +43,19 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             t1 = time.time()
             blank_id = asr_pipeline["processor"].tokenizer.pad_token_id
             word_delemiter_id = asr_pipeline["processor"].tokenizer.word_delimiter_token_id
-            inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt", padding=False).to(asr_pipeline["device"], dtype=asr_pipeline["dtype"])
-            with torch.no_grad():
-                logits = asr_pipeline["model"](**inputs).logits
+            if args.onnx:
+                inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt").to(torch.float16)
+                onnx_inputs = inputs["input_features"].numpy()
+                onnxruntime_outputs = asr_pipeline["model"].run(None, {"input": onnx_inputs})
+                logits = torch.from_numpy(onnxruntime_outputs[0])
                 predicted_ids = torch.argmax(logits, dim=-1)
                 pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
+            else:
+                inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt", padding=False).to(asr_pipeline["device"], dtype=asr_pipeline["dtype"])
+                with torch.no_grad():
+                    logits = asr_pipeline["model"](**inputs).logits
+                    predicted_ids = torch.argmax(logits, dim=-1)
+                    pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
             if "decoder" in asr_pipeline:
                 transcription = asr_pipeline["decoder"].decode(predicted_ids[0].cpu().numpy())
                 confidence = pred_scores[(predicted_ids != blank_id) & (predicted_ids != word_delemiter_id)].mean().item()
@@ -175,6 +182,7 @@ async def start():
     args.model_name = os.environ.get('ASR_MODEL_NAME', 'Korla/Wav2Vec2BertForCTC-hsb-0')
     args.sample_rate = float(os.environ.get('ASR_SAMPLE_RATE', 16000))
     args.verbose_output = os.environ.get('ASR_VERBOSE_OUTPUT', 'false').lower() == 'true'
+    args.onnx = os.environ.get('ASR_ONNX', 'false').lower() == 'true'
 
     if len(sys.argv) > 1:
         args.model_name = sys.argv[1]
@@ -184,8 +192,15 @@ async def start():
     vocab_dict = processor.tokenizer.get_vocab()
     sorted_vocab_dict = {k.lower(): v for k, v in sorted(vocab_dict.items(), key=lambda item: item[1])}
     USE_LM = False
-    device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
-    model = AutoModelForCTC.from_pretrained(args.model_name).to(device)
+    if args.onnx:
+        import onnxruntime
+        model = onnxruntime.InferenceSession("./onnx/wav2vec2.onnx", providers=["CPUExecutionProvider"])
+        device = "cpu"
+        dtype = np.float16
+    else:
+        device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+        model = AutoModelForCTC.from_pretrained(args.model_name).to(device)
+        dtype = model.dtype
     if USE_LM:
         decoder = build_ctcdecoder(
             labels=list(sorted_vocab_dict.keys()),
@@ -201,14 +216,14 @@ async def start():
             "processor": processor_with_lm,
             "decoder": decoder,
             "device": device,
-            "dtype": model.dtype
+            "dtype": dtype
         }
     else:
         asr_pipeline = {
             "model": model,
             "processor": processor,
             "device": device,
-            "dtype": model.dtype
+            "dtype": dtype
         }
     pool = concurrent.futures.ThreadPoolExecutor((os.cpu_count() or 1))
 

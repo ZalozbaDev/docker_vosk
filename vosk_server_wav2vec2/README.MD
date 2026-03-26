@@ -66,9 +66,11 @@ export ASR_SERVER_PORT=2700
 export ASR_MODEL_NAME=Korla/Wav2Vec2BertForCTC-hsb-0
 export ASR_SAMPLE_RATE=16000
 export ASR_VERBOSE_OUTPUT=true
-
+export ASR_ONNX=true
 python asr_server.py
 ```
+
+Please adjust environment variables as needed. When `ASR_ONNX=true`, the server will attempt to load an ONNX model from `./onnx/wav2vec2.onnx`. `ASR_MODEL_NAME` is ignored in ONNX mode. You can download the ONNX model from Hugging Face (Korla/onnx-models) or export it yourself.
 
 You can also pass model name as the first positional CLI arg:
 
