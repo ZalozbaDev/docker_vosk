@@ -12,8 +12,13 @@ RUN apt-get install -y libgomp1 cmake make g++ hunspell libhunspell-dev
 # Install any needed packages specified in requirements.txt
 RUN pip install https://github.com/kpu/kenlm/archive/master.zip
 
-COPY asr_server.py requirements.txt /app
+# copy requirements separately to not trigger rebuild when python code changes
+COPY requirements.txt /app
+
 RUN pip install -r requirements.txt
+
+COPY asr_server.py /app
+
 
 # Download the model from Hugging Face
 # RUN python -c "from transformers import AutoModelForCTC, AutoTokenizer; AutoModelForCTC.from_pretrained('Korla/Wav2Vec2BertForCTC-hsb'); AutoTokenizer.from_pretrained('Korla/Wav2Vec2BertForCTC-hsb')"
