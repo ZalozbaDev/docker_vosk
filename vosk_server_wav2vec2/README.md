@@ -1,12 +1,25 @@
-# System improvements
+# docker setup
+
+## build container
+
+
+```code
+docker build -t vosk_server_wav2vec2 --progress=plain .
+```
+
+
+
+# TODO
+
+## System improvements
 
 * support more sample rates, not just 16 kHz
 
-# Container improvements
+## Container improvements
 
 * wav2vec2 and LM outside container
 
-# Performance improvements
+## Performance improvements
 
 Jeli chceš ty tón wukon polěpšić bych Ći radźił tón wav2vec model optiměrować. Tón ngram model je tajki małki, tón trjeba lědma resursy.
 
