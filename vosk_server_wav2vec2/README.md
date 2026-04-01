@@ -38,6 +38,10 @@ TBD: path of LM is fixed to "lm/5gram_correct.arpa"
 
 TBD: path is fixed to "spell/hsb.dic" resp. "spell/hsb.aff"
 
+Go to https://soblex.de/download/download.html and download the "Libreoffice" package.
+
+Rename it to ".zip" and unpack. Rename & move the ".dic" and ".aff" file to the "spell/" folder.
+
 ## run the container
 
 use the provided compose file, copy to "docker-compose.yml"
