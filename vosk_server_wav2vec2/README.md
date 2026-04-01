@@ -7,7 +7,44 @@
 docker build -t vosk_server_wav2vec2 --progress=plain .
 ```
 
+## provide model and other data
 
+clone the model from git:
+
+```code
+cd models
+mkdir -p Korla
+cd Korla
+git lfs install
+git clone https://huggingface.co/Korla/Wav2Vec2BertForCTC-hsb-0
+cd ../../
+```
+
+(optional) clone the optimized ONNX model from git:
+
+```code
+cd models/Korla
+git clone https://huggingface.co/Korla/onnx-models
+mkdir -p ../onnx
+cp onnx-models/wav2vec2.onnx* ../onnx/
+cd ../../
+```
+
+(optional) provide and use a diferent LM
+
+TBD: path of LM is fixed to "lm/5gram_correct.arpa"
+
+(optional) provide hunspell directory
+
+TBD: path is fixed to "spell/hsb.dic" resp. "spell/hsb.aff"
+
+## run the container
+
+use the provided compose file, copy to "docker-compose.yml"
+
+copy "env.example" to ".env" and adjust settings
+
+run the container
 
 # TODO
 
