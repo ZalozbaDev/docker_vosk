@@ -29,7 +29,9 @@ async def run_test():
             while True:
                 data = await audio_queue.get()
                 await websocket.send(data)
-                print (await websocket.recv())
+                recieved = json.loads(await websocket.recv())
+                if "text" in recieved:
+                    print(recieved)
 
             await websocket.send('{"eof" : 1}')
             print (await websocket.recv())
@@ -51,7 +53,7 @@ async def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      parents=[parser])
     parser.add_argument('-u', '--uri', type=str, metavar='URL',
-                        help='Server URL', default='ws://localhost:2700')
+                        help='Server URL', default='ws://0.0.0.0:2700')
     parser.add_argument('-d', '--device', type=int_or_str,
                         help='input device (numeric ID or substring)')
     parser.add_argument('-r', '--samplerate', type=int, help='sampling rate', default=16000)
