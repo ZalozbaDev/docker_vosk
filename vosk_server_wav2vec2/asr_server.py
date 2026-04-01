@@ -44,6 +44,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             blank_id = asr_pipeline["processor"].tokenizer.pad_token_id
             word_delemiter_id = asr_pipeline["processor"].tokenizer.word_delimiter_token_id
             if args.onnx:
+                logging.info('ONNX decoding')
                 inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt").to(torch.float16)
                 onnx_inputs = inputs["input_features"].numpy()
                 onnxruntime_outputs = asr_pipeline["model"].run(None, {"input": onnx_inputs})
@@ -51,12 +52,14 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 predicted_ids = torch.argmax(logits, dim=-1)
                 pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
             else:
+                logging.info('decoding without ONNX')
                 inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt", padding=False).to(asr_pipeline["device"], dtype=asr_pipeline["dtype"])
                 with torch.no_grad():
                     logits = asr_pipeline["model"](**inputs).logits
                     predicted_ids = torch.argmax(logits, dim=-1)
                     pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
             if "decoder" in asr_pipeline:
+                logging.info('use LM to rescore results')
                 transcription = asr_pipeline["decoder"].decode(predicted_ids[0].cpu().numpy())
                 confidence = pred_scores[(predicted_ids != blank_id) & (predicted_ids != word_delemiter_id)].mean().item()
                 t2 = time.time()
@@ -65,6 +68,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 speech_dur["value"] = 0
                 return json.dumps({"text": transcription, "conf": confidence}, ensure_ascii=False), False
             elif args.verbose_output:
+                logging.info('generate verbose JSON response')
                 transcription = asr_pipeline["processor"].batch_decode(predicted_ids)[0]
                 splitted_ids = []
                 predicted_ids = predicted_ids[0]
@@ -126,8 +130,10 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
                 speech_dur["value"] = 0
+                logging.info(json.dumps({"text": transcription, "conf": weighted_word_mean, "results": results}, ensure_ascii=False))
                 return json.dumps({"text": transcription, "conf": weighted_word_mean, "results": results}, ensure_ascii=False), False
             else:
+                logging.info('normal decoding without LM without verbose result')
                 transcription = asr_pipeline["processor"].batch_decode(predicted_ids)[0]
                 confidence = pred_scores[(predicted_ids != blank_id) & (predicted_ids != word_delemiter_id)].mean().item()
                 t2 = time.time()
@@ -187,6 +193,7 @@ async def start():
     args.use_lm = os.environ.get('ASR_USE_LM', 'false').lower() == 'true'
 
     if args.verbose_output:
+        logging.info('Verbose JSON return enabled.')
         import hunspell
         global hobj
         hobj = hunspell.HunSpell("./spell/hsb.dic", "./spell/hsb.aff")
@@ -205,10 +212,12 @@ async def start():
         model = onnxruntime.InferenceSession("./models/onnx/wav2vec2.onnx", providers=["CPUExecutionProvider"])
         device = "cpu"
         dtype = np.float16
+        logging.info('ONNX decoding enabled.')
     else:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
         model = AutoModelForCTC.from_pretrained(args.model_name).to(device)
         dtype = model.dtype
+        logging.info('ONNX decoding is NOT enabled.')
     if args.use_lm:
         decoder = build_ctcdecoder(
             labels=list(sorted_vocab_dict.keys()),
@@ -226,6 +235,7 @@ async def start():
             "device": device,
             "dtype": dtype
         }
+        logging.info('Use provided ARPA LM.')
     else:
         asr_pipeline = {
             "model": model,
@@ -233,6 +243,7 @@ async def start():
             "device": device,
             "dtype": dtype
         }
+        logging.info('IGNORING any ARPA LM.')
     pool = concurrent.futures.ThreadPoolExecutor((os.cpu_count() or 1))
 
     async with websockets.serve(recognize, args.interface, args.port):
