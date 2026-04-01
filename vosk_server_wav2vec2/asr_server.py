@@ -180,38 +180,39 @@ async def start():
     args = type('', (), {})()
     args.interface = os.environ.get('ASR_SERVER_INTERFACE', '0.0.0.0')
     args.port = int(os.environ.get('ASR_SERVER_PORT', 2700))
-    args.model_name = os.environ.get('ASR_MODEL_NAME', 'Korla/Wav2Vec2BertForCTC-hsb-0')
+    args.model_name = os.environ.get('ASR_MODEL_NAME', './models/Korla/Wav2Vec2BertForCTC-hsb-0')
     args.sample_rate = float(os.environ.get('ASR_SAMPLE_RATE', 16000))
     args.verbose_output = os.environ.get('ASR_VERBOSE_OUTPUT', 'false').lower() == 'true'
     args.onnx = os.environ.get('ASR_ONNX', 'false').lower() == 'true'
+    args.use_lm = os.environ.get('ASR_USE_LM', 'false').lower() == 'true'
 
     if args.verbose_output:
         import hunspell
         global hobj
-        hobj = hunspell.HunSpell("hsb.dic", "hsb.aff")
+        hobj = hunspell.HunSpell("./spell/hsb.dic", "./spell/hsb.aff")
 
 
     if len(sys.argv) > 1:
         args.model_name = sys.argv[1]
 
-    processor = AutoProcessor.from_pretrained("Korla/Wav2Vec2BertForCTC-hsb-0")
+    processor = AutoProcessor.from_pretrained("./models/Korla/Wav2Vec2BertForCTC-hsb-0")
     processor.feature_extractor._processor_class = "Wav2Vec2ProcessorWithLM"
     vocab_dict = processor.tokenizer.get_vocab()
     sorted_vocab_dict = {k.lower(): v for k, v in sorted(vocab_dict.items(), key=lambda item: item[1])}
-    USE_LM = False
+
     if args.onnx:
         import onnxruntime
-        model = onnxruntime.InferenceSession("./onnx/wav2vec2.onnx", providers=["CPUExecutionProvider"])
+        model = onnxruntime.InferenceSession("./models/onnx/wav2vec2.onnx", providers=["CPUExecutionProvider"])
         device = "cpu"
         dtype = np.float16
     else:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
         model = AutoModelForCTC.from_pretrained(args.model_name).to(device)
         dtype = model.dtype
-    if USE_LM:
+    if args.use_lm:
         decoder = build_ctcdecoder(
             labels=list(sorted_vocab_dict.keys()),
-            kenlm_model_path="./5gram_correct.arpa",
+            kenlm_model_path="./lm/5gram_correct.arpa",
         )
         processor_with_lm = Wav2Vec2ProcessorWithLM(
             feature_extractor=processor.feature_extractor,
