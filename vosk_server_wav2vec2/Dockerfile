@@ -12,7 +12,7 @@ RUN apt-get install -y libgomp1 cmake make g++ hunspell libhunspell-dev
 # Install any needed packages specified in requirements.txt
 RUN pip install https://github.com/kpu/kenlm/archive/master.zip
 
-COPY . /app
+COPY asr_server.py requirements.txt /app
 RUN pip install -r requirements.txt
 
 # Download the model from Hugging Face
