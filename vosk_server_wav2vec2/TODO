@@ -1,4 +1,3 @@
-- generate ONNX model same way as whisper models
 - python error non-writable array
 - non-ONNX variant uses 1 CPU core only
 - no confidences reported when LM is used
