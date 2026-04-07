@@ -130,8 +130,8 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
                 speech_dur["value"] = 0
-                logging.info(json.dumps({"text": transcription, "conf": weighted_word_mean, "results": results}, ensure_ascii=False))
-                return json.dumps({"text": transcription, "conf": weighted_word_mean, "results": results}, ensure_ascii=False), False
+                logging.info(json.dumps({"text": transcription, "conf": weighted_word_mean, "result": results}, ensure_ascii=False))
+                return json.dumps({"text": transcription, "conf": weighted_word_mean, "result": results}, ensure_ascii=False), False
             else:
                 logging.info('normal decoding without LM without verbose result')
                 transcription = asr_pipeline["processor"].batch_decode(predicted_ids)[0]
