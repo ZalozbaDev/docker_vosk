@@ -5,7 +5,6 @@
 - hard-coded filenames and paths (spell check, ONNX, ARPA)
 - docs for ONNX model (matches which wav2vec2 model?)
 - test python inference vs ONNX inference vs wav2vec2.cpp inference (with/without LM)
-- webcaptioner does not show detailed results of recognition
 - Silero VAD model stored internally?
 - partial result shall return VAD active/inactive
 - why write wav file on EOF?
