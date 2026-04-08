@@ -1,1 +1,4 @@
 onnx
+*.wav
+*.aff
+*.dic

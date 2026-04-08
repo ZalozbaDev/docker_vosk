@@ -7,7 +7,7 @@ import logging
 import json
 import torch
 import numpy as np
-import soundfile as sf
+import librosa
 from pyctcdecode import build_ctcdecoder
 from transformers import AutoProcessor, Wav2Vec2ProcessorWithLM, pipeline, AutoModelForCTC
 from silero_vad import load_silero_vad
@@ -19,25 +19,24 @@ model = load_silero_vad()
 def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speech_dur):
     # is there speech in message?
     if isinstance(message, str) and message == '{"eof" : 1}':
-        if not buffer:
-            return json.dumps({"text": ""}), True
-        audio = np.concatenate(buffer).astype(np.float32) / 32768.0 
-        sf.write('temp.wav', audio, int(sample_rate), format='WAV', subtype='PCM_16')
-        transcription = asr_pipeline(audio)
-        text = transcription["text"] if isinstance(transcription, dict) else transcription[0]["text"]
-        return json.dumps({"text": text}, ensure_ascii=False), True
+        return json.dumps({"text": "",}, ensure_ascii=False), True
     else:
         audio = np.frombuffer(message, dtype=np.int16)
+        # resample if needed
+        if sample_rate != 16000:
+            audio = librosa.resample(audio.astype(np.float32), orig_sr=sample_rate, target_sr=16000)
+            sample_rate = 16000
         buffer.append(audio)
         # Wait for silence to determine if the user has finished speaking
         model_out = model.audio_forward(torch.Tensor(audio), sr=int(sample_rate))
         if model_out.mean().item() < 0.5:
             silence_dur["value"] += len(audio) / sample_rate
+            listening = False
         else:
             silence_dur["value"] = 0
             speech_dur["value"] += len(audio) / sample_rate
+            listening = True
         audio = np.concatenate(buffer).astype(np.float32) / 32768.0
-        model_out = model.audio_forward(torch.Tensor(audio), sr=int(sample_rate))
         if silence_dur["value"] > 0.75 and speech_dur["value"] > 0.25:
             buffer.clear()
             t1 = time.time()
@@ -143,7 +142,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 return json.dumps({"text": transcription, "conf": confidence}, ensure_ascii=False), False
         elif silence_dur["value"] > 0.75:
             silence_dur["value"] = 0
-        return json.dumps({"partial": ""}), False
+        return json.dumps({"partial": "", "listening": listening}), False
 
 async def recognize(websocket, path="/"):
     global asr_pipeline
@@ -202,14 +201,18 @@ async def start():
     if len(sys.argv) > 1:
         args.model_name = sys.argv[1]
 
-    processor = AutoProcessor.from_pretrained("./models/Korla/Wav2Vec2BertForCTC-hsb-0")
+    try:
+        processor = AutoProcessor.from_pretrained(args.model_name)
+    except (OSError, ValueError):
+        # when processor is not found in the specified path, try to load from Hugging Face Hub
+        processor = AutoProcessor.from_pretrained("Korla/Wav2Vec2BertForCTC-hsb-0")
     processor.feature_extractor._processor_class = "Wav2Vec2ProcessorWithLM"
     vocab_dict = processor.tokenizer.get_vocab()
     sorted_vocab_dict = {k.lower(): v for k, v in sorted(vocab_dict.items(), key=lambda item: item[1])}
 
     if args.onnx:
         import onnxruntime
-        model = onnxruntime.InferenceSession("./models/onnx/wav2vec2.onnx", providers=["CPUExecutionProvider"])
+        model = onnxruntime.InferenceSession(args.model_name, providers=["CPUExecutionProvider"])
         device = "cpu"
         dtype = np.float16
         logging.info('ONNX decoding enabled.')
@@ -218,6 +221,8 @@ async def start():
         model = AutoModelForCTC.from_pretrained(args.model_name).to(device)
         dtype = model.dtype
         logging.info('ONNX decoding is NOT enabled.')
+        torch.set_num_threads(os.cpu_count() or 1)
+        logging.info(f'Using {torch.get_num_threads()} CPU threads for PyTorch.')
     if args.use_lm:
         decoder = build_ctcdecoder(
             labels=list(sorted_vocab_dict.keys()),

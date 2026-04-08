@@ -20,7 +20,7 @@ def callback(indata, frames, time, status):
 
 async def run_test():
 
-    with sd.RawInputStream(samplerate=args.samplerate, blocksize = 4000, device=args.device, dtype='int16',
+    with sd.RawInputStream(samplerate=args.samplerate, blocksize = int(0.625 * args.samplerate), device=args.device, dtype='int16',
                            channels=1, callback=callback) as device:
 
         async with websockets.connect(args.uri) as websocket:
@@ -30,6 +30,9 @@ async def run_test():
                 data = await audio_queue.get()
                 await websocket.send(data)
                 recieved = json.loads(await websocket.recv())
+                if "listening" in recieved:
+                    if recieved["listening"]:
+                        print("Listening...")
                 if "text" in recieved:
                     print(recieved)
 
