@@ -5,16 +5,41 @@ import websockets
 import concurrent.futures
 import logging
 import json
+from pathlib import Path
 import torch
 import numpy as np
 import librosa
 from pyctcdecode import build_ctcdecoder
-from transformers import AutoProcessor, Wav2Vec2ProcessorWithLM, pipeline, AutoModelForCTC
+from transformers import AutoProcessor, Wav2Vec2ProcessorWithLM, AutoModelForCTC
 from silero_vad import load_silero_vad
 import time
 
 
 model = load_silero_vad()
+
+
+def load_server_config(config_path):
+    defaults = {
+        "interface": "0.0.0.0",
+        "port": 2700,
+        "model_name": "./ov_int8",
+        "processor_name": "Korla/Wav2Vec2BertForCTC-hsb-0",
+        "sample_rate": 16000,
+        "verbose_output": False,
+        "backend": "openvino",
+        "openvino_device": "CPU",
+        "use_lm": False,
+    }
+    config = dict(defaults)
+    with open(config_path, "r", encoding="utf-8") as f:
+        user_cfg = json.load(f)
+    if not isinstance(user_cfg, dict):
+        raise ValueError("Config root must be a JSON object")
+    config.update(user_cfg)
+    config["backend"] = str(config["backend"]).lower()
+    if config["backend"] not in {"pytorch", "onnx", "openvino"}:
+        raise ValueError("backend must be one of: pytorch, onnx, openvino")
+    return config
 
 def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speech_dur):
     # is there speech in message?
@@ -42,7 +67,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             t1 = time.time()
             blank_id = asr_pipeline["processor"].tokenizer.pad_token_id
             word_delemiter_id = asr_pipeline["processor"].tokenizer.word_delimiter_token_id
-            if args.onnx:
+            if args.backend == "onnx":
                 logging.info('ONNX decoding')
                 inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt").to(torch.float16)
                 onnx_inputs = inputs["input_features"].numpy()
@@ -50,8 +75,20 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 logits = torch.from_numpy(onnxruntime_outputs[0])
                 predicted_ids = torch.argmax(logits, dim=-1)
                 pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
+            elif args.backend == "openvino":
+                logging.info('OpenVINO decoding')
+                inputs = asr_pipeline["processor"](
+                    audio,
+                    sampling_rate=sample_rate,
+                    return_tensors="np",
+                    padding=False,
+                )["input_features"].astype(np.float16)
+                ov_outputs = asr_pipeline["model"]({asr_pipeline["ov_input_name"]: inputs})
+                logits = torch.from_numpy(ov_outputs[asr_pipeline["ov_output"]])
+                predicted_ids = torch.argmax(logits, dim=-1)
+                pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
             else:
-                logging.info('decoding without ONNX')
+                logging.info('decoding without ONNX or OpenVINO')
                 inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt", padding=False).to(asr_pipeline["device"], dtype=asr_pipeline["dtype"])
                 with torch.no_grad():
                     logits = asr_pipeline["model"](**inputs).logits
@@ -183,13 +220,28 @@ async def start():
     logging.basicConfig(level=logging.INFO)
 
     args = type('', (), {})()
-    args.interface = os.environ.get('ASR_SERVER_INTERFACE', '0.0.0.0')
-    args.port = int(os.environ.get('ASR_SERVER_PORT', 2700))
-    args.model_name = os.environ.get('ASR_MODEL_NAME', './models/Korla/Wav2Vec2BertForCTC-hsb-0')
-    args.sample_rate = float(os.environ.get('ASR_SAMPLE_RATE', 16000))
-    args.verbose_output = os.environ.get('ASR_VERBOSE_OUTPUT', 'false').lower() == 'true'
-    args.onnx = os.environ.get('ASR_ONNX', 'false').lower() == 'true'
-    args.use_lm = os.environ.get('ASR_USE_LM', 'false').lower() == 'true'
+    config_path = os.environ.get('ASR_CONFIG_PATH', './asr_server_config.json')
+    if len(sys.argv) > 1:
+        if sys.argv[1] in {'-c', '--config'} and len(sys.argv) > 2:
+            config_path = sys.argv[2]
+        else:
+            config_path = sys.argv[1]
+    cfg = load_server_config(config_path)
+
+    args.interface = cfg["interface"]
+    args.port = int(cfg["port"])
+    args.model_name = cfg["model_name"]
+    args.processor_name = cfg.get("processor_name", cfg["model_name"])
+    args.sample_rate = float(cfg["sample_rate"])
+    args.verbose_output = bool(cfg["verbose_output"])
+    args.backend = cfg["backend"]
+    args.onnx = args.backend == "onnx"
+    args.openvino = args.backend == "openvino"
+    args.use_lm = bool(cfg["use_lm"])
+    args.openvino_device = cfg.get("openvino_device", "CPU")
+
+    logging.info('Loaded ASR config from %s', config_path)
+    logging.info('ASR backend: %s', args.backend)
 
     if args.verbose_output:
         logging.info('Verbose JSON return enabled.')
@@ -198,11 +250,8 @@ async def start():
         hobj = hunspell.HunSpell("./spell/hsb.dic", "./spell/hsb.aff")
 
 
-    if len(sys.argv) > 1:
-        args.model_name = sys.argv[1]
-
     try:
-        processor = AutoProcessor.from_pretrained(args.model_name)
+        processor = AutoProcessor.from_pretrained(args.processor_name)
     except (OSError, ValueError):
         # when processor is not found in the specified path, try to load from Hugging Face Hub
         processor = AutoProcessor.from_pretrained("Korla/Wav2Vec2BertForCTC-hsb-0")
@@ -216,6 +265,20 @@ async def start():
         device = "cpu"
         dtype = np.float16
         logging.info('ONNX decoding enabled.')
+    elif args.openvino:
+        from openvino import Core
+
+        ov_core = Core()
+        model_path = Path(args.model_name)
+        if model_path.is_dir():
+            model_path = model_path / "model.xml"
+        ov_model = ov_core.read_model(str(model_path))
+        model = ov_core.compile_model(ov_model, args.openvino_device)
+        ov_input_name = model.input(0).any_name
+        ov_output = model.output(0)
+        device = "cpu"
+        dtype = np.float32
+        logging.info('OpenVINO decoding enabled on device: %s', args.openvino_device)
     else:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
         model = AutoModelForCTC.from_pretrained(args.model_name).to(device)
@@ -240,6 +303,9 @@ async def start():
             "device": device,
             "dtype": dtype
         }
+        if args.openvino:
+            asr_pipeline["ov_input_name"] = ov_input_name
+            asr_pipeline["ov_output"] = ov_output
         logging.info('Use provided ARPA LM.')
     else:
         asr_pipeline = {
@@ -248,6 +314,9 @@ async def start():
             "device": device,
             "dtype": dtype
         }
+        if args.openvino:
+            asr_pipeline["ov_input_name"] = ov_input_name
+            asr_pipeline["ov_output"] = ov_output
         logging.info('IGNORING any ARPA LM.')
     pool = concurrent.futures.ThreadPoolExecutor((os.cpu_count() or 1))
 

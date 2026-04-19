@@ -3,18 +3,13 @@ version: '3.5'
 services:
     # VOSK / Kaldi container
     vosk-hsb-wav2vec2:
-        image: vosk_server_wav2vec2:latest
+        image: vosk-hsb-wav2vec2
         restart: unless-stopped
-        environment:
-            - ASR_SERVER_INTERFACE
-            - ASR_SERVER_PORT
-            - ASR_MODEL_NAME
-            - ASR_SAMPLE_RATE
-            - ASR_VERBOSE_OUTPUT
-            - ASR_ONNX
-            - ASR_USE_LM
+        command: ["python", "-u", "asr_server.py", "--config", "/app/asr_server_config.json"]
         volumes:
-            - ./models:/app/models/
+            - ./asr_server_config.json:/app/asr_server_config.json:ro
+            - ./models/ov_int8:/app/models/ov_int8/
             - ./lm:/app/lm/
             - ./spell:/app/spell/
-            
+        ports:
+            - "2700:2700"
