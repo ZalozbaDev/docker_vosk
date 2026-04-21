@@ -89,11 +89,29 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	utterances.push_back(std::move(res));
 	
 	WhisperPool::releaseInstance(std::move(whisperInst));
+	
+	// finally start the recognizer thread
+	m_vadFrameCounter = 0;
+	
+    clientTimeStamp = std::chrono::system_clock::now();
+    
+    threadRunning = true;    
+    recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
 
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
+	// clear audio queue and finalize thread
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+	audioPackets.clear();
+	threadRunning = false;
+	audioPacketLock.unlock();
+	audioPacketNotify.notify_one();
+	recoWorkerThread->join();
+	delete(recoWorkerThread);
+
+	// only now we can unregister our instances
 	WhisperPool::unregister();
 }
 
@@ -109,6 +127,7 @@ void VoskRecognizer::workerThreadFunc(void)
 	// make this depend on the required framelength for VAD
 	const int framelen16 = vad->getRequiredFrameLength();
 	const int framelen48 = framelen16 * 3;
+	const int framelen8  = framelen16 / 2;
 	int16_t buf[framelen16];
 	
 	// leftover data buffer should not be bigger than one audio frame
@@ -138,38 +157,114 @@ void VoskRecognizer::workerThreadFunc(void)
 	
 		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 		
-		if (audioPackets.size() > 0)
+		// collect at least minimum number packets to not break the VAD algo :-(
+		// this computation is dependent on the VAD algo params (dirrrrty!!!)
+		if (audioPackets.size() >= m_minNumberAudioPackages)
 		{
-			std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
-			audioPackets.pop_front();
+			std::vector<char> audioData;
+			std::chrono::time_point<std::chrono::system_clock> arrivalTime;
+			
+			// std::cout << "RECO_THREAD <-- pop " << audioPackets.size() << " packets." << std::endl;
+			
+			// accumulate all audio packets in the queue at once 
+			while (audioPackets.size() > 0)
+			{
+				std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
+				audioPackets.pop_front();
+				
+				audioData.insert(audioData.end(), packet->data, packet->data + packet->length);
+				
+				arrivalTime = packet->arrivalTime;
+			}
 
 			audioPacketLock.unlock();
 		
-			// std::cout << "RECO_THREAD <-- pop" << std::endl;
+			// std::cout << "RECO_THREAD <-- assembled " << audioData.size() << " samples." << std::endl;
 
-			char *data = packet->data;
-			int length = packet->length;
-			std::chrono::time_point<std::chrono::system_clock> arrivalTime = packet->arrivalTime;
+			char *data = &audioData[0];
+			int length = audioData.size();
+			// std::chrono::time_point<std::chrono::system_clock> arrivalTime = packet->arrivalTime;
 			
-			while(leftOverDataLen + length >= framelen48 * 2){
-
-				int useLen = framelen48 * 2 - leftOverDataLen;
-				memcpy(leftOverData + leftOverDataLen, data, useLen);
-				data += useLen;
-				length -= useLen;
-				leftOverDataLen = 0;
+			if (m_inputSampleRate == 48000)
+			{
+				// 48 --> 16 with 16 bit samples
+				while(leftOverDataLen + length >= framelen48 * 2){
+	
+					int useLen = framelen48 * 2 - leftOverDataLen;
+					memcpy(leftOverData + leftOverDataLen, data, useLen);
+					data += useLen;
+					length -= useLen;
+					leftOverDataLen = 0;
+					
+					resample->resample((const int16_t*)leftOverData, buf, framelen48);
+			
+					status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
 				
-				resample->resample((const int16_t*)leftOverData, buf, framelen48);
-		
-				status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
-			
-				if (status == -1)
-				{
-					std::cout << "VAD processing error!" << std::endl;	
+					if (status == -1)
+					{
+						std::cout << "VAD processing error!" << std::endl;	
+					}
+					
+					// every VAD frame covers a defined amount of audio
+					arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
 				}
 				
-				// every VAD frame covers a defined amount of audio
-				arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
+			}
+			else
+			{
+				if (m_inputSampleRate == 8000)
+				{
+					// 8 --> 16 as uLaw
+					while(leftOverDataLen + length >= framelen8){
+		
+						int useLen = framelen8 - leftOverDataLen;
+						memcpy(leftOverData + leftOverDataLen, data, useLen);
+						data += useLen;
+						length -= useLen;
+
+						// std::cout << "useLen=" << useLen << ", length=" << length << ", leftover=" << leftOverDataLen << "." << std::endl;
+						
+						leftOverDataLen = 0;
+						
+						resamplePhone->resample((const int16_t*) leftOverData, buf, framelen8);
+				
+						status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
+					
+						if (status == -1)
+						{
+							std::cout << "VAD processing error!" << std::endl;	
+						}
+						
+						// every VAD frame covers a defined amount of audio
+						arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
+					}
+				}
+				else
+				{
+					// 16 --> 16 with 16 bit samples --> copy
+					// TBD not yet tested
+					while(leftOverDataLen + length >= framelen16 * 2){
+		
+						int useLen = framelen16 * 2 - leftOverDataLen;
+						memcpy(leftOverData + leftOverDataLen, data, useLen);
+						data += useLen;
+						length -= useLen;
+						leftOverDataLen = 0;
+						
+						// just copy, don't resample
+						memcpy(buf, leftOverData, framelen16);
+				
+						status = vad->process(m_processingSampleRate, buf, framelen16, m_vadFrameCounter++, arrivalTime);
+					
+						if (status == -1)
+						{
+							std::cout << "VAD processing error!" << std::endl;	
+						}
+						
+						// every VAD frame covers a defined amount of audio
+						arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
+					}
+				}
 			}
 
 			if (length > 0)

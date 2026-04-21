@@ -50,9 +50,12 @@ public:
 	virtual ssize_t getProcessingSampleRate(void)  = 0;
 	virtual ~RecognizerBase();
 	
-	int getInstanceId(void)       { return m_instanceId; }
-	int getModelInstanceId(void)  { return m_modelInstanceId; }
-	float getSampleRate(void)     { return m_inputSampleRate; }
+	int getInstanceId(void)                  { return m_instanceId; }
+	int getModelInstanceId(void)             { return m_modelInstanceId; }
+	float getSampleRate(void)                { return m_inputSampleRate; }
+	void setSampleRate(float rate);
+	void setSampleFormat(const char *format);
+	void setChunklen(int length);
 	
 	std::string getLocalTimeStamp(void);
 	void setDetailedResult(bool detailsOn);
@@ -77,6 +80,9 @@ protected:
 	int m_instanceId;
 	int m_modelInstanceId;
 	float m_inputSampleRate;
+	bool m_isULawSampleFormat;
+	int m_audioChunkLength;
+	int m_minNumberAudioPackages;
 
 	VoskRecognizerState m_recoState;
 	std::string m_configPath;
@@ -88,6 +94,7 @@ protected:
 
 	VADWrapper *vad;
 	Resampler  *resample;
+	Resampler  *resamplePhone;
 
 	uint64_t m_vadFrameCounter;
 	
@@ -96,7 +103,6 @@ protected:
 	std::deque<std::unique_ptr<AudioPacket>> audioPackets;
 	std::mutex audioPacketMutex;
 	std::condition_variable audioPacketNotify;
-	virtual void workerThreadFunc(void) = 0;
 	
 	std::vector<std::unique_ptr<RecognizedToken>>    tokens;
 	std::mutex tokenMutex;
@@ -116,7 +122,7 @@ protected:
 	char finalResultBuffer[100000];
 	
 private:
-
+	void recomputeMinNumberAudioPackages(void);
 };
 
 #endif // RECOGNIZER_BASE_H

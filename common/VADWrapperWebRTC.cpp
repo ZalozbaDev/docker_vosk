@@ -83,6 +83,8 @@ int VADWrapperWebRTC::process(int samplingFrequency, const int16_t* audio_frame,
 		
 	// 1 == active, 0 == not active, -1 == error
 	chunk->state = (result == 1) ? VADState::ACTIVE : VADState::OFF;
+	
+	// std::cout << ((result == 1) ? "+" : "-");
 
 #ifdef VAD_FRAME_CONVERT_FLOAT	
 	// we need to convert every frame to float for whisper

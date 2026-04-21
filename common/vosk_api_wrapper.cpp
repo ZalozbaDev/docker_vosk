@@ -119,10 +119,41 @@ void vosk_recognizer_set_timestamp(VoskRecognizer *recognizer, struct timeval *t
 {
 	
 #ifdef VERBOSE_API_USAGE
-	printf("vosk_recognizer_set_timestamp, seconds=%ld, uSeconds=%ld.\n", recognizer->getInstanceId(), timestamp->tv_sec, timestamp->tv_usec);
+	printf("vosk_recognizer_set_timestamp, instance=%d, seconds=%ld, uSeconds=%ld.\n", recognizer->getInstanceId(), timestamp->tv_sec, timestamp->tv_usec);
 #endif
 
 	recognizer->setTimeStamp((int64_t) timestamp->tv_sec, (int64_t) timestamp->tv_usec);
+}
+
+///////////////////////////////////////////////
+void vosk_recognizer_set_sample_rate(VoskRecognizer *recognizer, float sample_rate)
+{
+	
+// #ifdef VERBOSE_API_USAGE
+	printf("vosk_recognizer_set_sample_rate, instance=%d, rate=%.2f.\n", recognizer->getInstanceId(), sample_rate);
+// #endif
+
+	recognizer->setSampleRate(sample_rate);
+}
+
+///////////////////////////////////////////////
+void vosk_recognizer_set_sample_format(VoskRecognizer *recognizer, const char *format)
+{
+// #ifdef VERBOSE_API_USAGE
+	printf("vosk_recognizer_set_sample_format, instance=%d, format=%s.\n", recognizer->getInstanceId(), format);
+// #endif
+
+	recognizer->setSampleFormat(format);
+}
+
+///////////////////////////////////////////////
+void vosk_recognizer_set_waveform_chunklen(VoskRecognizer *recognizer, int length)
+{
+// #ifdef VERBOSE_API_USAGE
+	printf("vosk_recognizer_set_waveform_chunklen, instance=%d, chunklen=%d.\n", recognizer->getInstanceId(), length);
+// #endif
+
+	recognizer->setChunklen(length);
 }
 
 ///////////////////////////////////////////////

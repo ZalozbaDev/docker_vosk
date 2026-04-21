@@ -43,9 +43,9 @@ public:
 	virtual std::unique_ptr<VADFrameTiming> getUtteranceStop(void) override;
 	virtual std::unique_ptr<VADFrameTiming> getUtteranceCurr(void) override;
 	
-	virtual const int getRequiredFrameLength(void) const override { return nrVADSamples; }
+	virtual int getRequiredFrameLength(void) const override { return nrVADSamples; }
 	
-	virtual const int getFrameTimeMs(void) const override { return 10; }
+	virtual int getFrameTimeMs(void) const override { return 10; }
 	
 private:
 	static const unsigned int nrVADSamples = 160;

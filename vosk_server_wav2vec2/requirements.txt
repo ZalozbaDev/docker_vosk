@@ -5,3 +5,5 @@ numpy
 soundfile
 pyctcdecode
 silero-vad
+onnxruntime
+hunspell
