@@ -233,6 +233,21 @@ std::string CustomPostProc::replaceWord(std::string word)
 }
 
 //////////////////////////////////////////////
+std::string CustomPostProc::utf8_substr_sanitized(const std::string& input, size_t max_bytes) {
+    // 1. Hart abschneiden (bytebasiert)
+    std::string truncated = input.substr(0, max_bytes);
+
+    // 2. Mit ICU dekodieren (ersetzt ungültige Sequenzen automatisch)
+    icu::UnicodeString ustr = icu::UnicodeString::fromUTF8(truncated);
+
+    // 3. Zurück nach UTF-8
+    std::string result;
+    ustr.toUTF8String(result);
+
+    return result;
+}
+
+//////////////////////////////////////////////
 bool CustomPostProc::readReplacementFile(std::string filename)
 {
 	replacees.clear();

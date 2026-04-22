@@ -21,6 +21,10 @@ public:
 	std::string sanitizeWord(std::string word);
 	int limitLine(std::string line, int lengthInSeconds);
 	std::string replaceWord(std::string word);
+	
+	// helper function for a proper substr() with UTF-8 strings
+	std::string utf8_substr_sanitized(const std::string& input, size_t max_bytes);
+	
 private:
 	bool readReplacementFile(std::string filename);
 	std::string replace_all(std::string line, std::string replacee, std::string replacer, std::size_t maxSuffix); 

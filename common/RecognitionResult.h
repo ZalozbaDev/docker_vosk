@@ -215,20 +215,25 @@ private:
 			{
 				if (m_totalUtterance.length() >= ((unsigned int) maxLineLen))
 				{
-					m_totalUtterance = m_totalUtterance.substr(0, (std::size_t) maxLineLen);
+					// always take care about valid UTF-8 when byte-truncating string! 
+					m_totalUtterance = m_cpp->utf8_substr_sanitized(m_totalUtterance, (std::size_t) maxLineLen);
 					
 					// must also apply limit to the current word (that exceeds length)
 					std::size_t newWordLen = maxLineLen - oldUttLength;
 					
-					// assert(newWordLen >= 0);
+					// take care of the additional space before the current word
+					// but don't go below zero
+					if (newWordLen > 0) newWordLen--;
 					
 					std::cout << "Reduce current word nr. " << i << " from " << words[i]->m_replacer.length() 
 						      << " to " << newWordLen << " characters." << std::endl;
 					
 				    // only apply if the word must actually be chopped
+				    // truncating to empty string should also be covered (can this actually happen?)
 					if (newWordLen < words[i]->m_replacer.length())
 					{
-						words[i]->m_replacer = words[i]->m_replacer.substr(0, newWordLen);
+						// always take care about valid UTF-8 when byte-truncating string! 
+						words[i]->m_replacer = m_cpp->utf8_substr_sanitized(words[i]->m_replacer, newWordLen);
 					}
 					
 					exit_limit = true;
