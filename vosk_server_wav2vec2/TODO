@@ -8,4 +8,6 @@
 - check final result w/o details to whisper implementation
 - why write wav file on EOF?
 - still need to instanciate processor if ONNX model is used later?
-- resampling support (for Jitsi Meet)
+- unnatural chunking with VAD (rest of utterance missing, delayed until next utterance)
+- memleak! / DoS
+
