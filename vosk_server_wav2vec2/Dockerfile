@@ -18,6 +18,7 @@ COPY requirements.txt /app
 RUN pip install -r requirements.txt
 
 COPY asr_server.py /app
+COPY asr_server_config.json /app
 
 
 # Download the model from Hugging Face
@@ -32,13 +33,5 @@ RUN mkdir spell
 # Expose the port the app runs on
 EXPOSE 2700
 
-# Define environment variables
-ENV ASR_SERVER_INTERFACE=0.0.0.0
-ENV ASR_SERVER_PORT=2700
-ENV ASR_MODEL_NAME=./models/Korla/Wav2Vec2BertForCTC-hsb-0
-ENV ASR_SAMPLE_RATE=16000
-ENV ASR_VERBOSE_OUTPUT=true
-ENV ASR_ONNX=true
-
 # Run the application
-CMD ["python", "asr_server.py"]
+CMD ["python", "asr_server.py", "--config", "/app/asr_server_config.json"]

@@ -7,6 +7,7 @@ This directory contains a Python WebSocket server that accepts raw PCM audio and
 - `transformers` for model inference
 - `silero-vad` for end-of-utterance detection
 - optional CTC language model decoding (`pyctcdecode` + KenLM)
+- backend selection via JSON config (`pytorch`, `onnx`, `openvino`)
 
 The server is compatible with Vosk-like client behavior.
 
@@ -56,28 +57,48 @@ The server expects mono, signed 16-bit PCM chunks (`int16`) over WebSocket.
 }
 ```
 
+## Server Config (JSON)
+
+Startup config is loaded from a JSON file (default: `./asr_server_config.json`).
+
+Example:
+
+```json
+{
+	"interface": "0.0.0.0",
+	"port": 2700,
+	"backend": "openvino",
+	"model_name": "./ov_int8",
+	"processor_name": "Korla/Wav2Vec2BertForCTC-hsb-0",
+	"openvino_device": "CPU",
+	"sample_rate": 16000,
+	"verbose_output": true,
+	"use_lm": false
+}
+```
+
+Notes:
+
+- `backend` supports: `pytorch`, `onnx`, `openvino`.
+- For OpenVINO, `model_name` can be a folder (the server will load `openvino_model.xml` from it).
+- For ONNX, `model_name` must point to the ONNX model file.
+
 ## Run Locally
 
 From this directory:
 
 ```bash
-export ASR_SERVER_INTERFACE=0.0.0.0
-export ASR_SERVER_PORT=2700
-export ASR_MODEL_NAME=Korla/Wav2Vec2BertForCTC-hsb-0
-export ASR_SAMPLE_RATE=16000
-export ASR_VERBOSE_OUTPUT=true
-export ASR_ONNX=true
-python asr_server.py
+python asr_server.py --config ./asr_server_config.json
 ```
 
-Please adjust environment variables as needed. When `ASR_ONNX=true`, the server will attempt to load an ONNX model from `./onnx/wav2vec2.onnx`. `ASR_MODEL_NAME` is ignored in ONNX mode. You can download the ONNX model from Hugging Face (Korla/onnx-models) or export it yourself.
+Adjust fields in the JSON config as needed. Default config is set to OpenVINO and loads model files from `./ov_int8`.
 
 Make sure that you have the `hsb.dic` and `hsb.aff` files in the same directory as `asr_server.py` if you have `ASR_VERBOSE_OUTPUT=true` to enable spelling checks.
 
-You can also pass model name as the first positional CLI arg:
+You can also pass the config path as the first positional CLI arg:
 
 ```bash
-python asr_server.py Korla/Wav2Vec2BertForCTC-hsb-0
+python asr_server.py ./asr_server_config.json
 ```
 
 ## Test With Microphone

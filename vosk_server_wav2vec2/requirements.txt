@@ -1,4 +1,3 @@
-torch
 transformers
 websockets
 numpy
@@ -7,3 +6,6 @@ pyctcdecode
 silero-vad
 onnxruntime
 hunspell
+openvino
+librosa
+torch
