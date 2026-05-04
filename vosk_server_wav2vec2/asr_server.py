@@ -16,6 +16,7 @@ import time
 
 
 model = load_silero_vad()
+model.eval()
 
 
 def load_server_config(config_path):
@@ -29,6 +30,7 @@ def load_server_config(config_path):
         "backend": "openvino",
         "openvino_device": "CPU",
         "use_lm": False,
+        "empty_text_conf_zero": True,
     }
     config = dict(defaults)
     with open(config_path, "r", encoding="utf-8") as f:
@@ -40,6 +42,19 @@ def load_server_config(config_path):
     if config["backend"] not in {"pytorch", "onnx", "openvino"}:
         raise ValueError("backend must be one of: pytorch, onnx, openvino")
     return config
+
+
+def finalize_confidence(transcription, confidence):
+    if args.empty_text_conf_zero and not str(transcription).strip():
+        return 0.0
+    return float(confidence)
+
+
+def masked_mean_or_zero(scores, mask):
+    valid_scores = scores[mask]
+    if valid_scores.numel() == 0:
+        return 0.0
+    return valid_scores.mean().item()
 
 def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speech_dur):
     # is there speech in message?
@@ -53,7 +68,8 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             sample_rate = 16000
         buffer.append(audio)
         # Wait for silence to determine if the user has finished speaking
-        model_out = model.audio_forward(torch.Tensor(audio), sr=int(sample_rate))
+        with torch.inference_mode():
+            model_out = model.audio_forward(torch.from_numpy(audio), sr=int(sample_rate))
         if model_out.mean().item() < 0.5:
             silence_dur["value"] += len(audio) / sample_rate
             listening = False
@@ -67,6 +83,9 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             t1 = time.time()
             blank_id = asr_pipeline["processor"].tokenizer.pad_token_id
             word_delemiter_id = asr_pipeline["processor"].tokenizer.word_delimiter_token_id
+            if len(audio) / sample_rate > 30:
+                logging.warning(f"Audio length {len(audio) / sample_rate:.2f}s exceeds 30s, skipping transcription.")
+                return json.dumps({"text": "", "conf": 0.0}, ensure_ascii=False), False
             if args.backend == "onnx":
                 logging.info('ONNX decoding')
                 inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt").to(torch.float16)
@@ -97,7 +116,8 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             if "decoder" in asr_pipeline:
                 logging.info('use LM to rescore results')
                 transcription = asr_pipeline["decoder"].decode(predicted_ids[0].cpu().numpy())
-                confidence = pred_scores[(predicted_ids != blank_id) & (predicted_ids != word_delemiter_id)].mean().item()
+                confidence = masked_mean_or_zero(pred_scores, (predicted_ids != blank_id) & (predicted_ids != word_delemiter_id))
+                confidence = finalize_confidence(transcription, confidence)
                 t2 = time.time()
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
@@ -161,7 +181,12 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                     spelling = hobj.spell(word_text)
                     word_confs.append((word_text, word_conf, len(word_scores), start_s, end_s, spelling))
                     results.append({"conf": word_conf, "end": end_s, "start": start_s, "word": word_text, "spelling": spelling})
-                weighted_word_mean = (sum(conf * n for _, conf, n, _, _, _ in word_confs)/ sum(n for _, _, n, _, _, _ in word_confs))
+                weight_sum = sum(n for _, _, n, _, _, _ in word_confs)
+                if weight_sum == 0:
+                    weighted_word_mean = 0.0
+                else:
+                    weighted_word_mean = sum(conf * n for _, conf, n, _, _, _ in word_confs) / weight_sum
+                weighted_word_mean = finalize_confidence(transcription, weighted_word_mean)
                 t2 = time.time()
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
@@ -171,7 +196,8 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             else:
                 logging.info('normal decoding without LM without verbose result')
                 transcription = asr_pipeline["processor"].batch_decode(predicted_ids)[0]
-                confidence = pred_scores[(predicted_ids != blank_id) & (predicted_ids != word_delemiter_id)].mean().item()
+                confidence = masked_mean_or_zero(pred_scores, (predicted_ids != blank_id) & (predicted_ids != word_delemiter_id))
+                confidence = finalize_confidence(transcription, confidence)
                 t2 = time.time()
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
@@ -239,6 +265,7 @@ async def start():
     args.openvino = args.backend == "openvino"
     args.use_lm = bool(cfg["use_lm"])
     args.openvino_device = cfg.get("openvino_device", "CPU")
+    args.empty_text_conf_zero = bool(cfg.get("empty_text_conf_zero", True))
 
     logging.info('Loaded ASR config from %s', config_path)
     logging.info('ASR backend: %s', args.backend)
