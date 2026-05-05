@@ -78,14 +78,13 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             speech_dur["value"] += len(audio) / sample_rate
             listening = True
         audio = np.concatenate(buffer).astype(np.float32) / 32768.0
-        if silence_dur["value"] > 0.75 and speech_dur["value"] > 0.25:
+        if (silence_dur["value"] > 5 and speech_dur["value"] > 0.25) or (len(audio) > sample_rate * 30):
+            if len(audio) > sample_rate * 30:
+                logging.info("Audio too long, processing what we have so far.")
             buffer.clear()
             t1 = time.time()
             blank_id = asr_pipeline["processor"].tokenizer.pad_token_id
             word_delemiter_id = asr_pipeline["processor"].tokenizer.word_delimiter_token_id
-            if len(audio) / sample_rate > 30:
-                logging.warning(f"Audio length {len(audio) / sample_rate:.2f}s exceeds 30s, skipping transcription.")
-                return json.dumps({"text": "", "conf": 0.0}, ensure_ascii=False), False
             if args.backend == "onnx":
                 logging.info('ONNX decoding')
                 inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt").to(torch.float16)
