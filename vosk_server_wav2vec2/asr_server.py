@@ -78,7 +78,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             speech_dur["value"] += len(audio) / sample_rate
             listening = True
         audio = np.concatenate(buffer).astype(np.float32) / 32768.0
-        if (silence_dur["value"] > 5 and speech_dur["value"] > 0.25) or (len(audio) > sample_rate * 30):
+        if (silence_dur["value"] > 0.75 and speech_dur["value"] > 0.25) or (len(audio) > sample_rate * 30):
             if len(audio) > sample_rate * 30:
                 logging.info("Audio too long, processing what we have so far.")
             buffer.clear()
