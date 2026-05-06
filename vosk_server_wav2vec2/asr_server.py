@@ -69,9 +69,18 @@ def cleanup_memory():
     except Exception as e:
         logging.debug(f"Error during memory cleanup: {e}")
 
+
+def cleanup_stream_state(buffer, silence_dur, speech_dur):
+    buffer.clear()
+    silence_dur["value"] = 0
+    speech_dur["value"] = 0
+    cleanup_memory()
+
 def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speech_dur):
     # is there speech in message?
     if isinstance(message, str) and message == '{"eof" : 1}':
+        logging.info("Received EOF signal, cleaning up stream state.")
+        cleanup_stream_state(buffer, silence_dur, speech_dur)
         return json.dumps({"text": "",}, ensure_ascii=False), True
     else:
         audio = np.frombuffer(message, dtype=np.int16)
@@ -230,7 +239,6 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
             if buffer:
                 buffer.clear()
                 speech_dur["value"] = 0
-        cleanup_memory()
         return json.dumps({"partial": "", "listening": listening}), False
 
 async def recognize(websocket, path="/"):
@@ -268,11 +276,8 @@ async def recognize(websocket, path="/"):
                 break
     finally:
         # Clean up buffer and state when connection closes
-        buffer.clear()
-        silence_dur["value"] = 0
-        speech_dur["value"] = 0
+        cleanup_stream_state(buffer, silence_dur, speech_dur)
         logging.info('Connection from %s closed', websocket.remote_address)
-        cleanup_memory()
 
 async def start():
     global asr_pipeline
