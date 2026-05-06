@@ -55,7 +55,9 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 	wparams.translate        = default_params.translate;
 	if (m_vosk_model_language == "auto")
 	{
-		wparams.language         = default_params.language.c_str();
+		// whisper.cpp's default is "en", so if we really want "auto", we must say so explicitly
+		// wparams.language         = default_params.language.c_str();
+		wparams.language         = "auto";
 	}
 	else
 	{
