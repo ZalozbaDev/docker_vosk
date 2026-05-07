@@ -9,6 +9,7 @@ from pathlib import Path
 import torch
 import numpy as np
 import librosa
+import gc
 from pyctcdecode import build_ctcdecoder
 from transformers import AutoProcessor, Wav2Vec2ProcessorWithLM, AutoModelForCTC
 from silero_vad import load_silero_vad
@@ -56,9 +57,30 @@ def masked_mean_or_zero(scores, mask):
         return 0.0
     return valid_scores.mean().item()
 
+def cleanup_memory():
+    """Clean up memory by freeing GPU memory if available and collecting garbage."""
+    try:
+        # Force garbage collection to clean up ONNX CPU memory and numpy arrays
+        gc.collect()
+        
+        # Clear GPU cache if CUDA is available
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception as e:
+        logging.debug(f"Error during memory cleanup: {e}")
+
+
+def cleanup_stream_state(buffer, silence_dur, speech_dur):
+    buffer.clear()
+    silence_dur["value"] = 0
+    speech_dur["value"] = 0
+    cleanup_memory()
+
 def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speech_dur):
     # is there speech in message?
     if isinstance(message, str) and message == '{"eof" : 1}':
+        logging.info("Received EOF signal, cleaning up stream state.")
+        cleanup_stream_state(buffer, silence_dur, speech_dur)
         return json.dumps({"text": "",}, ensure_ascii=False), True
     else:
         audio = np.frombuffer(message, dtype=np.int16)
@@ -93,6 +115,10 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 logits = torch.from_numpy(onnxruntime_outputs[0])
                 predicted_ids = torch.argmax(logits, dim=-1)
                 pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
+                # Clear large intermediate arrays
+                onnx_inputs = None
+                onnxruntime_outputs = None
+                cleanup_memory()
             elif args.backend == "openvino":
                 logging.info('OpenVINO decoding')
                 inputs = asr_pipeline["processor"](
@@ -105,6 +131,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 logits = torch.from_numpy(ov_outputs[asr_pipeline["ov_output"]])
                 predicted_ids = torch.argmax(logits, dim=-1)
                 pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
+                cleanup_memory()
             else:
                 logging.info('decoding without ONNX or OpenVINO')
                 inputs = asr_pipeline["processor"](audio, sampling_rate=sample_rate, return_tensors="pt", padding=False).to(asr_pipeline["device"], dtype=asr_pipeline["dtype"])
@@ -112,6 +139,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                     logits = asr_pipeline["model"](**inputs).logits
                     predicted_ids = torch.argmax(logits, dim=-1)
                     pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
+                cleanup_memory()            
             if "decoder" in asr_pipeline:
                 logging.info('use LM to rescore results')
                 transcription = asr_pipeline["decoder"].decode(predicted_ids[0].cpu().numpy())
@@ -121,6 +149,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
                 speech_dur["value"] = 0
+                cleanup_memory()
                 return json.dumps({"text": transcription, "conf": confidence}, ensure_ascii=False), False
             elif args.verbose_output:
                 logging.info('generate verbose JSON response')
@@ -190,6 +219,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
                 speech_dur["value"] = 0
+                cleanup_memory()
                 logging.info(json.dumps({"text": transcription, "conf": weighted_word_mean, "result": results}, ensure_ascii=False))
                 return json.dumps({"text": transcription, "conf": weighted_word_mean, "result": results}, ensure_ascii=False), False
             else:
@@ -201,15 +231,21 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                 print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
                 silence_dur["value"] = 0
                 speech_dur["value"] = 0
+                cleanup_memory()
                 return json.dumps({"text": transcription, "conf": confidence}, ensure_ascii=False), False
         elif silence_dur["value"] > 0.75:
             silence_dur["value"] = 0
+            # Clear buffer to prevent unbounded growth on silence-only paths
+            if buffer:
+                buffer.clear()
+                speech_dur["value"] = 0
         return json.dumps({"partial": "", "listening": listening}), False
 
 async def recognize(websocket, path="/"):
     global asr_pipeline
     global args
     global pool
+    global inference_semaphore
 
     loop = asyncio.get_running_loop()
     sample_rate = args.sample_rate
@@ -219,23 +255,29 @@ async def recognize(websocket, path="/"):
     silence_dur = {"value": 0}
     speech_dur = {"value": 0}
 
-    while True:
-        message = await websocket.recv()
+    try:
+        while True:
+            message = await websocket.recv()
 
-        # Load config if provided
-        if isinstance(message, str) and 'config' in message:
-            jobj = json.loads(message)['config']
-            logging.info("Config %s", jobj)
-            if 'sample_rate' in jobj:
-                sample_rate = float(jobj['sample_rate'])
-            continue
+            # Load config if provided
+            if isinstance(message, str) and 'config' in message:
+                jobj = json.loads(message)['config']
+                logging.info("Config %s", jobj)
+                if 'sample_rate' in jobj:
+                    sample_rate = float(jobj['sample_rate'])
+                continue
 
-        response, stop = await loop.run_in_executor(
-            pool, process_chunk, asr_pipeline, sample_rate, message, buffer, silence_dur, speech_dur
-        )
-        await websocket.send(response)
-        if stop:
-            break
+            async with inference_semaphore:
+                response, stop = await loop.run_in_executor(
+                    pool, process_chunk, asr_pipeline, sample_rate, message, buffer, silence_dur, speech_dur
+                )
+            await websocket.send(response)
+            if stop:
+                break
+    finally:
+        # Clean up buffer and state when connection closes
+        cleanup_stream_state(buffer, silence_dur, speech_dur)
+        logging.info('Connection from %s closed', websocket.remote_address)
 
 async def start():
     global asr_pipeline
@@ -344,7 +386,10 @@ async def start():
             asr_pipeline["ov_input_name"] = ov_input_name
             asr_pipeline["ov_output"] = ov_output
         logging.info('IGNORING any ARPA LM.')
-    pool = concurrent.futures.ThreadPoolExecutor((os.cpu_count() or 1))
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    global inference_semaphore
+    inference_semaphore = asyncio.Semaphore(1)
+    logging.info('Inference serialized: max 1 concurrent decode.')
 
     async with websockets.serve(recognize, args.interface, args.port):
         await asyncio.Future()
