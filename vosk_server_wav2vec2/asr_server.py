@@ -32,6 +32,7 @@ def load_server_config(config_path):
         "openvino_device": "CPU",
         "use_lm": False,
         "empty_text_conf_zero": True,
+        "vad_threshold": 0.2
     }
     config = dict(defaults)
     with open(config_path, "r", encoding="utf-8") as f:
@@ -92,7 +93,7 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
         # Wait for silence to determine if the user has finished speaking
         with torch.inference_mode():
             model_out = model.audio_forward(torch.from_numpy(audio), sr=int(sample_rate))
-        if model_out.mean().item() < 0.5:
+        if model_out.mean().item() < args.vad_threshold:
             silence_dur["value"] += len(audio) / sample_rate
             listening = False
         else:
@@ -307,6 +308,7 @@ async def start():
     args.use_lm = bool(cfg["use_lm"])
     args.openvino_device = cfg.get("openvino_device", "CPU")
     args.empty_text_conf_zero = bool(cfg.get("empty_text_conf_zero", True))
+    args.vad_threshold = float(cfg.get("vad_threshold", 0.2))
 
     logging.info('Loaded ASR config from %s', config_path)
     logging.info('ASR backend: %s', args.backend)
