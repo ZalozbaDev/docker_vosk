@@ -14,11 +14,21 @@ ffmpeg -i $INPUTFILE ./tmp_audio_stripped.wav
 
 sox ./tmp_audio_stripped.wav -r 48000 -c 1 -b 16 ./tmp_audio_stripped_resampled.wav
 
-export VOSK_MODEL_LANGUAGE=de
+# export VOSK_MODEL_LANGUAGE=de
 
-LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main \
-~/whisper_models/primeline/whisper-large-v3-german/ggml-model.bin tmp_audio_stripped_resampled.wav \
-tmpoutdir/
+if /bin/false; then
+    LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main \
+    ~/whisper_models/primeline/whisper-large-v3-german/ggml-model.bin tmp_audio_stripped_resampled.wav \
+    tmpoutdir/ \
+    2 de -1 false Silero -1.0 false
+fi
+
+if /bin/true; then
+    LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisper_out/whisper_main \
+    ~/whisper_models/openai/whisper_large_v3_turbo/ggml-model.bin tmp_audio_stripped_resampled.wav \
+    tmpoutdir/ \
+    2 de -1 false Silero -1.0 false
+fi
 
 TRANSCRIPTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.de.srt/')
 

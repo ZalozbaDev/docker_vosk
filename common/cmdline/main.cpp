@@ -127,34 +127,42 @@ int main(int argc, char **argv)
 	
 	if (argc >= 6)
 	{
+		std::cout << "main.cpp configure VOSK_MODEL_LANGUAGE=" << argv[5] << std::endl;
 		setenv("VOSK_MODEL_LANGUAGE", argv[5], 1);
 	}
 	if (argc >= 7)
 	{
+		std::cout << "main.cpp configure VOSK_WHISPER_MAX_CONTEXT=" << argv[6] << std::endl;
 		setenv("VOSK_WHISPER_MAX_CONTEXT", argv[6], 1);
 	}
 	if (argc >= 8)
 	{
+		std::cout << "main.cpp configure VOSK_WHISPER_DISABLE_TIMESTAMPS=" << argv[7] << std::endl;
 		setenv("VOSK_WHISPER_DISABLE_TIMESTAMPS", argv[7], 1);
 	}
 	if (argc >= 9)
 	{
+		std::cout << "main.cpp configure VOSK_VAD_ALGO=" << argv[8] << std::endl;
 		setenv("VOSK_VAD_ALGO", argv[8], 1);
 	}
 	if (argc >= 10)
 	{
+		std::cout << "main.cpp configure confidence threshold=" << argv[9] << std::endl;
 		confidenceThreshold = std::stof(std::string(argv[9]));
 	}
 	if (argc >= 11)
 	{
+		std::cout << "main.cpp configure VOSK_WHISPER_NO_FALLBACK=" << argv[10] << std::endl;
 		setenv("VOSK_WHISPER_NO_FALLBACK", argv[10], 1);
 	}
 	if (argc >= 12)
 	{
+		std::cout << "main.cpp configure VOSK_HUNSPELL_AFF_FILE=" << argv[11] << std::endl;
 		setenv("VOSK_HUNSPELL_AFF_FILE", argv[11], 1);
 	}
 	if (argc >= 13)
 	{
+		std::cout << "main.cpp configure VOSK_HUNSPELL_DIC_FILE=" << argv[12] << std::endl;
 		setenv("VOSK_HUNSPELL_DIC_FILE", argv[12], 1);
 	}
 	
