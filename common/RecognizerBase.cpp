@@ -68,14 +68,14 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
     {
         if (strcasecmp(env_p, "Silero") == 0)
         {
-        	std::cout << "ENV setting VAD algo to Silero." << std::endl;
+        	std::cout << "ENV specified, setting VAD algo to Silero." << std::endl;
         	resample = new ResamplerLibResample_48_16();
         	// TBD libresample impl of phone quality to 16kHz
         	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
         }
         else
         {
-        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
+        	std::cout << "ENV specified, setting VAD algo to WebRTC." << std::endl;
         	resample = new ResamplerWebRTC_48_16();
         	resamplePhone = new ResamplerWebRTC_8_16();
         	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);
@@ -83,7 +83,7 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
     }
     else
     {
-       	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
+       	std::cout << "ENV empty, setting VAD algo to WebRTC." << std::endl;
        	resample = new ResamplerWebRTC_48_16();
         resamplePhone = new ResamplerWebRTC_8_16();
     	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);	
