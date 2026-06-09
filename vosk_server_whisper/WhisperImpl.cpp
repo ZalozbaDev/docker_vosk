@@ -151,26 +151,27 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 				}
 				
 				float noSpeech = whisper_full_get_segment_no_speech_prob(ctx, i);
-				double logProbs = 0.0f;
+				// double logProbs = 0.0f;
 				whisper_token_data token_data;
 				
 				// std::vector<float> tokenProbs;
 				const int n_tokens = whisper_full_n_tokens(ctx, i);
 				// fprintf(stderr,"tokens: %d\n",n_tokens);
 				for (int j = 0; j < n_tokens; j++) {
+					// FIXME read everything from token_data below???
 					auto token = std::string(whisper_full_get_token_text(ctx, i, j));
 					float probability = whisper_full_get_token_p(ctx, i, j);
 					// std::cout << token << '\t' << probability << std::endl;
 					// fprintf(stderr,"token: %s %f\n",token,probability);
 					
 					token_data = whisper_full_get_token_data(ctx, i, j);
-					logProbs += token_data.plog;
+					// logProbs += token_data.plog;
 					
 					// do not use probs from empty tokens and special tokens
 					if (!token.empty() && token.front() != '[' && token.back() != ']')
 					{
 						// just collect all tokens
-						RecognizedToken ntoken(const_cast<char*>(token.c_str()), 1000, 200, 800, probability);
+						RecognizedToken ntoken(const_cast<char*>(token.c_str()), 1000, 200, 800, probability, token_data.plog);
 						tokens.push_back(ntoken);
 						// tokenProbs.push_back(probability);
 					}
@@ -180,10 +181,10 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 					}
 				}
 				
-				logProbs /= n_tokens;
+				// logProbs /= n_tokens;
 
 				std::cout << "#### no speech prob #### " << noSpeech << " %%%%%%%%%%%%%%" << std::endl;
-				std::cout << "#### avg logprob    #### " << logProbs << " %%%%%%%%%%%%%%" << std::endl;
+				// std::cout << "#### avg logprob    #### " << logProbs << " %%%%%%%%%%%%%%" << std::endl;
 				
 
 				// TODO could eventually be used for confidence as well

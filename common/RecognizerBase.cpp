@@ -503,15 +503,15 @@ int RecognizerBase::getFrameResolution(void)
 //////////////////////////////////////////////
 void RecognizerBase::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop)
 {
-	std::string finalResult;
-	float confidence = 0.0f;
-	
 	runTokensToWords();
 	
 	wordMutex.lock();
 	
 	if (words.size() > 0)
 	{
+		float confidence = 0.0f;
+		double avgLogProb = 0.0f;
+	
 		std::unique_ptr<RecognizedUtterance> utt = std::make_unique<RecognizedUtterance>(
 			currStart->frameCounter, currStop->frameCounter, 
 			currStart->timeStampSeconds, currStart->timeStampMilliSeconds,
@@ -523,13 +523,24 @@ void RecognizerBase::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 			utt->addWord(std::move(words[i]));	
 		}
 		
-		std::cout << "Promoting partial result to final: " << finalResult << ", confidence = " << confidence << std::endl;
+		confidence = utt->getTotalConfidenceMean();
+		avgLogProb = utt->getAvgLogProb();
 		
 		audioLogger->flush(utt->getTotalUtterance());
 		
-		utteranceMutex.lock();
-		utterances.push_back(std::move(utt));
-		utteranceMutex.unlock();
+		if (avgLogProb > -1.0)
+		{
+			std::cout << "Promoting partial result to final, confidence=" << confidence 
+			          << ", logProb=" << avgLogProb << std::endl;
+			utteranceMutex.lock();
+			utterances.push_back(std::move(utt));
+			utteranceMutex.unlock();
+		}
+		else
+		{
+			std::cout << "DISCARD partial result '" << utt->getTotalUtterance() << "', confidence=" << confidence 
+			          << ", logProb=" << avgLogProb << std::endl;
+		}
 		
 		words.clear();
 	}

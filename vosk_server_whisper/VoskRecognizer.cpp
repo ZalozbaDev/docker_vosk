@@ -443,6 +443,7 @@ void VoskRecognizer::runTokensToWords(void)
 	std::chrono::milliseconds relStart = 0ms;
 	std::chrono::milliseconds relEnd   = 0ms;
 	std::vector<float>        tokenConfidences;
+	std::vector<double>       tokenLogProbs;
 	bool newWord = true;
 	
 	for (auto&& token : tokens)
@@ -456,6 +457,12 @@ void VoskRecognizer::runTokensToWords(void)
 			}
 			float confidenceMean = confidenceSum / tokenConfidences.size();
 			
+			double logProbSum = 0.0f;
+			for (double val : tokenLogProbs) {
+				logProbSum += val;	
+			}
+			double meanLogprob = logProbSum / tokenLogProbs.size();
+			
 			std::string origWord = cpp->sanitizeWord(currWord);
 			std::string replacedWord = cpp->replaceWord(origWord);
 			bool spellResult = hpp->spelledCorrectly(replacedWord);
@@ -463,7 +470,7 @@ void VoskRecognizer::runTokensToWords(void)
 			std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
 				(char*) origWord.c_str(), (char*) replacedWord.c_str(),
 				duration, relStart, relEnd, 
-				confidenceMean, spellResult);
+				confidenceMean, spellResult, meanLogprob);
 			words.push_back(std::move(word));
 			
 			currWord = "";
@@ -471,6 +478,7 @@ void VoskRecognizer::runTokensToWords(void)
 			relStart = 0ms;
 			relEnd   = 0ms;
 			tokenConfidences.clear();
+			tokenLogProbs.clear();
 			newWord = true;
 		}
 		
@@ -484,9 +492,11 @@ void VoskRecognizer::runTokensToWords(void)
 		duration += token->m_duration;
 		relEnd = token->m_relEnd;
 		tokenConfidences.push_back(token->m_confidence);
+		tokenLogProbs.push_back(token->m_logProb);
 	}
 	
 	// remaining (sub-)word after all tokens parsed
+	// FIXME code duplication!!!
 	if (currWord.length() > 0)
 	{
 		float confidenceSum = 0.0f;
@@ -495,6 +505,12 @@ void VoskRecognizer::runTokensToWords(void)
 		}
 		float confidenceMean = confidenceSum / tokenConfidences.size();
 		
+		double logProbSum = 0.0f;
+		for (double val : tokenLogProbs) {
+			logProbSum += val;	
+		}
+		double meanLogprob = logProbSum / tokenLogProbs.size();
+			
 		std::string origWord = cpp->sanitizeWord(currWord);
 		std::string replacedWord = cpp->replaceWord(origWord);
 		bool spellResult = hpp->spelledCorrectly(replacedWord);
@@ -502,7 +518,7 @@ void VoskRecognizer::runTokensToWords(void)
 		std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
 			(char*) origWord.c_str(), (char*) replacedWord.c_str(),
 			duration, relStart, relEnd, 
-			confidenceMean, spellResult);
+			confidenceMean, spellResult, meanLogprob);
 		words.push_back(std::move(word));
 	}
 	
