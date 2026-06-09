@@ -150,6 +150,10 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 					t1 = whisper_full_get_segment_t1(ctx, i);
 				}
 				
+				float noSpeech = whisper_full_get_segment_no_speech_prob(ctx, i);
+				double logProbs = 0.0f;
+				whisper_token_data token_data;
+				
 				// std::vector<float> tokenProbs;
 				const int n_tokens = whisper_full_n_tokens(ctx, i);
 				// fprintf(stderr,"tokens: %d\n",n_tokens);
@@ -158,6 +162,9 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 					float probability = whisper_full_get_token_p(ctx, i, j);
 					// std::cout << token << '\t' << probability << std::endl;
 					// fprintf(stderr,"token: %s %f\n",token,probability);
+					
+					token_data = whisper_full_get_token_data(ctx, i, j);
+					logProbs += token_data.plog;
 					
 					// do not use probs from empty tokens and special tokens
 					if (!token.empty() && token.front() != '[' && token.back() != ']')
@@ -173,6 +180,12 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 					}
 				}
 				
+				logProbs /= n_tokens;
+
+				std::cout << "#### no speech prob #### " << noSpeech << " %%%%%%%%%%%%%%" << std::endl;
+				std::cout << "#### avg logprob    #### " << logProbs << " %%%%%%%%%%%%%%" << std::endl;
+				
+
 				// TODO could eventually be used for confidence as well
 				// float noSpeech = whisper_full_get_segment_no_speech_prob(ctx, i);
 				// std::cout << "Segment " << i << '\t' << noSpeech << " no speech prob." << std::endl;
