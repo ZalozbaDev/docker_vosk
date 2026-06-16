@@ -20,7 +20,7 @@ WhisperImpl::WhisperImpl(std::string modelPath, std::string vosk_model_language,
 	cparams = whisper_context_default_params();
 	
 	cparams.use_gpu = !m_whisper_force_cpu;
-	cparams.flash_attn = false;
+	cparams.flash_attn = true;
 	cparams.dtw_token_timestamps = false;
 	
 	ctx = whisper_init_from_file_with_params(m_modelPath.c_str(), cparams);	
@@ -46,7 +46,7 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 	// run whisper on the current state of audio buffer
 	whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
-	wparams.strategy         = WHISPER_SAMPLING_GREEDY;
+    wparams.strategy = (default_params.beam_size > 1) ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY;
 	
     wparams.print_realtime   = false;
 	wparams.print_progress   = false;
@@ -85,19 +85,33 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 
     wparams.suppress_regex   = default_params.suppress_regex.empty() ? nullptr : default_params.suppress_regex.c_str();
 
-    wparams.initial_prompt   = default_params.prompt.c_str();
+    wparams.initial_prompt       = default_params.prompt.c_str();
+    wparams.carry_initial_prompt = default_params.carry_initial_prompt;
 
     wparams.greedy.best_of        = default_params.best_of;
     wparams.beam_search.beam_size = default_params.beam_size;
 
     wparams.temperature_inc  = m_whisper_no_fallback ? 0.0f : default_params.temperature_inc;
     wparams.temperature      = default_params.temperature;
+    wparams.no_speech_thold  = default_params.no_speech_thold;
 
     wparams.entropy_thold    = default_params.entropy_thold;
     wparams.logprob_thold    = default_params.logprob_thold;
 
     wparams.no_timestamps    = default_params.no_timestamps;
 	    
+	wparams.suppress_nst     = default_params.suppress_nst;
+
+	wparams.vad            = default_params.vad;
+	wparams.vad_model_path = default_params.vad_model.c_str();
+
+	wparams.vad_params.threshold               = default_params.vad_threshold;
+	wparams.vad_params.min_speech_duration_ms  = default_params.vad_min_speech_duration_ms;
+	wparams.vad_params.min_silence_duration_ms = default_params.vad_min_silence_duration_ms;
+	wparams.vad_params.max_speech_duration_s   = default_params.vad_max_speech_duration_s;
+	wparams.vad_params.speech_pad_ms           = default_params.vad_speech_pad_ms;
+	wparams.vad_params.samples_overlap         = default_params.vad_samples_overlap;
+            
 	// need minimum audio length
 	if (pcmf32.size() < pcm_buffer_min)
 	{

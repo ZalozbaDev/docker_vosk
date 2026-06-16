@@ -81,7 +81,7 @@ RUN cp -r vosk-server/websocket-cpp/nlohmann/json/single_include/nlohmann       
 
 # get whisper.cpp files
 RUN git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
-RUN cd whisper.cpp && git checkout v1.7.4
+RUN cd whisper.cpp && git checkout v1.8.6
 
 # use this line to test other commits
 # RUN cd whisper.cpp && git checkout f9ca90256bf6
