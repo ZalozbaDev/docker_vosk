@@ -332,6 +332,11 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					WhisperPool::releaseInstance(std::move(whisperInst));
 					
+					// remove possible old partial result (words)
+					wordMutex.lock();
+					words.clear();
+					wordMutex.unlock();
+						
 					tokenMutex.lock();
 					
 					// FIXME inefficient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -413,6 +418,10 @@ void VoskRecognizer::workerThreadFunc(void)
 					}
 					else
 					{
+						// consume current tokens and build (new) words for a partial result
+						runTokensToWords();
+						
+						// reset counter for new partial result
 						partOracle->ackPartialResult();	
 					}
 				}
