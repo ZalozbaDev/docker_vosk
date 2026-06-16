@@ -29,10 +29,12 @@ WhisperImpl::WhisperImpl(std::string modelPath, std::string vosk_model_language,
 //////////////////////////////////////////////
 std::string WhisperImpl::getAnnouncementString(void)
 {
-	// TBD use whisper version string once available via API
-	// std::string whisperStr = std::string(whisper_version());
+	// older versions required fixed version string
+	// std::string whisperStr = "whisper.cpp 1.7.4";
 	
-	std::string whisperStr = "whisper.cpp 1.7.4";
+	// use whisper version string once available via API
+	std::string whisperStr = "whisper.cpp " + std::string(whisper_version());
+	
 	std::string modelStr = std::regex_replace(m_modelPath, std::regex("(\\/|\\.)"), "-");
 	
 	return whisperStr + " : " + modelStr;
