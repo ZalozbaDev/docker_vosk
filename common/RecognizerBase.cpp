@@ -408,6 +408,8 @@ const char* RecognizerBase::getPartialResult(void)
 		res += "\" }";
 	}
 	
+	// std::cout << "Partial result: " << res << std::endl;
+	
 	memset(partialResultBuffer, 0, sizeof(partialResultBuffer));
 	strncpy(partialResultBuffer, res.c_str(), sizeof(partialResultBuffer) - 1);
 	
