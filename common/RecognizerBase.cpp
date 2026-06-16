@@ -78,7 +78,7 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
         	std::cout << "ENV specified, setting VAD algo to WebRTC." << std::endl;
         	resample = new ResamplerWebRTC_48_16();
         	resamplePhone = new ResamplerWebRTC_8_16();
-        	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);
+        	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 15, 5);
         }
     }
     else
@@ -86,7 +86,7 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
        	std::cout << "ENV empty, setting VAD algo to WebRTC." << std::endl;
        	resample = new ResamplerWebRTC_48_16();
         resamplePhone = new ResamplerWebRTC_8_16();
-    	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);	
+    	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 15, 5);	
     }
     
     m_probThreshold = -1000.0f;
