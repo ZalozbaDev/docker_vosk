@@ -121,6 +121,10 @@ protected:
 	char partialResultBuffer[1000];
 	char finalResultBuffer[100000];
 	
+	float m_probThreshold;
+	float m_logprobThreshold;
+	std::string m_rejectResponse;
+	
 private:
 	void recomputeMinNumberAudioPackages(void);
 };
