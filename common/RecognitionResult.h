@@ -134,6 +134,12 @@ public:
     	words.push_back(std::move(word));
     }
     
+    void resetWords()
+    {
+    	words.clear();
+    	m_sanitized = false;
+    }
+    
     std::string getTotalUtterance()
     {
     	if (!m_sanitized)
