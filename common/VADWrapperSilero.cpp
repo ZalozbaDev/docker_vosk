@@ -64,7 +64,7 @@ int VADWrapperSilero::process(int samplingFrequency, const int16_t* audio_frame,
 	// actual VAD processing
 	float currProb = sileroVadInst->predict(chunkToPredict);
 	
-	std::cout << "Speech prob: " << currprob << std::endl;
+	std::cout << "Speech prob: " << currProb << std::endl;
 		
 	// 1 == active, 0 == not active, -1 == error
 	chunk->state = (sileroVadInst->getTriggered() == true) ? VADState::ACTIVE : VADState::OFF;
