@@ -2,131 +2,119 @@
 #ifndef SILERO_VAD_INTERATOR_H
 #define SILERO_VAD_INTERATOR_H
 
-#include <iostream>
-#include <vector>
-#include <sstream>
-#include <cstring>
-#include <limits>
-#include <chrono>
-#include <iomanip>
-#include <memory>
+// Author      : NathanJHLee
+// Created On  : 2025-11-10
+// Description : silero 6.2 system for onnx-runtime(c++) and torch-script(c++)
+// Version     : 1.3
+
 #include <string>
-#include <stdexcept>
-#include <cstdio>
-#include <cstdarg>
-#include <cmath>    // for std::rint
-#if __cplusplus < 201703L
-#include <memory>
-#endif
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <chrono>
+#include <algorithm>
+#include <cstring>
 
 //#define __DEBUG_SPEECH_PROB___
 
 #include "onnxruntime_cxx_api.h"
 
-class timestamp_t {
-public:
-    int start;
-    int end;
+namespace silero {
 
-    timestamp_t(int start = -1, int end = -1)
-        : start(start), end(end) { }
+	struct Interval {
+		float start;
+		float end;
+		int numberOfSubseg;
 
-    timestamp_t& operator=(const timestamp_t& a) {
-        start = a.start;
-        end = a.end;
-        return *this;
-    }
+		void initialize() {
+			start = 0;
+			end = 0;
+			numberOfSubseg = 0;
+		}
+	};
 
-    bool operator==(const timestamp_t& a) const {
-        return (start == a.start && end == a.end);
-    }
-};
+	class VadIterator {
+		public:
+			VadIterator(const std::string &model_path,
+					float threshold = 0.5,
+					int sample_rate = 16000,
+					int window_size_ms = 32,
+					int speech_pad_ms = 30,
+					int min_silence_duration_ms = 100,
+					int min_speech_duration_ms = 250,
+					int max_duration_merge_ms = 300,
+					bool print_as_samples = false);
+			~VadIterator();
 
-// VadIterator class: uses ONNX Runtime to detect speech segments.
-class VadIterator {
-private:
-    // ONNX Runtime resources
-    Ort::Env env;
-    Ort::SessionOptions session_options;
-    std::shared_ptr<Ort::Session> session = nullptr;
-    Ort::AllocatorWithDefaultOptions allocator;
-    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeCPU);
+			// Batch (non-streaming) interface (for backward compatibility)
+			void SpeechProbs(std::vector<float>& input_wav);
+			std::vector<Interval> GetSpeechTimestamps();
+			void SetVariables();
 
-    // ----- Context-related additions -----
-    const int context_samples = 64;  // For 16kHz, 64 samples are added as context.
-    std::vector<float> _context;     // Holds the last 64 samples from the previous chunk (initialized to zero).
+			// Public parameters (can be modified by user)
+			float threshold;
+			int sample_rate;
+			int window_size_ms;
+			int min_speech_duration_ms;
+			int max_duration_merge_ms;
+			bool print_as_samples;
 
-    // Original window size (e.g., 32ms corresponds to 512 samples)
-    int window_size_samples;
-    // Effective window size = window_size_samples + context_samples
-    int effective_window_size;
+			// DS: added/moved
+		    void reset();
+		    float predict(const std::vector<float>& data_chunk);
+		    bool getTriggered(void) { return triggered; }
 
-    // Additional declaration: samples per millisecond
-    int sr_per_ms;
+		private:
+                        Ort::Env env;                                    // 환경 객체
+                        Ort::SessionOptions session_options;             // 세션 옵션
+                        std::shared_ptr<Ort::Session> session;           // ONNX 세션
+                        Ort::AllocatorWithDefaultOptions allocator;      // 기본 할당자
+                        Ort::MemoryInfo memory_info;                     // 메모리 정보 (CPU)
 
-    // ONNX Runtime input/output buffers
-    std::vector<Ort::Value> ort_inputs;
-    std::vector<const char*> input_node_names = { "input", "state", "sr" };
-    std::vector<float> input;
-    unsigned int size_state = 2 * 1 * 128;
-    std::vector<float> _state;
-    std::vector<int64_t> sr;
-    int64_t input_node_dims[2] = {};
-    const int64_t state_node_dims[3] = { 2, 1, 128 };
-    const int64_t sr_node_dims[1] = { 1 };
-    std::vector<Ort::Value> ort_outputs;
-    std::vector<const char*> output_node_names = { "output", "stateN" };
+                        void init_onnx_model(const std::string& model_path);
+                        // DS: moved to public
+                        // float predict(const std::vector<float>& data_chunk);
 
-    // Model configuration parameters
-    int sample_rate;
-    float threshold;
-    int min_silence_samples;
-    int min_silence_samples_at_max_speech;
-    int min_speech_samples;
-    float max_speech_samples;
-    int speech_pad_samples;
-    int audio_length_samples;
+                        //const int context_samples;                       // 예: 64 samples
+                        int context_samples;                       // 예: 64 samples
+                        std::vector<float> _context;                     // 초기값 모두 0
+                        int effective_window_size;
 
-    // State management
-    bool triggered = false;
-    unsigned int temp_end = 0;
-    unsigned int current_sample = 0;
-    int prev_end;
-    int next_start = 0;
-    timestamp_t current_speech;
+                        // ONNX 입력/출력 관련 버퍼 및 노드 이름들
+                        std::vector<Ort::Value> ort_inputs;
+                        std::vector<const char*> input_node_names;
+                        std::vector<float> input;
+                        unsigned int size_state;                         // 고정값: 2*1*128
+                        std::vector<float> _state;
+                        std::vector<int64_t> sr;
+                        int64_t input_node_dims[2];                      // [1, effective_window_size]
+                        const int64_t state_node_dims[3];                // [ 2, 1, 128 ]
+                        const int64_t sr_node_dims[1];                   // [ 1 ]
+                        std::vector<Ort::Value> ort_outputs;
+                        std::vector<const char*> output_node_names;      // 기본값: [ "output", "stateN" ]
+                        
+			std::vector<float> outputs_prob; // used in batch mode
+			int min_silence_samples;
+			int min_speech_samples;
+			int speech_pad_samples;
+			int window_size_samples;
+			int duration_merge_samples;
+			int current_sample = 0;
+			int total_sample_size = 0;
+			int min_silence_duration_ms;
+			int speech_pad_ms;
+			bool triggered = false;
+			int temp_end = 0;
+			int global_end = 0;
+			int erase_tail_count = 0;
 
-    void init_onnx_model(const std::string& model_path);
-    void init_engine_threads(int inter_threads, int intra_threads);
-    void reset_states();
-    
-public:
-    void reset();
-    void predict(const std::vector<float>& data_chunk);
-    bool getTriggered(void) { return triggered; }
-    
-    VadIterator(const std::string ModelPath,
-        int Sample_rate = 16000, int windows_frame_size = 32,
-        float Threshold = 0.5, int min_silence_duration_ms = 100,
-        int speech_pad_ms = 30, int min_speech_duration_ms = 250,
-        float max_speech_duration_s = std::numeric_limits<float>::infinity())
-        : sample_rate(Sample_rate), threshold(Threshold), speech_pad_samples(speech_pad_ms), prev_end(0)
-    {
-        sr_per_ms = sample_rate / 1000;  // e.g., 16000 / 1000 = 16
-        window_size_samples = windows_frame_size * sr_per_ms; // e.g., 32ms * 16 = 512 samples
-        effective_window_size = window_size_samples + context_samples; // e.g., 512 + 64 = 576 samples
-        input_node_dims[0] = 1;
-        input_node_dims[1] = effective_window_size;
-        _state.resize(size_state);
-        sr.resize(1);
-        sr[0] = sample_rate;
-        _context.assign(context_samples, 0.0f);
-        min_speech_samples = sr_per_ms * min_speech_duration_ms;
-        max_speech_samples = (sample_rate * max_speech_duration_s - window_size_samples - 2 * speech_pad_samples);
-        min_silence_samples = sr_per_ms * min_silence_duration_ms;
-        min_silence_samples_at_max_speech = sr_per_ms * 98;
-        init_onnx_model(ModelPath);
-    }
+			void reset_states();
+			std::vector<Interval> DoVad();
+   			void init_engine(int window_size_ms);
 
-};
+
+	};
+
+} // namespace silero
 
 #endif
