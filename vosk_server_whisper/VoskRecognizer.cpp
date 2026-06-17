@@ -95,6 +95,8 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	
     clientTimeStamp = std::chrono::system_clock::now();
     
+    partOracle = new PartialResultOracle(std::chrono::milliseconds(2000));
+    
     threadRunning = true;    
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
@@ -113,6 +115,8 @@ VoskRecognizer::~VoskRecognizer(void)
 
 	// only now we can unregister our instances
 	WhisperPool::unregister();
+	
+	delete(partOracle);
 }
 
 //////////////////////////////////////////////
@@ -303,6 +307,9 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					pcmf32.insert(pcmf32.cend(), chunk->fSamples, chunk->fSamples + chunk->m_numberSamples);
 					
+					// chunk samplerate is always 16kHz
+					partOracle->addAudioLength(std::chrono::milliseconds(chunk->m_numberSamples / 16));
+					
 					audioLogger->addChunk(std::move(chunk));
 					
 					availableChunks--;
@@ -314,7 +321,7 @@ void VoskRecognizer::workerThreadFunc(void)
 					}
 				}
 				
-				if ((detectedUttFinished == true) || (pcmf32.size() > maxAudioBufferSizeSamples))
+				if ((detectedUttFinished == true) || (pcmf32.size() > maxAudioBufferSizeSamples) || (partOracle->getNextPartialResult() == true))
 				{
 					
 					recoTokens.clear();
@@ -325,6 +332,11 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					WhisperPool::releaseInstance(std::move(whisperInst));
 					
+					// remove possible old partial result (words)
+					wordMutex.lock();
+					words.clear();
+					wordMutex.unlock();
+						
 					tokenMutex.lock();
 					
 					// FIXME inefficient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -341,65 +353,77 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					recoTokens.clear();
 					
-					// first audio buffer
-					if (pcmBufferFragmented == false)
+					// is this a "final" result? then promote and reset everything
+					if ((detectedUttFinished == true) || (pcmf32.size() > maxAudioBufferSizeSamples))
 					{
-						if (detectedUttFinished == true)
+						// first audio buffer
+						if (pcmBufferFragmented == false)
 						{
-							std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished true <<<<<<<<<<<<<<" << std::endl;
-							
-							// normal utterance end 
-							assert(currStart->valid == true);
-							assert(currStop->valid == true);
-							
-							promoteToFinalResult(std::move(currStart), std::move(currStop));
+							if (detectedUttFinished == true)
+							{
+								std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished true <<<<<<<<<<<<<<" << std::endl;
+								
+								// normal utterance end 
+								assert(currStart->valid == true);
+								assert(currStop->valid == true);
+								
+								promoteToFinalResult(std::move(currStart), std::move(currStop));
+							}
+							else
+							{
+								std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished false <<<<<<<<<<<<<<" << std::endl;
+								
+								// buffer full --> will fragment!
+								assert(currStart->valid == true);
+								currStop = vad->getUtteranceCurr();
+								
+								promoteToFinalResult(std::move(currStart), std::move(currStop));
+								
+								pcmBufferFragmented = true;
+								currFragmentStartTime = vad->getUtteranceCurr();
+							}
 						}
+						// continued audio buffer
 						else
 						{
-							std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished false <<<<<<<<<<<<<<" << std::endl;
-							
-							// buffer full --> will fragment!
-							assert(currStart->valid == true);
-							currStop = vad->getUtteranceCurr();
-							
-							promoteToFinalResult(std::move(currStart), std::move(currStop));
-							
-							pcmBufferFragmented = true;
-							currFragmentStartTime = vad->getUtteranceCurr();
+							if (detectedUttFinished == true)
+							{
+								std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished true <<<<<<<<<<<<<<" << std::endl;
+															
+								// normal utterance end --> end fragmenting
+								assert(currFragmentStartTime->valid == true);
+								assert(currStop->valid == true);
+								
+								promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
+								
+								pcmBufferFragmented = false;
+								currFragmentStartTime = std::make_unique<VADFrameTiming>();
+							}	
+							else
+							{
+								std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished false <<<<<<<<<<<<<<" << std::endl;
+								
+								// continue fragmenting
+								assert(currFragmentStartTime->valid == true);
+								currStop = vad->getUtteranceCurr();
+								
+								promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
+								
+								currFragmentStartTime = vad->getUtteranceCurr();
+							}
 						}
+						
+						partOracle->reset();
+						pcmf32.clear();
 					}
-					// continued audio buffer
 					else
 					{
-						if (detectedUttFinished == true)
-						{
-							std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished true <<<<<<<<<<<<<<" << std::endl;
-														
-							// normal utterance end --> end fragmenting
-							assert(currFragmentStartTime->valid == true);
-							assert(currStop->valid == true);
-							
-							promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
-							
-							pcmBufferFragmented = false;
-							currFragmentStartTime = std::make_unique<VADFrameTiming>();
-						}	
-						else
-						{
-							std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished false <<<<<<<<<<<<<<" << std::endl;
-							
-							// continue fragmenting
-							assert(currFragmentStartTime->valid == true);
-							currStop = vad->getUtteranceCurr();
-							
-							promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
-							
-							currFragmentStartTime = vad->getUtteranceCurr();
-						}
+						// consume current tokens and build (new) words for a partial result
+						runTokensToWords();
+						
+						// reset counter for new partial result
+						partOracle->ackPartialResult();	
 					}
-					
-					pcmf32.clear();
-					
 				}
 		
 				noMoreData = vad->analyze((pcmf32.size() < shortAudioBufferSizeSamples) ? true : false);
