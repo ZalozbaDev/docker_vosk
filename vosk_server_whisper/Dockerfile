@@ -37,7 +37,8 @@ RUN apt install -y g++ wget git make nano
 ###################################
 
 RUN git clone https://github.com/ZalozbaDev/webrtc-audio-processing.git webrtc-audio-processing
-RUN cd webrtc-audio-processing && git checkout 001d483d0c761f004e1888307acccc87d3520ec8
+# RUN cd webrtc-audio-processing && git checkout working_2022_2026
+RUN cd webrtc-audio-processing && git checkout v2.1
 
 RUN apt install -y meson libabsl-dev
 
