@@ -12,6 +12,8 @@
 ResamplerLibResample_48_16::ResamplerLibResample_48_16()
 {
 	// params are adjusted for the 48-->16 case
+	// minFactor = 16000 / 48000 == 0.33333 so 0.3 is OK
+	// maxFactor = 1 (no upsampling required) 
 	resampleInst = resample_open(1, 0.3, 1);
     if (!resampleInst) {
         std::cerr << "Failed to initialize libresample." << std::endl;
