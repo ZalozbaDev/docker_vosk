@@ -47,7 +47,7 @@ private:
 	
 	static const unsigned int vadMaxNrToggles = 10;
 	
-	VadIterator* sileroVadInst;
+	silero::VadIterator* sileroVadInst;
 	
 	std::deque<std::unique_ptr<VADFrame>> chunks;
 	

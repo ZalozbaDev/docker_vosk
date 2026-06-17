@@ -17,7 +17,7 @@ VADWrapperSilero::VADWrapperSilero(size_t frequencyHz, const std::string model_p
 	m_audioPreBufferFrames(audioPreBufferFrames), m_audioPostBufferFrames(audioPostBufferFrames), 
 	m_vadHystheresisFramesOn(vadHystheresisFramesOn), m_vadHystheresisFramesOff(vadHystheresisFramesOff)
 {
-	sileroVadInst = new VadIterator(model_path);
+	sileroVadInst = new silero::VadIterator(model_path);
 	
 	state = VADWrapperState::IDLE;
 }
@@ -62,7 +62,9 @@ int VADWrapperSilero::process(int samplingFrequency, const int16_t* audio_frame,
 	const std::vector<float> chunkToPredict(&chunk->fSamples[0], &chunk->fSamples[nrVADSamples]);
 	
 	// actual VAD processing
-	sileroVadInst->predict(chunkToPredict);
+	float currProb = sileroVadInst->predict(chunkToPredict);
+	
+	std::cout << "Speech prob: " << currprob << std::endl;
 		
 	// 1 == active, 0 == not active, -1 == error
 	chunk->state = (sileroVadInst->getTriggered() == true) ? VADState::ACTIVE : VADState::OFF;
