@@ -108,10 +108,9 @@ namespace silero {
 			int global_end = 0;
 			int erase_tail_count = 0;
 
-
-			void init_engine(int window_size_ms);
 			void reset_states();
 			std::vector<Interval> DoVad();
+   			void init_engine(int window_size_ms);
 
 
 	};

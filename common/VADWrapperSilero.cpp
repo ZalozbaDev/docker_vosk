@@ -18,6 +18,7 @@ VADWrapperSilero::VADWrapperSilero(size_t frequencyHz, const std::string model_p
 	m_vadHystheresisFramesOn(vadHystheresisFramesOn), m_vadHystheresisFramesOff(vadHystheresisFramesOff)
 {
 	sileroVadInst = new silero::VadIterator(model_path);
+	sileroVadInst->SetVariables();
 	
 	state = VADWrapperState::IDLE;
 }

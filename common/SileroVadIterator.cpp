@@ -93,6 +93,11 @@ namespace silero {
                 std::fill(_context.begin(), _context.end(), 0.0f);
         }
 
+        void VadIterator::SetVariables(){
+                // Initialize internal engine parameters
+                init_engine(window_size_ms);
+        }
+
         void VadIterator::init_engine(int window_size_ms) {
                 min_silence_samples = sample_rate * min_silence_duration_ms / 1000;
                 speech_pad_samples = sample_rate * speech_pad_ms / 1000;
