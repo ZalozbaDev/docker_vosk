@@ -71,7 +71,7 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
         	std::cout << "ENV specified, setting VAD algo to Silero." << std::endl;
         	resample = new ResamplerLibResample_48_16();
         	// TBD libresample impl of phone quality to 16kHz
-        	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
+        	vad = new VADWrapperSilero(16000, "model/silero_vad_v6_2.onnx");
         }
         else
         {
