@@ -18,10 +18,10 @@ class VADWrapperSilero : public VADWrapper
 {
 public:
 	VADWrapperSilero(size_t frequencyHz, const std::string model_path,
-				unsigned int audioPreBufferFrames  = 2,
-	           unsigned int audioPostBufferFrames = 2, 
+				unsigned int audioPreBufferFrames  = 3,
+	           unsigned int audioPostBufferFrames = 3, 
 	           unsigned int vadHystheresisFramesOn = 1,
-	           unsigned int vadHystheresisFramesOff = 1);
+	           unsigned int vadHystheresisFramesOff = 2);
 	virtual ~VADWrapperSilero(void);
 	virtual int process(int samplingFrequency, 
 		        const int16_t* audio_frame, 
