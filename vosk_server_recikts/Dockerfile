@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 MAINTAINER Daniel Sobe <daniel.sobe@sorben.com>
 
 # normal call
@@ -33,7 +33,8 @@ RUN apt install -y g++ wget git make nano
 ###################################
 
 RUN git clone https://github.com/ZalozbaDev/webrtc-audio-processing.git webrtc-audio-processing
-RUN cd webrtc-audio-processing && git checkout 6e37f37c4ea8790760b4c55d9ce9024a7e7bf260
+# RUN cd webrtc-audio-processing && git checkout working_2022_2026
+RUN cd webrtc-audio-processing && git checkout v2.1
 
 RUN apt install -y meson libabsl-dev
 
@@ -51,18 +52,19 @@ RUN apt install -y libboost-all-dev libhunspell-dev libicu-dev libresample1-dev 
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
-RUN cd vosk-api && git checkout dabe784434fd44e00b6b4d95598649495a854e23
+RUN cd vosk-api && git checkout 7ac989311dd23d4d9e3e12de170f076eb5b77be6
 
 # get VOSK server implementation
 RUN git clone https://github.com/ZalozbaDev/vosk-server.git vosk-server
-RUN cd vosk-server && git checkout b909a48e9701fe5440902d5eea69bd6e512f4a6e
+RUN cd vosk-server && git checkout aeb031987fb948941933936ffc802bf9c00ac461
 
 # get ONNX runtime (for Silero)
 RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.12.1/onnxruntime-linux-x64-1.12.1.tgz
 RUN tar xvfz onnxruntime-linux-x64-1.12.1.tgz
 
-RUN cp vosk-api/src/vosk_api.h /
-RUN cp vosk-server/websocket-cpp/asr_server.cpp /
+RUN cp    vosk-api/src/vosk_api.h   /
+RUN cp    vosk-server/websocket-cpp/asr_server.cpp vosk-server/websocket-cpp/vosk_commands.* /
+RUN cp -r vosk-server/websocket-cpp/nlohmann/json/single_include/nlohmann                    /
 
 COPY common/*.cpp  common/*.h /
 COPY vosk_server_recikts/*.h vosk_server_recikts/*.cpp /
@@ -73,8 +75,8 @@ RUN g++ -Wall -Wno-write-strings -std=c++17 -O3 -fPIC -o recikts_server -I. \
 -DVAD_FRAME_CONVERT_FLOAT \
 -I/webrtc-audio-processing/webrtc/ -DPREFIX=\"/data/\" \
 -I/onnxruntime-linux-x64-1.12.1/include/ \
-asr_server.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
-ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp RecIKTSImpl.cpp RepetitionRemover.cpp \
+asr_server.cpp vosk_commands.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp \
+ResamplerLibResample_48_16.cpp ResamplerLibResample_8_16.cpp ResamplerWebRTC_48_16.cpp ResamplerWebRTC_8_16.cpp RecIKTSImpl.cpp RepetitionRemover.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -ldl -lpthread -lhunspell -licuio -licuuc -lonnxruntime -lresample -L/onnxruntime-linux-x64-1.12.1/lib/
 # -I/boost_1_76_0/ 
