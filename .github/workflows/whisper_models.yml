@@ -1,4 +1,4 @@
-name: ci
+name: ci-models
 on:
   workflow_dispatch:
   pull_request:
