@@ -84,7 +84,8 @@ int VADWrapperWebRTC::process(int samplingFrequency, const int16_t* audio_frame,
 	// 1 == active, 0 == not active, -1 == error
 	chunk->state = (result == 1) ? VADState::ACTIVE : VADState::OFF;
 	
-	// std::cout << ((result == 1) ? "+" : "-");
+	// debug VAD sensitivity
+	// std::cout << ((result == 1) ? "#" : "~");
 
 #ifdef VAD_FRAME_CONVERT_FLOAT	
 	// we need to convert every frame to float for whisper
@@ -222,12 +223,14 @@ bool VADWrapperWebRTC::findUtteranceStart(void)
 		if (chunks[i]->state == VADState::ACTIVE)
 		{
 			numberActiveFrames++;
+			// std::cout << "+";
 		}
 		else
 		{
 			if (numberActiveFrames > 0) 
 			{
 				numberActiveFrames--;
+				// std::cout << "-";
 			}
 			else
 			{
@@ -253,6 +256,9 @@ bool VADWrapperWebRTC::findUtteranceStart(void)
 			{
 				chunkUttStart = 0;
 			}
+			
+			// erase num_toggles just to distinguish later what was the trigger
+			numberToggles = 0;
 			
 			chunksAnalyzedStart = i;
 			break;
@@ -281,6 +287,8 @@ bool VADWrapperWebRTC::findUtteranceStart(void)
 		lastState = chunks[i]->state;
 	}
 	
+	// std::cout << std::endl;
+	
 	///////////////////////////////////////////////////
 	// 2. remember properties of start chunk
 	///////////////////////////////////////////////////
@@ -294,7 +302,7 @@ bool VADWrapperWebRTC::findUtteranceStart(void)
 		uStartTime   = std::chrono::duration_cast<std::chrono::seconds>(timeStampStart.time_since_epoch()).count();
 		uStartTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(timeStampStart.time_since_epoch()).count() - (uStartTime * 1000);
 		
-		std::cout << "+++ Utterance start at chunk " << chunkUttStart << ", framectr " << frameCtrStart << std::endl; 
+		std::cout << "+++ Utterance start at chunk " << chunkUttStart << ", framectr " << frameCtrStart << ", toggles=" << numberToggles << std::endl; 
 	}
 	
 	

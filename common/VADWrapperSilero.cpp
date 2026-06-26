@@ -17,7 +17,8 @@ VADWrapperSilero::VADWrapperSilero(size_t frequencyHz, const std::string model_p
 	m_audioPreBufferFrames(audioPreBufferFrames), m_audioPostBufferFrames(audioPostBufferFrames), 
 	m_vadHystheresisFramesOn(vadHystheresisFramesOn), m_vadHystheresisFramesOff(vadHystheresisFramesOff)
 {
-	sileroVadInst = new VadIterator(model_path);
+	sileroVadInst = new silero::VadIterator(model_path);
+	sileroVadInst->SetVariables();
 	
 	state = VADWrapperState::IDLE;
 }
@@ -62,11 +63,17 @@ int VADWrapperSilero::process(int samplingFrequency, const int16_t* audio_frame,
 	const std::vector<float> chunkToPredict(&chunk->fSamples[0], &chunk->fSamples[nrVADSamples]);
 	
 	// actual VAD processing
-	sileroVadInst->predict(chunkToPredict);
-		
-	// 1 == active, 0 == not active, -1 == error
-	chunk->state = (sileroVadInst->getTriggered() == true) ? VADState::ACTIVE : VADState::OFF;
+	float currProb = sileroVadInst->predict(chunkToPredict);
+	
+	// std::cout << "Speech prob: " << currProb << std::endl;
+	
+	// contrary to earlier implementations, the decision is now completely upon us
+	// TBD should probably have a hysteresis, too, like in the example code
+	chunk->state = (currProb > 0.5) ? VADState::ACTIVE : VADState::OFF;
 
+	// debug VAD sensitivity
+	// std::cout << ((chunk->state == VADState::ACTIVE) ? "#" : "~");
+	
 	chunks.push_back(std::move(chunk));
 	
 	return retVal;

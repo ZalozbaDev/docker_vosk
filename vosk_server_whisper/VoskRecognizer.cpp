@@ -95,6 +95,8 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	
     clientTimeStamp = std::chrono::system_clock::now();
     
+    partOracle = new PartialResultOracle(std::chrono::milliseconds(2000));
+    
     threadRunning = true;    
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
@@ -113,6 +115,8 @@ VoskRecognizer::~VoskRecognizer(void)
 
 	// only now we can unregister our instances
 	WhisperPool::unregister();
+	
+	delete(partOracle);
 }
 
 //////////////////////////////////////////////
@@ -303,6 +307,9 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					pcmf32.insert(pcmf32.cend(), chunk->fSamples, chunk->fSamples + chunk->m_numberSamples);
 					
+					// chunk samplerate is always 16kHz
+					partOracle->addAudioLength(std::chrono::milliseconds(chunk->m_numberSamples / 16));
+					
 					audioLogger->addChunk(std::move(chunk));
 					
 					availableChunks--;
@@ -314,7 +321,7 @@ void VoskRecognizer::workerThreadFunc(void)
 					}
 				}
 				
-				if ((detectedUttFinished == true) || (pcmf32.size() > maxAudioBufferSizeSamples))
+				if ((detectedUttFinished == true) || (pcmf32.size() > maxAudioBufferSizeSamples) || (partOracle->getNextPartialResult() == true))
 				{
 					
 					recoTokens.clear();
@@ -325,6 +332,11 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					WhisperPool::releaseInstance(std::move(whisperInst));
 					
+					// remove possible old partial result (words)
+					wordMutex.lock();
+					words.clear();
+					wordMutex.unlock();
+						
 					tokenMutex.lock();
 					
 					// FIXME inefficient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -341,65 +353,77 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					recoTokens.clear();
 					
-					// first audio buffer
-					if (pcmBufferFragmented == false)
+					// is this a "final" result? then promote and reset everything
+					if ((detectedUttFinished == true) || (pcmf32.size() > maxAudioBufferSizeSamples))
 					{
-						if (detectedUttFinished == true)
+						// first audio buffer
+						if (pcmBufferFragmented == false)
 						{
-							std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished true <<<<<<<<<<<<<<" << std::endl;
-							
-							// normal utterance end 
-							assert(currStart->valid == true);
-							assert(currStop->valid == true);
-							
-							promoteToFinalResult(std::move(currStart), std::move(currStop));
+							if (detectedUttFinished == true)
+							{
+								std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished true <<<<<<<<<<<<<<" << std::endl;
+								
+								// normal utterance end 
+								assert(currStart->valid == true);
+								assert(currStop->valid == true);
+								
+								promoteToFinalResult(std::move(currStart), std::move(currStop));
+							}
+							else
+							{
+								std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished false <<<<<<<<<<<<<<" << std::endl;
+								
+								// buffer full --> will fragment!
+								assert(currStart->valid == true);
+								currStop = vad->getUtteranceCurr();
+								
+								promoteToFinalResult(std::move(currStart), std::move(currStop));
+								
+								pcmBufferFragmented = true;
+								currFragmentStartTime = vad->getUtteranceCurr();
+							}
 						}
+						// continued audio buffer
 						else
 						{
-							std::cout << ">>>>>>>>>>>>>>>> Fragment false, finished false <<<<<<<<<<<<<<" << std::endl;
-							
-							// buffer full --> will fragment!
-							assert(currStart->valid == true);
-							currStop = vad->getUtteranceCurr();
-							
-							promoteToFinalResult(std::move(currStart), std::move(currStop));
-							
-							pcmBufferFragmented = true;
-							currFragmentStartTime = vad->getUtteranceCurr();
+							if (detectedUttFinished == true)
+							{
+								std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished true <<<<<<<<<<<<<<" << std::endl;
+															
+								// normal utterance end --> end fragmenting
+								assert(currFragmentStartTime->valid == true);
+								assert(currStop->valid == true);
+								
+								promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
+								
+								pcmBufferFragmented = false;
+								currFragmentStartTime = std::make_unique<VADFrameTiming>();
+							}	
+							else
+							{
+								std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished false <<<<<<<<<<<<<<" << std::endl;
+								
+								// continue fragmenting
+								assert(currFragmentStartTime->valid == true);
+								currStop = vad->getUtteranceCurr();
+								
+								promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
+								
+								currFragmentStartTime = vad->getUtteranceCurr();
+							}
 						}
+						
+						partOracle->reset();
+						pcmf32.clear();
 					}
-					// continued audio buffer
 					else
 					{
-						if (detectedUttFinished == true)
-						{
-							std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished true <<<<<<<<<<<<<<" << std::endl;
-														
-							// normal utterance end --> end fragmenting
-							assert(currFragmentStartTime->valid == true);
-							assert(currStop->valid == true);
-							
-							promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
-							
-							pcmBufferFragmented = false;
-							currFragmentStartTime = std::make_unique<VADFrameTiming>();
-						}	
-						else
-						{
-							std::cout << ">>>>>>>>>>>>>>>> Fragment true, finished false <<<<<<<<<<<<<<" << std::endl;
-							
-							// continue fragmenting
-							assert(currFragmentStartTime->valid == true);
-							currStop = vad->getUtteranceCurr();
-							
-							promoteToFinalResult(std::move(currFragmentStartTime), std::move(currStop));
-							
-							currFragmentStartTime = vad->getUtteranceCurr();
-						}
+						// consume current tokens and build (new) words for a partial result
+						runTokensToWords();
+						
+						// reset counter for new partial result
+						partOracle->ackPartialResult();	
 					}
-					
-					pcmf32.clear();
-					
 				}
 		
 				noMoreData = vad->analyze((pcmf32.size() < shortAudioBufferSizeSamples) ? true : false);
@@ -443,6 +467,7 @@ void VoskRecognizer::runTokensToWords(void)
 	std::chrono::milliseconds relStart = 0ms;
 	std::chrono::milliseconds relEnd   = 0ms;
 	std::vector<float>        tokenConfidences;
+	std::vector<double>       tokenLogProbs;
 	bool newWord = true;
 	
 	for (auto&& token : tokens)
@@ -456,6 +481,12 @@ void VoskRecognizer::runTokensToWords(void)
 			}
 			float confidenceMean = confidenceSum / tokenConfidences.size();
 			
+			double logProbSum = 0.0f;
+			for (double val : tokenLogProbs) {
+				logProbSum += val;	
+			}
+			double meanLogprob = logProbSum / tokenLogProbs.size();
+			
 			std::string origWord = cpp->sanitizeWord(currWord);
 			std::string replacedWord = cpp->replaceWord(origWord);
 			bool spellResult = hpp->spelledCorrectly(replacedWord);
@@ -463,7 +494,7 @@ void VoskRecognizer::runTokensToWords(void)
 			std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
 				(char*) origWord.c_str(), (char*) replacedWord.c_str(),
 				duration, relStart, relEnd, 
-				confidenceMean, spellResult);
+				confidenceMean, spellResult, meanLogprob);
 			words.push_back(std::move(word));
 			
 			currWord = "";
@@ -471,6 +502,7 @@ void VoskRecognizer::runTokensToWords(void)
 			relStart = 0ms;
 			relEnd   = 0ms;
 			tokenConfidences.clear();
+			tokenLogProbs.clear();
 			newWord = true;
 		}
 		
@@ -484,9 +516,11 @@ void VoskRecognizer::runTokensToWords(void)
 		duration += token->m_duration;
 		relEnd = token->m_relEnd;
 		tokenConfidences.push_back(token->m_confidence);
+		tokenLogProbs.push_back(token->m_logProb);
 	}
 	
 	// remaining (sub-)word after all tokens parsed
+	// FIXME code duplication!!!
 	if (currWord.length() > 0)
 	{
 		float confidenceSum = 0.0f;
@@ -495,6 +529,12 @@ void VoskRecognizer::runTokensToWords(void)
 		}
 		float confidenceMean = confidenceSum / tokenConfidences.size();
 		
+		double logProbSum = 0.0f;
+		for (double val : tokenLogProbs) {
+			logProbSum += val;	
+		}
+		double meanLogprob = logProbSum / tokenLogProbs.size();
+			
 		std::string origWord = cpp->sanitizeWord(currWord);
 		std::string replacedWord = cpp->replaceWord(origWord);
 		bool spellResult = hpp->spelledCorrectly(replacedWord);
@@ -502,7 +542,7 @@ void VoskRecognizer::runTokensToWords(void)
 		std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
 			(char*) origWord.c_str(), (char*) replacedWord.c_str(),
 			duration, relStart, relEnd, 
-			confidenceMean, spellResult);
+			confidenceMean, spellResult, meanLogprob);
 		words.push_back(std::move(word));
 	}
 	

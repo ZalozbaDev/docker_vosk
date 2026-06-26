@@ -11,6 +11,7 @@
 #include <ResamplerWebRTC_48_16.h>
 #include <ResamplerWebRTC_8_16.h>
 #include <ResamplerLibResample_48_16.h>
+#include <ResamplerLibResample_8_16.h>
 
 int RecognizerBase::voskRecognizerInstanceId = 1;
 
@@ -68,26 +69,69 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
     {
         if (strcasecmp(env_p, "Silero") == 0)
         {
-        	std::cout << "ENV setting VAD algo to Silero." << std::endl;
+        	std::cout << "ENV specified, setting VAD algo to Silero." << std::endl;
         	resample = new ResamplerLibResample_48_16();
-        	// TBD libresample impl of phone quality to 16kHz
-        	vad = new VADWrapperSilero(16000, "model/silero_vad.onnx");
+        	resamplePhone = new ResamplerLibResample_8_16();
+        	vad = new VADWrapperSilero(16000, "model/silero_vad_v6_2.onnx");
         }
         else
         {
-        	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
+        	std::cout << "ENV specified, setting VAD algo to WebRTC." << std::endl;
         	resample = new ResamplerWebRTC_48_16();
         	resamplePhone = new ResamplerWebRTC_8_16();
-        	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);
+        	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 15, 5);
         }
     }
     else
     {
-       	std::cout << "ENV setting VAD algo to WebRTC." << std::endl;
+       	std::cout << "ENV empty, setting VAD algo to WebRTC." << std::endl;
        	resample = new ResamplerWebRTC_48_16();
         resamplePhone = new ResamplerWebRTC_8_16();
-    	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 5, 5);	
+    	vad = new VADWrapperWebRTC(aggressiveness, processingSampleRate, 5, 5, 15, 5);	
     }
+    
+    m_probThresholdReject = -1000.0f;
+    if (const char *env_p = std::getenv("VOSK_PROB_THRESHOLD_REJECT"))
+    {
+    	m_probThresholdReject = std::atof(env_p);
+    }    
+    std::cout << "ENV setting avg prob threshold reject to  " << m_probThresholdReject << "." << std::endl;
+    
+    m_logprobThresholdReject = -1000.0f;
+    if (const char *env_p = std::getenv("VOSK_LOGPROB_THRESHOLD_REJECT"))
+    {
+    	m_logprobThresholdReject = std::atof(env_p);
+    }    
+    std::cout << "ENV setting avg logprob threshold reject to  " << m_logprobThresholdReject << "." << std::endl;
+    
+    m_rejectResponse = "";
+    if (const char *env_p = std::getenv("VOSK_REJECT_RESPONSE"))
+    {
+    	m_rejectResponse = env_p;
+    }
+    if (m_rejectResponse.length() > 0)
+    {
+    	std::cout << "ENV setting reject response to  " << m_rejectResponse << "." << std::endl;
+    }
+    else
+    {
+    	std::cout << "ENV setting NO reject response." << std::endl;
+    }
+    
+    m_probThresholdDiscard = -1000.0f;
+    if (const char *env_p = std::getenv("VOSK_PROB_THRESHOLD_DISCARD"))
+    {
+    	m_probThresholdDiscard = std::atof(env_p);
+    }    
+    std::cout << "ENV setting avg prob threshold discard to  " << m_probThresholdDiscard << "." << std::endl;
+    
+    m_logprobThresholdDiscard = -1000.0f;
+    if (const char *env_p = std::getenv("VOSK_LOGPROB_THRESHOLD_DISCARD"))
+    {
+    	m_logprobThresholdDiscard = std::atof(env_p);
+    }    
+    std::cout << "ENV setting avg logprob threshold discard to  " << m_logprobThresholdDiscard << "." << std::endl;
+    
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -380,6 +424,8 @@ const char* RecognizerBase::getPartialResult(void)
 		res += "\" }";
 	}
 	
+	// std::cout << "-------------------------------> Partial result: " << res << std::endl;
+	
 	memset(partialResultBuffer, 0, sizeof(partialResultBuffer));
 	strncpy(partialResultBuffer, res.c_str(), sizeof(partialResultBuffer) - 1);
 	
@@ -503,15 +549,15 @@ int RecognizerBase::getFrameResolution(void)
 //////////////////////////////////////////////
 void RecognizerBase::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currStart, std::unique_ptr<VADFrameTiming> currStop)
 {
-	std::string finalResult;
-	float confidence = 0.0f;
-	
 	runTokensToWords();
 	
 	wordMutex.lock();
 	
 	if (words.size() > 0)
 	{
+		float confidence = 0.0f;
+		double avgLogProb = 0.0f;
+	
 		std::unique_ptr<RecognizedUtterance> utt = std::make_unique<RecognizedUtterance>(
 			currStart->frameCounter, currStop->frameCounter, 
 			currStart->timeStampSeconds, currStart->timeStampMilliSeconds,
@@ -523,13 +569,56 @@ void RecognizerBase::promoteToFinalResult(std::unique_ptr<VADFrameTiming> currSt
 			utt->addWord(std::move(words[i]));	
 		}
 		
-		std::cout << "Promoting partial result to final: " << finalResult << ", confidence = " << confidence << std::endl;
+		confidence = utt->getTotalConfidenceMean();
+		avgLogProb = utt->getAvgLogProb();
 		
 		audioLogger->flush(utt->getTotalUtterance());
 		
-		utteranceMutex.lock();
-		utterances.push_back(std::move(utt));
-		utteranceMutex.unlock();
+		// reject/discard utterance if either
+		// avg_prob (0 .. 1) < threshold (e.g. 0.85)
+		// or
+		// avg_logprob (-x.y .. 0) < threshold (e.g. -1.0)
+		//
+		// default thresholds shall avoid any rejection/discarding
+		
+		if ((confidence < m_probThresholdDiscard) || (avgLogProb < m_logprobThresholdDiscard))
+		{
+			std::cout << "DISCARD final result '" << utt->getTotalUtterance() << "', avg_prob=" << confidence 
+			          << ", avg_logProb=" << avgLogProb << std::endl;
+		}
+		else
+		{
+			if ((confidence < m_probThresholdReject) || (avgLogProb < m_logprobThresholdReject))
+			{
+				std::cout << "REJECT partial result '" << utt->getTotalUtterance() << "', avg_prob=" << confidence 
+						  << ", avg_logProb=" << avgLogProb << std::endl;
+						  
+				// only if a response for rejections is set, otherwise discard
+				if (m_rejectResponse.length() > 0)
+				{
+					utt->resetWords();
+					std::unique_ptr<RecognizedWord> word = std::make_unique<RecognizedWord>(
+						(char*) m_rejectResponse.c_str(), (char*) m_rejectResponse.c_str(), std::chrono::milliseconds(1000), 
+						std::chrono::milliseconds(100), std::chrono::milliseconds(900),
+						confidence, true, avgLogProb);
+					utt->addWord(std::move(word));
+					// force sanitize again
+					(void) utt->getNumberWords();
+					
+					utteranceMutex.lock();
+					utterances.push_back(std::move(utt));
+					utteranceMutex.unlock();
+				}
+			}
+			else
+			{
+				std::cout << "Promoting partial result to final, avg_prob=" << confidence 
+						  << ", logProb=" << avgLogProb << std::endl;
+				utteranceMutex.lock();
+				utterances.push_back(std::move(utt));
+				utteranceMutex.unlock();
+			}
+		}
 		
 		words.clear();
 	}

@@ -1,5 +1,5 @@
 
-#include <ResamplerLibResample_48_16.h>
+#include <ResamplerLibResample_8_16.h>
 
 #include <iostream>
 #include <vector>
@@ -8,13 +8,15 @@
 
 #include <cassert>
 
+#include <MuLawDecoder.h>
+
 //////////////////////////////////////////////
-ResamplerLibResample_48_16::ResamplerLibResample_48_16()
+ResamplerLibResample_8_16::ResamplerLibResample_8_16()
 {
-	// params are adjusted for the 48-->16 case
-	// minFactor = 16000 / 48000 == 0.33333 so 0.3 is OK
-	// maxFactor = 1 (no upsampling required) 
-	resampleInst = resample_open(1, 0.3, 1);
+	// params are adjusted for the 8-->16 case
+	// minFactor = 1 (no downsampling required) 
+	// maxFactor = 16000 / 8000 == 2 so 2.2 is OK
+	resampleInst = resample_open(1, 1, 2.2);
     if (!resampleInst) {
         std::cerr << "Failed to initialize libresample." << std::endl;
         assert(false);
@@ -22,15 +24,26 @@ ResamplerLibResample_48_16::ResamplerLibResample_48_16()
 }
 
 //////////////////////////////////////////////
-bool ResamplerLibResample_48_16::resample(const int16_t* source, int16_t* target, const int sourceFrameLenSamples) 
+bool ResamplerLibResample_8_16::resample(const int16_t* source, int16_t* target, const int sourceFrameLenSamples) 
 {
-	int expTargetFramelen = sourceFrameLenSamples / 3;
+	int16_t intermediatePCM8[sourceFrameLenSamples];
+	int expTargetFramelen = sourceFrameLenSamples * 2;
 	
+	// 256 samples in 8 bit, 256 samples out 16 bit 
+	size_t converted = MuLawDecoder::Convert(
+		(uint8_t*) source,
+		sourceFrameLenSamples,
+		intermediatePCM8,
+		sourceFrameLenSamples
+    );
+	
+    assert(converted == sourceFrameLenSamples);
+    
 	// Convert source buffer to float
 	std::vector<float> source_float(sourceFrameLenSamples);
 	for (int i = 0; i < sourceFrameLenSamples; i++) 
 	{
-		   source_float[i] = ((float) source[i]) / 32768.0f;
+		   source_float[i] = ((float) intermediatePCM8[i]) / 32768.0f;
 	}
 	
 	std::vector<float> target_float(expTargetFramelen);
@@ -39,7 +52,7 @@ bool ResamplerLibResample_48_16::resample(const int16_t* source, int16_t* target
 	
 	int output_generated = resample_process(
 		   resampleInst,
-		   (1.0 / 3.0),
+		   (2.0 / 1.0),
 		   source_float.data(),
 		   sourceFrameLenSamples,
 		   1, // last buffer
@@ -71,7 +84,7 @@ bool ResamplerLibResample_48_16::resample(const int16_t* source, int16_t* target
 }
 
 //////////////////////////////////////////////
-ResamplerLibResample_48_16::~ResamplerLibResample_48_16()
+ResamplerLibResample_8_16::~ResamplerLibResample_8_16()
 {
 	resample_close(resampleInst);
 }

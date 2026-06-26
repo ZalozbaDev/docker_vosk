@@ -5,7 +5,9 @@
 
 #ifndef WHISPER_MOCK
 #include "whisper.h"
+#include "grammar-parser.h"
 #include "common.h" // ???
+#include <cfloat>
 #else
 #include "whisper_mock.h"
 #endif
@@ -13,6 +15,7 @@
 #include <thread>
 
 // command-line parameters from whisper.cpp/examples/main/main.cpp
+// resp.   whisper.cpp/examples/cli/cli.cpp
 struct whisper_params {
     int32_t n_threads     = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t n_processors  = 1;
@@ -29,6 +32,7 @@ struct whisper_params {
     float word_thold      =  0.01f;
     float entropy_thold   =  2.40f;
     float logprob_thold   = -1.00f;
+    float no_speech_thold =  0.6f;
     float grammar_penalty = 100.0f;
     float temperature     = 0.0f;
     float temperature_inc = 0.2f;
@@ -51,11 +55,15 @@ struct whisper_params {
     bool no_prints       = false;
     bool print_special   = false;
     bool print_colors    = false;
+    bool print_confidence= false;
     bool print_progress  = false;
     bool no_timestamps   = false;
     bool log_score       = false;
     bool use_gpu         = true;
-    bool flash_attn      = false;
+    bool flash_attn      = true;
+    int32_t gpu_device   = 0;
+    bool suppress_nst    = false;
+    bool carry_initial_prompt = false;
 
     std::string language  = "en";
     std::string prompt;
@@ -77,7 +85,17 @@ struct whisper_params {
     std::vector<std::string> fname_inp = {};
     std::vector<std::string> fname_out = {};
 
-    // grammar_parser::parse_state grammar_parsed;
+    grammar_parser::parse_state grammar_parsed;
+
+    // Voice Activity Detection (VAD) parameters
+    bool        vad           = false;
+    std::string vad_model     = "";
+    float       vad_threshold = 0.5f;
+    int         vad_min_speech_duration_ms = 250;
+    int         vad_min_silence_duration_ms = 100;
+    float       vad_max_speech_duration_s = FLT_MAX;
+    int         vad_speech_pad_ms = 30;
+    float       vad_samples_overlap = 0.1f;
 };
 
 class WhisperImpl

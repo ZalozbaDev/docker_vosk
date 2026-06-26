@@ -17,6 +17,7 @@ extern "C" {
 }
 
 #include "WhisperPool.h"
+#include "PartialResultOracle.h"
 
 //////////////////////////////////////////////
 class VoskRecognizer:public RecognizerBase
@@ -39,6 +40,8 @@ private:
 		
 	char* leftOverData;
 	int leftOverDataLen = 0;
+	
+	PartialResultOracle* partOracle;
 };
 
 #endif // VOSK_RECOGNIZER_H

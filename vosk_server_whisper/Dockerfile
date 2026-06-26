@@ -37,7 +37,8 @@ RUN apt install -y g++ wget git make nano
 ###################################
 
 RUN git clone https://github.com/ZalozbaDev/webrtc-audio-processing.git webrtc-audio-processing
-RUN cd webrtc-audio-processing && git checkout 001d483d0c761f004e1888307acccc87d3520ec8
+# RUN cd webrtc-audio-processing && git checkout working_2022_2026
+RUN cd webrtc-audio-processing && git checkout v2.1
 
 RUN apt install -y meson libabsl-dev
 
@@ -71,7 +72,7 @@ RUN cp -r vosk-server/websocket-cpp/nlohmann/json/single_include/nlohmann       
 
 # get whisper.cpp files
 RUN git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
-RUN cd whisper.cpp && git checkout v1.7.4
+RUN cd whisper.cpp && git checkout v1.8.6
 
 # use this line to test other commits
 # RUN cd whisper.cpp && git checkout f9ca90256bf6
@@ -103,8 +104,8 @@ RUN g++ -std=c++17 -O3 -o vosk_whisper_server \
 -I/onnxruntime-linux-x64-1.12.1/include/ \
 asr_server.cpp vosk_commands.cpp vosk_api_wrapper.cpp VoskRecognizer.cpp VADWrapperWebRTC.cpp VADWrapperSilero.cpp SileroVadIterator.cpp  AudioLogger.cpp \
 RecognizerBase.cpp HunspellPostProc.cpp CustomPostProc.cpp RepetitionRemover.cpp \
-ResamplerLibResample_48_16.cpp ResamplerWebRTC_48_16.cpp ResamplerWebRTC_8_16.cpp \
-WhisperImpl.cpp WhisperPool.cpp \
+ResamplerLibResample_48_16.cpp ResamplerLibResample_8_16.cpp ResamplerWebRTC_48_16.cpp ResamplerWebRTC_8_16.cpp \
+WhisperImpl.cpp WhisperPool.cpp PartialResultOracle.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -lpthread -lhunspell  -licuio -licuuc -lonnxruntime -lresample -lwhisper -lggml -lggml-cpu -lggml-base -L/ -L/onnxruntime-linux-x64-1.12.1/lib/ 
 

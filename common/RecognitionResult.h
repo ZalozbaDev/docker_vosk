@@ -21,7 +21,9 @@ public:
 	std::chrono::milliseconds m_relStart;
 	std::chrono::milliseconds m_relEnd;
 	float                     m_confidence;
+	double                    m_logProb;
 	
+	// FIXME remove duplication
 	RecognizedToken(char* text, unsigned int durationMs, unsigned int startTimeMs, unsigned int endTimeMs, float confidence) 
 	{
 		m_text             = text;
@@ -29,7 +31,19 @@ public:
 		m_relStart         = std::chrono::milliseconds(startTimeMs);
 		m_relEnd           = std::chrono::milliseconds(endTimeMs);
 		m_confidence       = confidence;
+		m_logProb          = 0.0f;
 	}
+	
+	RecognizedToken(char* text, unsigned int durationMs, unsigned int startTimeMs, unsigned int endTimeMs, float confidence, double logProb) 
+	{
+		m_text             = text;
+		m_duration         = std::chrono::milliseconds(durationMs);
+		m_relStart         = std::chrono::milliseconds(startTimeMs);
+		m_relEnd           = std::chrono::milliseconds(endTimeMs);
+		m_confidence       = confidence;
+		m_logProb          = logProb;
+	}
+
 };
 
 /**
@@ -46,7 +60,9 @@ public:
 	std::chrono::milliseconds m_relEnd;
 	float                     m_meanConfidence;
 	bool                      m_correctSpelling;
+	double                    m_meanLogProb;
 	
+	// FIXME remove duplication
 	RecognizedWord(char* text, char* replacer, std::chrono::milliseconds durationMs, std::chrono::milliseconds startTimeMs, std::chrono::milliseconds endTimeMs, float confidence, bool correctSpelling) 
 	{
 		m_text             = text;
@@ -56,7 +72,21 @@ public:
 		m_relEnd           = endTimeMs;
 		m_meanConfidence   = confidence;
 		m_correctSpelling  = correctSpelling;
+		m_meanLogProb      = 0.0f;
 	}
+	
+	RecognizedWord(char* text, char* replacer, std::chrono::milliseconds durationMs, std::chrono::milliseconds startTimeMs, std::chrono::milliseconds endTimeMs, float confidence, bool correctSpelling, double meanLogProb) 
+	{
+		m_text             = text;
+		m_replacer         = replacer;
+		m_duration         = durationMs;
+		m_relStart         = startTimeMs;
+		m_relEnd           = endTimeMs;
+		m_meanConfidence   = confidence;
+		m_correctSpelling  = correctSpelling;
+		m_meanLogProb      = meanLogProb;
+	}
+
 };
 
 /**
@@ -94,12 +124,20 @@ public:
     	
     	m_cpp = cpp;
     	
+    	m_avgLogProb = 0.0f;
+    	
     	words.clear();
     }
     
     void addWord(std::unique_ptr<RecognizedWord> word)
     {
     	words.push_back(std::move(word));
+    }
+    
+    void resetWords()
+    {
+    	words.clear();
+    	m_sanitized = false;
     }
     
     std::string getTotalUtterance()
@@ -120,6 +158,16 @@ public:
     	}
     	
 		return m_meanConfidence; 	
+    }
+    
+    double getAvgLogProb()
+    {
+    	if (!m_sanitized)
+    	{
+    		sanitize();
+    	}
+
+    	return m_avgLogProb;
     }
     
     uint32_t getNumberWords()
@@ -156,6 +204,8 @@ private:
 	uint32_t    m_saneSize;
 	
 	CustomPostProc* m_cpp;
+	
+	double      m_avgLogProb;
     
     void sanitize()
     {
@@ -208,6 +258,7 @@ private:
 			}
 			
 			m_meanConfidence += words[i]->m_meanConfidence;
+			m_avgLogProb     += words[i]->m_meanLogProb;
 			
 			// apply line length limit (this is a hard limit)
 			// -1 means do not limit length
@@ -215,20 +266,25 @@ private:
 			{
 				if (m_totalUtterance.length() >= ((unsigned int) maxLineLen))
 				{
-					m_totalUtterance = m_totalUtterance.substr(0, (std::size_t) maxLineLen);
+					// always take care about valid UTF-8 when byte-truncating string! 
+					m_totalUtterance = m_cpp->utf8_substr_sanitized(m_totalUtterance, (std::size_t) maxLineLen);
 					
 					// must also apply limit to the current word (that exceeds length)
 					std::size_t newWordLen = maxLineLen - oldUttLength;
 					
-					// assert(newWordLen >= 0);
+					// take care of the additional space before the current word
+					// but don't go below zero
+					if (newWordLen > 0) newWordLen--;
 					
 					std::cout << "Reduce current word nr. " << i << " from " << words[i]->m_replacer.length() 
 						      << " to " << newWordLen << " characters." << std::endl;
 					
 				    // only apply if the word must actually be chopped
+				    // truncating to empty string should also be covered (can this actually happen?)
 					if (newWordLen < words[i]->m_replacer.length())
 					{
-						words[i]->m_replacer = words[i]->m_replacer.substr(0, newWordLen);
+						// always take care about valid UTF-8 when byte-truncating string! 
+						words[i]->m_replacer = m_cpp->utf8_substr_sanitized(words[i]->m_replacer, newWordLen);
 					}
 					
 					exit_limit = true;
@@ -239,6 +295,7 @@ private:
 		}
 		
 		m_meanConfidence = m_meanConfidence / ((float) i);
+		m_avgLogProb     = m_avgLogProb / ((double) i);
 		
 		// 4) set new maximum of (usable) words
 		m_saneSize = i;
