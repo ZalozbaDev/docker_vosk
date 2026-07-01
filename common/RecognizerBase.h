@@ -62,11 +62,11 @@ public:
 	void setTimeStamp(int64_t seconds, int64_t uSeconds);
 	bool getRecognizerBusy(bool audioQueueOnly = false);
 	
-	int acceptWaveform(const char *data, int length);
+	int acceptWaveform(const char *data, int length, bool block_not_drop = false);
 	bool getPartialStatus(void);
 	const char* getPartialResult(void);
 	const char* getFinalResult(void);
-	std::unique_ptr<RecognizedUtterance> getFinalResultData(void);
+	std::unique_ptr<RecognizedUtterance> getFinalResultData(bool tryFlush = false);
 	
 	int getFrameResolution(void);
 	
@@ -101,6 +101,7 @@ protected:
 	std::thread *recoWorkerThread;
 	bool threadRunning;
 	std::deque<std::unique_ptr<AudioPacket>> audioPackets;
+	uint64_t audioQueueLengthSamples;
 	std::mutex audioPacketMutex;
 	std::condition_variable audioPacketNotify;
 	

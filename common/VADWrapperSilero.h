@@ -30,6 +30,7 @@ public:
 		        std::chrono::time_point<std::chrono::system_clock> frameTime) override;
 	virtual bool analyze(bool hintShortAudio = false) override;
 	virtual unsigned int getAvailableChunks(void) override;
+	virtual unsigned int getTotalBufferedChunks(void) override;
 	virtual VADWrapperState getUtteranceStatus(void) override { return state; }
 	virtual std::unique_ptr<VADFrame> getNextChunk(void) override;
 	virtual std::unique_ptr<VADFrameTiming> getUtteranceStart(void) override;
