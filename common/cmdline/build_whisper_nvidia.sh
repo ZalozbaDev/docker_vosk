@@ -16,7 +16,7 @@
 
 # git clone https://github.com/ZalozbaDev/whisper.cpp.git whisper.cpp
 
-# cd whisper.cpp && git checkout v1.7.4
+# cd whisper.cpp && git checkout v1.8.6
 # cmake -B build -DGGML_CUDA=1 && cmake --build build -j --config Release
 
 # apt install -y libhunspell-dev  libicu-dev libsndfile1-dev libresample1-dev
@@ -47,9 +47,9 @@ g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -O3 -fPIC -o whisper_out/whisper
 -Ionnxruntime-linux-x64-1.12.1/include/ \
 whisper_out/RecognizerBase.cpp \
 whisper_out/vosk_api_wrapper.cpp whisper_out/VoskRecognizer.cpp whisper_out/VADWrapperWebRTC.cpp whisper_out/VADWrapperSilero.cpp whisper_out/SileroVadIterator.cpp whisper_out/AudioLogger.cpp \
-whisper_out/ResamplerLibResample_48_16.cpp whisper_out/ResamplerWebRTC_48_16.cpp whisper_out/ResamplerWebRTC_8_16.cpp \
+whisper_out/ResamplerLibResample_48_16.cpp whisper_out/ResamplerLibResample_8_16.cpp whisper_out/ResamplerWebRTC_48_16.cpp whisper_out/ResamplerWebRTC_8_16.cpp \
 whisper_out/HunspellPostProc.cpp whisper_out/CustomPostProc.cpp whisper_out/RepetitionRemover.cpp \
-whisper_out/WhisperImpl.cpp whisper_out/WhisperPool.cpp \
+whisper_out/WhisperImpl.cpp whisper_out/WhisperPool.cpp whisper_out/PartialResultOracle.cpp \
 main.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
 -ldl -lpthread -lhunspell -licuio -licuuc -lsndfile -lwhisper -lggml -lggml-cpu -lggml-base -lonnxruntime -lresample -Lwhisper_out/ -Lonnxruntime-linux-x64-1.12.1/lib/
