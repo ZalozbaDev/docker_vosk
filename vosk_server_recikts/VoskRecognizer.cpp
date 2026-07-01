@@ -44,11 +44,29 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	
     lastUttStopTime = 0;
     checkUtterancePause = false;
+    
+   	// finally start the recognizer thread
+	m_vadFrameCounter = 0;
+	
+    clientTimeStamp = std::chrono::system_clock::now();
+    
+    threadRunning = true;    
+    recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
 
 //////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
+	// clear audio queue and finalize thread
+	std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+	audioPackets.clear();
+	threadRunning = false;
+	audioPacketLock.unlock();
+	audioPacketNotify.notify_one();
+	recoWorkerThread->join();
+	delete(recoWorkerThread);
+
+	// only now we can unregister our instances
 	delete(recIktsImpl);
 }
 
