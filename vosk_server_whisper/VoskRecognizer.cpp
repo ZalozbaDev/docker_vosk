@@ -186,7 +186,10 @@ void VoskRecognizer::workerThreadFunc(void)
 			}
 
 			audioPacketLock.unlock();
-		
+							
+			// notify in case acceptWaveform() is waiting for us
+			audioPacketNotify.notify_one();
+
 			// std::cout << "RECO_THREAD <-- assembled " << audioData.size() << " samples." << std::endl;
 
 			char *data = &audioData[0];
@@ -215,6 +218,8 @@ void VoskRecognizer::workerThreadFunc(void)
 					
 					// every VAD frame covers a defined amount of audio
 					arrivalTime += std::chrono::milliseconds(vad->getFrameTimeMs());
+					
+					// std::cout << "framectr=" << m_vadFrameCounter << " status=" << status << " ";
 				}
 				
 			}
@@ -439,9 +444,6 @@ void VoskRecognizer::workerThreadFunc(void)
 			{
 				threadAlive = false;
 				audioPacketLock.unlock();
-				
-				// notify if acceptWaveform() is waiting for us
-				audioPacketNotify.notify_one();
 			}
 			else
 			{
