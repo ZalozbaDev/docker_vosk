@@ -16,7 +16,7 @@ LD_LIBRARY_PATH=whisper.cpp/build/src/:onnxruntime-linux-x64-1.12.1/lib/ ./whisp
 ~/whisper_models/zalozbadev/whisper_large_v3_turbo_hsb_aug/ggml-model.bin \
 tmp_audio_stripped_resampled.wav \
 tmpoutdir/ \
-2 auto -1 false WebRTC -1.0 false \
+2 czech -1 false WebRTC -1.0 false \
 ./hsb_DE_soblex_w8_3.09.11.aff ./hsb_DE_soblex_w8_3.09.11.dic
 
 TRANSCRIPTFILE=$(echo $INPUTFILE | sed 's/\.[^./]\{3\}$/\.srt/')
