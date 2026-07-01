@@ -293,7 +293,8 @@ bool RecognizerBase::getRecognizerBusy(bool audioQueueOnly)
 	
 	std::cout << "Audio queue sample amount=" << audioQueueLengthSamples << std::endl;
 	
-	if (vad->getTotalBufferedChunks() > 0)
+	// guessed parameter
+	if (vad->getTotalBufferedChunks() > 50)
 	{
 		std::cout << "VAD packets to process: " << vad->getTotalBufferedChunks() << std::endl;
 		
