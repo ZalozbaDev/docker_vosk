@@ -109,6 +109,8 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
     
     partOracle = new PartialResultOracle(std::chrono::milliseconds(2000));
     
+    audioQueueLengthSamples = 0;
+    
     threadRunning = true;    
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
@@ -195,6 +197,8 @@ void VoskRecognizer::workerThreadFunc(void)
 				audioPackets.pop_front();
 				
 				audioData.insert(audioData.end(), packet->data, packet->data + packet->length);
+				
+				audioQueueLengthSamples -= packet->length;
 				
 				arrivalTime = packet->arrivalTime;
 			}
@@ -453,6 +457,9 @@ void VoskRecognizer::workerThreadFunc(void)
 			{
 				threadAlive = false;
 				audioPacketLock.unlock();
+				
+				// notify if acceptWaveform() is waiting for us
+				audioPacketNotify.notify_one();
 			}
 			else
 			{

@@ -191,6 +191,12 @@ unsigned int VADWrapperWebRTC::getAvailableChunks(void)
 }
 
 //////////////////////////////////////////////
+unsigned int VADWrapperWebRTC::getTotalBufferedChunks(void)
+{
+	return chunks.size();
+}
+
+//////////////////////////////////////////////
 bool VADWrapperWebRTC::findUtteranceStart(void)
 {
 	assert(state == VADWrapperState::IDLE);

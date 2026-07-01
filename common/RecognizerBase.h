@@ -64,11 +64,11 @@ public:
 	void setLogAudio(bool enable);
 	virtual void changeConfigPath(const char *newPath) = 0;
 	
-	int acceptWaveform(const char *data, int length);
+	int acceptWaveform(const char *data, int length, bool block_not_drop = false);
 	bool getPartialStatus(void);
 	const char* getPartialResult(void);
 	const char* getFinalResult(void);
-	std::unique_ptr<RecognizedUtterance> getFinalResultData(void);
+	std::unique_ptr<RecognizedUtterance> getFinalResultData(bool tryFlush = false);
 	
 	int getFrameResolution(void);
 	
@@ -103,6 +103,7 @@ protected:
 	std::thread *recoWorkerThread;
 	bool threadRunning;
 	std::deque<std::unique_ptr<AudioPacket>> audioPackets;
+	uint64_t audioQueueLengthSamples;
 	std::mutex audioPacketMutex;
 	std::condition_variable audioPacketNotify;
 	

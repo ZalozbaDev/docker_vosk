@@ -234,14 +234,15 @@ int main(int argc, char **argv)
 		
 		index += amount;
 		
-		res = v.acceptWaveform((const char *) buffer, amount * 2);
+		// use blocking mode
+		res = v.acceptWaveform((const char *) buffer, amount * 2, true);
 		if (res == 0)
 		{
 			std::cout << v.getPartialStatus() << std::endl;	
 		}
 		else
 		{
-			std::unique_ptr<RecognizedUtterance> res = v.getFinalResultData();
+			std::unique_ptr<RecognizedUtterance> res = v.getFinalResultData(false);
 			process_subtitle(std::move(res), transcript, subtitles, confidenceThreshold, frameResolutionMs);
 		}
 
@@ -257,16 +258,16 @@ int main(int argc, char **argv)
 		std::cout << "Read " << amount << " samples, total=" << index << ", sec=" << (index / 48000) << ", " << (((float) index / (float) size) * 100.0f) << "%." << std::endl;
 		
 		// for a threaded impl we are providing too much data at once, so slow it down here 
-		if (v.getRecognizerBusy(true) == true)
-		{
-			std::cout << "Throttle!" << std::endl;
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-		}
+		//if (v.getRecognizerBusy(true) == true)
+		//{
+		//	std::cout << "Throttle!" << std::endl;
+		//	std::this_thread::sleep_for(std::chrono::seconds(1));
+		//}
 	}
 	
 	while (v.getRecognizerBusy(false) == true)
 	{
-		std::unique_ptr<RecognizedUtterance> res = v.getFinalResultData();
+		std::unique_ptr<RecognizedUtterance> res = v.getFinalResultData(true);
 		process_subtitle(std::move(res), transcript, subtitles, confidenceThreshold, frameResolutionMs);
 		
 		std::this_thread::sleep_for(std::chrono::seconds(1));

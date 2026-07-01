@@ -286,15 +286,24 @@ bool RecognizerBase::getRecognizerBusy(bool audioQueueOnly)
 	
 	if (audioPackets.size() > 0)
 	{
+		std::cout << "Polling for busy, audio queue not empty." << std::endl;
 		busy = true;
 	}
 	audioPacketLock.unlock();
 	
-	//
+	std::cout << "Audio queue sample amount=" << audioQueueLengthSamples << std::endl;
+	
+	if (vad->getTotalBufferedChunks() > 0)
+	{
+		std::cout << "VAD packets to process: " << vad->getTotalBufferedChunks() << std::endl;
+		
+		busy = true;
+	}
 	
 	tokenMutex.lock();
 	if (tokens.size() > 0)
 	{
+		std::cout << "Polling for busy, unprocessed tokens." << std::endl;
 		busy = true;
 	}
 	tokenMutex.unlock();
@@ -304,6 +313,7 @@ bool RecognizerBase::getRecognizerBusy(bool audioQueueOnly)
 	wordMutex.lock();
 	if (words.size() > 0)
 	{
+		std::cout << "Polling for busy, unprocessed words." << std::endl;
 		busy = true;
 	}
 	wordMutex.unlock();
@@ -313,6 +323,7 @@ bool RecognizerBase::getRecognizerBusy(bool audioQueueOnly)
     utteranceMutex.lock();
 	if (utterances.size() > 0)
 	{
+		std::cout << "Polling for busy, unprocessed utterances." << std::endl;
 		busy = true;
 	}
     utteranceMutex.unlock();
@@ -321,7 +332,7 @@ bool RecognizerBase::getRecognizerBusy(bool audioQueueOnly)
 }
 
 //////////////////////////////////////////////
-int RecognizerBase::acceptWaveform(const char *data, int length)
+int RecognizerBase::acceptWaveform(const char *data, int length, bool block_not_drop)
 {
 	int retVal;
 	bool validSampleConfig = true;
@@ -335,6 +346,37 @@ int RecognizerBase::acceptWaveform(const char *data, int length)
 	if (validSampleConfig == true)
 	{
 	
+		// check if we shall drop audio in case of congestion (live transcription)
+		// or rather block (offline subtitles)
+		
+		// 48000 samples * 30 seconds max --> ca. 3MByte
+		// lower sample rates and/or sizes will keep more audio seconds buffered
+		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
+
+		if (audioQueueLengthSamples > 3000000)
+		{
+			if (block_not_drop == true)
+			{
+				// BLOCK and wait for at least one processed packet
+				std::cout << "Handle audio packet queue length: BLOCK and wait" << std::endl;
+				
+				audioPacketNotify.wait(audioPacketLock);
+			}
+			else
+			{
+				// DROP oldest packet
+
+				std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
+				audioPackets.pop_front();
+	
+				audioQueueLengthSamples -= packet->length;
+				
+				std::cout << "Handle audio packet queue length: DROP packet with len=" << packet->length << std::endl;
+			}
+		}
+
+		// we're always processing new data and hope that dropping old data eventually fixes the congestion
+		
 		// create object and copy all data
 		std::unique_ptr packet = std::make_unique<AudioPacket>();
 		packet->length      = length;
@@ -342,6 +384,8 @@ int RecognizerBase::acceptWaveform(const char *data, int length)
 		packet->arrivalTime = std::chrono::system_clock::now();
 		memcpy(packet->data, data, length);
 	
+		audioQueueLengthSamples += length;
+		
 #if 0	
 	
 		auto now = std::chrono::system_clock::now();
@@ -355,7 +399,6 @@ int RecognizerBase::acceptWaveform(const char *data, int length)
 #endif
 			
 		// push to queue and notify worker
-		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
 		audioPackets.push_back(std::move(packet));
 		audioPacketLock.unlock();
 		audioPacketNotify.notify_one();
@@ -538,9 +581,10 @@ const char* RecognizerBase::getFinalResult(void)
 }
 
 //////////////////////////////////////////////
-std::unique_ptr<RecognizedUtterance> RecognizerBase::getFinalResultData(void)
+std::unique_ptr<RecognizedUtterance> RecognizerBase::getFinalResultData(bool tryFlush)
 {
 	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 10, 0, 0, 0, 100, vad->getFrameTimeMs(), cpp);
+	bool wasEmpty = false;
 	
     utteranceMutex.lock();
     
@@ -549,8 +593,26 @@ std::unique_ptr<RecognizedUtterance> RecognizerBase::getFinalResultData(void)
 		res = std::move(utterances.front());
 		utterances.pop_front();
 	}
+	else
+	{
+		wasEmpty = true;
+	}
 	
     utteranceMutex.unlock();
+    
+    // must call w/o locks held
+    if ((wasEmpty == true) && (tryFlush == true))
+    {
+    	std::unique_ptr<VADFrameTiming> dummy1 = std::make_unique<VADFrameTiming>();
+    	dummy1->frameCounter = 0;
+    	dummy1->timeStampSeconds = 0;
+    	dummy1->timeStampMilliSeconds = 0;
+    	std::unique_ptr<VADFrameTiming> dummy2 = std::make_unique<VADFrameTiming>();
+    	dummy2->frameCounter = 0;
+    	dummy2->timeStampSeconds = 0;
+    	dummy2->timeStampMilliSeconds = 0;
+    	promoteToFinalResult(std::move(dummy1), std::move(dummy2));	
+    }
     
 	return res;
 }
