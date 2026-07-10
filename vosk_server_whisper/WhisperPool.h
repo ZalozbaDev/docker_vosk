@@ -10,7 +10,7 @@
 class WhisperPool
 {
 public:
-	static void setWhisperParams(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu);
+	static void setWhisperParams(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu, bool whisper_translate_mode=false);
 	static void allocate(std::size_t size);
 	static std::unique_ptr<WhisperImpl> getInstance(void);
 	static void releaseInstance(std::unique_ptr<WhisperImpl> inst);
@@ -32,6 +32,7 @@ private:
 	static bool m_whisper_no_timestamps;
 	static bool m_whisper_no_fallback;
 	static bool m_whisper_force_cpu;
+	static bool m_whisper_translate_mode;
 };
 
 

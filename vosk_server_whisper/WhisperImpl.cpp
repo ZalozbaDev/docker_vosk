@@ -6,15 +6,16 @@
 #include <sstream>
 
 //////////////////////////////////////////////
-WhisperImpl::WhisperImpl(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu)
+WhisperImpl::WhisperImpl(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu, bool whisper_translate_mode)
 {
 	m_modelPath = modelPath;
 	
-	m_vosk_model_language   = vosk_model_language;
-	m_whisper_max_context   = whisper_max_context;
-	m_whisper_no_timestamps = whisper_no_timestamps;
-	m_whisper_no_fallback   = whisper_no_fallback;
-	m_whisper_force_cpu     = whisper_force_cpu;
+	m_vosk_model_language    = vosk_model_language;
+	m_whisper_max_context    = whisper_max_context;
+	m_whisper_no_timestamps  = whisper_no_timestamps;
+	m_whisper_no_fallback    = whisper_no_fallback;
+	m_whisper_force_cpu      = whisper_force_cpu;
+	m_whisper_translate_mode = whisper_translate_mode;
 	
 	// whisper init
 	cparams = whisper_context_default_params();
@@ -54,7 +55,7 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 	wparams.print_progress   = false;
 	wparams.print_timestamps = m_whisper_no_timestamps; // !default_params.no_timestamps;
 	wparams.print_special    = default_params.print_special;
-	wparams.translate        = default_params.translate;
+	wparams.translate        = m_whisper_translate_mode; // was: default_params.translate
 	if (m_vosk_model_language == "auto")
 	{
 		// whisper.cpp's default is "en", so if we really want "auto", we must say so explicitly
