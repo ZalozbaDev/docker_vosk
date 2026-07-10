@@ -17,11 +17,12 @@ VoskRecognizer::VoskRecognizer(int modelId, float sample_rate, const char *confi
 RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSampleRate)
 {
 	// capture recognizer-specific options from envvars
-	int         env_whisper_max_context   = -1; // use -1 for "don't change default"
-	bool        env_whisper_no_timestamps = false;
-	bool        env_whisper_no_fallback   = false;
-	bool        env_whisper_force_cpu     = false;
-	std::string env_vosk_model_language   = "auto";
+	int         env_whisper_max_context    = -1; // use -1 for "don't change default"
+	bool        env_whisper_no_timestamps  = false;
+	bool        env_whisper_no_fallback    = false;
+	bool        env_whisper_force_cpu      = false;
+	std::string env_vosk_model_language    = "auto";
+	bool        env_whisper_translate_mode = false; 
 
     // optional environment var
     // - --language            ("en", "czech", ...)
@@ -30,6 +31,17 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
     	env_vosk_model_language = env_p;
     }    
     std::cout << "ENV setting language to '" << env_vosk_model_language << "'." << std::endl;
+    
+    // optional environment var
+    // - --translate            (bool)
+    if (const char *env_p = std::getenv("VOSK_WHISPER_TRANSLATE"))
+    {
+    	if (strcasecmp(env_p, "True") == 0)
+    	{
+    		env_whisper_translate_mode = true;
+    	}
+    }    
+    std::cout << "ENV setting translate mode to '" << env_whisper_translate_mode << "'." << std::endl;
     
     // optional environment var
     // - -mc / --max-context   (a.k.a. "n_max_text_ctx":   default = 16384, some models need this to be 0)
@@ -75,7 +87,7 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 
 	// init whisper impl with all the collected options
 	WhisperPool::setWhisperParams(m_configPath, env_vosk_model_language, env_whisper_max_context, 
-		env_whisper_no_timestamps, env_whisper_no_fallback, env_whisper_force_cpu);
+		env_whisper_no_timestamps, env_whisper_no_fallback, env_whisper_force_cpu, env_whisper_translate_mode);
 	WhisperPool::allocate(1);
 	
 	// temporalily allocate the instance for the announcement string

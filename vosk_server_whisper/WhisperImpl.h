@@ -101,7 +101,7 @@ struct whisper_params {
 class WhisperImpl
 {
 public:
-	WhisperImpl(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu);
+	WhisperImpl(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu, bool whisper_translate_mode=false);
 	std::string getAnnouncementString(void);
 	unsigned int getShortAudioBufferSizeSamples() { return pcm_buffer_short; }
 	unsigned int getMaxAudioBufferSizeSamples()   { return pcm_buffer_max; }
@@ -122,6 +122,7 @@ private:
 	bool m_whisper_no_timestamps;
 	bool m_whisper_no_fallback;
 	bool m_whisper_force_cpu;
+	bool m_whisper_translate_mode;
 	
 	struct whisper_context_params cparams;
 	whisper_params default_params;
