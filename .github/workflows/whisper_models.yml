@@ -23,7 +23,7 @@ jobs:
         profile: ["hsb", "dsb"]
         include:
           - profile: hsb
-            model: "Korla/whisper-large-v3-turbo-hsb-0"
+            model: "Korla/whisper-large-v3-turbo-hsb-v1"
           - profile: dsb
             model: "Korla/whisper-large-v3-turbo-dsb"
     env:
