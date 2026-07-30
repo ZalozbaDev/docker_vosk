@@ -8,6 +8,7 @@ on:
     tags:
       - "v*"
       - "jitsi_multilang"
+      - "webcaptioner_multilang"
   schedule:
     - cron: "0 0 * * *"
 
