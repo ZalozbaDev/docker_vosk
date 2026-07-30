@@ -32,6 +32,8 @@ Check the Dockerfile comments for more build options.
 
 This implementation uses common code, so it needs to be built from the root directory:
 
+FIXME: not correct!
+
 ```code
 
 docker build -f vosk_server_whisper/Dockerfile --progress=plain -t vosk_server_whisper .
