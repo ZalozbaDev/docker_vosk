@@ -25,12 +25,14 @@
 # git clone https://github.com/ZalozbaDev/silero-vad
 # cp -r silero-vad/examples/cpp/model .
 
+ROOTDIR=${ROOTDIR:="../../"}
+
 rm -rf whisper_out/
 mkdir -p whisper_out/
 
-cp ../*.h ../*.cpp whisper_out/
+cp ${ROOTDIR}/common/*.h ${ROOTDIR}/common/*.cpp whisper_out/
 
-cp ../../vosk_server_whisper/*.cpp ../../vosk_server_whisper/*.h whisper_out/
+cp ${ROOTDIR}/vosk_server_whisper/*.cpp ${ROOTDIR}/vosk_server_whisper/*.h whisper_out/
 
 # if you want whisper debug output, you must already build whisper with WHISPER_DEBUG set (check src/whisper.cpp!)
 

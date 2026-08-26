@@ -11,12 +11,14 @@
 
 # apt install -y libhunspell-dev  libicu-dev libsndfile1-dev libresample1-dev
 
+ROOTDIR=${ROOTDIR:="../../"}
+
 rm -rf recikts_out/
 mkdir -p recikts_out/
 
-cp ../*.h ../*.cpp recikts_out/
+cp ${ROOTDIR}/common/*.h ${ROOTDIR}/common/*.cpp recikts_out/
 
-cp ../../vosk_server_recikts/*.h ../../vosk_server_recikts/*.cpp recikts_out/
+cp ${ROOTDIR}/vosk_server_recikts/*.h ${ROOTDIR}/vosk_server_recikts/*.cpp recikts_out/
 
 g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -fPIC -o recikts_out/recikts_main -DPREFIX="" \
 -DVAD_FRAME_CONVERT_FLOAT \
@@ -24,7 +26,7 @@ g++ -Wall -Wno-write-strings -O3 -g3 -std=c++17 -fPIC -o recikts_out/recikts_mai
 -Ionnxruntime-linux-x64-1.12.1/include/ \
 recikts_out/RecognizerBase.cpp \
 recikts_out/vosk_api_wrapper.cpp recikts_out/VoskRecognizer.cpp recikts_out/VADWrapperWebRTC.cpp recikts_out/VADWrapperSilero.cpp recikts_out/SileroVadIterator.cpp recikts_out/AudioLogger.cpp \
-recikts_out/ResamplerLibResample_48_16.cpp recikts_out/ResamplerWebRTC_48_16.cpp recikts_out/RepetitionRemover.cpp \
+recikts_out/ResamplerLibResample_48_16.cpp recikts_out/ResamplerWebRTC_48_16.cpp recikts_out/ResamplerLibResample_8_16.cpp recikts_out/ResamplerWebRTC_8_16.cpp recikts_out/RepetitionRemover.cpp \
 recikts_out/HunspellPostProc.cpp recikts_out/CustomPostProc.cpp \
 recikts_out/RecIKTSImpl.cpp main.cpp \
 webrtc-audio-processing/build/webrtc/common_audio/libcommon_audio.a \
