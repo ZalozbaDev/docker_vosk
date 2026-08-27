@@ -157,6 +157,26 @@ void vosk_recognizer_set_waveform_chunklen(VoskRecognizer *recognizer, int lengt
 }
 
 ///////////////////////////////////////////////
+void vosk_recognizer_change_model(VoskRecognizer *recognizer, const char *model_path)
+{
+// #ifdef VERBOSE_API_USAGE
+	printf("vosk_recognizer_change_model, instance=%d, model_path=%s.\n", recognizer->getInstanceId(), model_path);
+// #endif
+
+	recognizer->changeConfigPath(model_path);
+}
+
+///////////////////////////////////////////////
+void vosk_recognizer_set_audio_recording(VoskRecognizer *recognizer, int allow_recording)
+{
+// #ifdef VERBOSE_API_USAGE
+	printf("vosk_recognizer_set_audio_recording, instance=%d, allow_recording=%d.\n", recognizer->getInstanceId(), allow_recording);
+// #endif
+
+	recognizer->setLogAudio(allow_recording != 0);
+}
+
+///////////////////////////////////////////////
 //
 // "main" function that handles almost everything 
 // 

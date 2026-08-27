@@ -25,6 +25,7 @@ class VoskRecognizer:public RecognizerBase
 public:
 	VoskRecognizer(int modelId, float sample_rate, const char *configPath, int aggressiveness=2);
 	virtual ssize_t getProcessingSampleRate(void)  override { return m_processingSampleRate; }
+	virtual void changeConfigPath(const char *newPath) override;
 	virtual ~VoskRecognizer(void);
 	
 protected:

@@ -209,6 +209,21 @@ void RecognizerBase::setChunklen(int length)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+void RecognizerBase::setLogAudio(bool enable)
+{
+	std::cout << "RecognizerBase::setLogAudio=" << enable << << std::endl;
+	
+	if (enable == true)
+	{
+		audioLogger->activate();	
+	}
+	else
+	{
+		audioLogger->deactivate();	
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
 void RecognizerBase::recomputeMinNumberAudioPackages(void)
 {
 	// how many packages need to be collected before audio processing
