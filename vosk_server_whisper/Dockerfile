@@ -55,7 +55,7 @@ RUN apt install -y libboost-all-dev libhunspell-dev  libicu-dev libresample1-dev
 
 # get VOSK API (for header file)
 RUN git clone https://github.com/ZalozbaDev/vosk-api.git vosk-api
-RUN cd vosk-api && git checkout v2.4.0_webcaptioner
+RUN cd vosk-api && git checkout v2.4.1_webcaptioner
 
 # get VOSK server implementation
 RUN touch f
