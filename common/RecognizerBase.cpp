@@ -211,7 +211,7 @@ void RecognizerBase::setChunklen(int length)
 //////////////////////////////////////////////////////////////////////////////
 void RecognizerBase::setLogAudio(bool enable)
 {
-	std::cout << "RecognizerBase::setLogAudio=" << enable << << std::endl;
+	std::cout << "RecognizerBase::setLogAudio=" << enable << std::endl;
 	
 	if (enable == true)
 	{
