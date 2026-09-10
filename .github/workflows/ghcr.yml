@@ -1,4 +1,4 @@
-name: ci
+name: ci-vosk-whisper-docker
 on:
   workflow_dispatch:
   pull_request:
