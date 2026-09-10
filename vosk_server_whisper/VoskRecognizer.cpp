@@ -114,6 +114,12 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 }
 
 //////////////////////////////////////////////
+void VoskRecognizer::changeConfigPath(const char *newPath)
+{
+	std::cout << "VoskRecognizer::changeConfigPath stub!" << std::endl;
+}
+
+//////////////////////////////////////////////
 VoskRecognizer::~VoskRecognizer(void)
 {
 	// clear audio queue and finalize thread

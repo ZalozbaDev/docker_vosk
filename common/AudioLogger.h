@@ -15,6 +15,7 @@ public:
 	AudioLogger(std::string logPath, int instanceId);
 	~AudioLogger(void);
 	void activate(void) { m_active = true; }
+	void deactivate(void) { m_active = false; }
 	void addChunk(std::unique_ptr<VADFrame> chunk);
 	void flush(std::string resultText);
 private:

@@ -106,6 +106,7 @@ public:
 	unsigned int getShortAudioBufferSizeSamples() { return pcm_buffer_short; }
 	unsigned int getMaxAudioBufferSizeSamples()   { return pcm_buffer_max; }
 	void run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& tokens);
+	void scheduleModelChange(std::string newModelPath);
 	~WhisperImpl();
 private:
 	// 1 second of audio is 16000 samples
@@ -116,6 +117,8 @@ private:
 	// const int n_samples_30s  = (1e-3 * 30000.0) * WHISPER_SAMPLE_RATE;
 
 	std::string m_modelPath;
+	std::string m_newModelPath;
+	bool m_newModelPending;
 	
 	std::string m_vosk_model_language;
 	int m_whisper_max_context;

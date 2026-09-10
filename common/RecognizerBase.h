@@ -61,6 +61,8 @@ public:
 	void setDetailedResult(bool detailsOn);
 	void setTimeStamp(int64_t seconds, int64_t uSeconds);
 	bool getRecognizerBusy(bool audioQueueOnly = false);
+	void setLogAudio(bool enable);
+	virtual void changeConfigPath(const char *newPath) = 0;
 	
 	int acceptWaveform(const char *data, int length);
 	bool getPartialStatus(void);

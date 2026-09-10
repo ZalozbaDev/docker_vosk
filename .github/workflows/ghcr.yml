@@ -4,11 +4,9 @@ on:
   pull_request:
   push:
     branches:
-      - 'unify_recognizers'
+      - 'feat_runtime_change_model_and_audiorecord'
     tags:
       - "v*"
-      - "jitsi_multilang"
-      - "webcaptioner_multilang"
   schedule:
     - cron: "0 0 * * *"
 

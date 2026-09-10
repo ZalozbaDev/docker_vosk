@@ -25,6 +25,8 @@ WhisperImpl::WhisperImpl(std::string modelPath, std::string vosk_model_language,
 	cparams.dtw_token_timestamps = false;
 	
 	ctx = whisper_init_from_file_with_params(m_modelPath.c_str(), cparams);	
+	
+	m_newModelPending = false;
 }
 
 //////////////////////////////////////////////
@@ -233,6 +235,17 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 				// partialResult.push_back(std::move(newResult));
 			}
 		}
+		
+		// handle possible model change
+		if (m_newModelPending == true)
+		{
+			m_modelPath = m_newModelPath;
+			
+			whisper_free(ctx);
+			ctx = whisper_init_from_file_with_params(m_modelPath.c_str(), cparams);
+			
+			m_newModelPending = false;
+		}
 	}
 	else
 	{
@@ -244,6 +257,13 @@ void WhisperImpl::run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& 
 		RecognizedToken newResult(const_cast<char*>(errorText.c_str()), 5000, 200, 4800, 1.0f);
 		tokens.push_back(newResult);
 	}
+}
+
+//////////////////////////////////////////////
+void WhisperImpl::scheduleModelChange(std::string newModelPath)
+{
+	m_newModelPath = newModelPath;
+	m_newModelPending = true;
 }
 
 //////////////////////////////////////////////
