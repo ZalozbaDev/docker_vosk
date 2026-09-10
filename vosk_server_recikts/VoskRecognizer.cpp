@@ -115,7 +115,7 @@ void VoskRecognizer::workerThreadFunc(void)
 		{
 			std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
 			audioPackets.pop_front();
-			audioQueueLengthSamples -= length;
+			audioQueueLengthSamples -= packet->length;
 
 			audioPacketLock.unlock();
 		

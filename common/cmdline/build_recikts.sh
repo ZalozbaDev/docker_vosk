@@ -3,7 +3,7 @@
 # do this manually and only once
 
 # git clone https://github.com/ZalozbaDev/webrtc-audio-processing.git webrtc-audio-processing
-# cd webrtc-audio-processing && git checkout 6e37f37c4ea8790760b4c55d9ce9024a7e7bf260
+# cd webrtc-audio-processing && git checkout v2.1
 
 # apt install -y meson libabsl-dev
 
