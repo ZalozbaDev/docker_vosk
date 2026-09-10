@@ -50,6 +50,8 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	
     clientTimeStamp = std::chrono::system_clock::now();
     
+    audioQueueLengthSamples = 0;
+    
     threadRunning = true;    
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
