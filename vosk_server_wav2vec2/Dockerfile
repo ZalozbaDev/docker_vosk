@@ -19,6 +19,7 @@ RUN pip install -r requirements.txt
 
 COPY asr_server.py /app
 COPY asr_server_config.json /app
+COPY subword_lm_rescorer.py /app
 
 
 # Download the model from Hugging Face

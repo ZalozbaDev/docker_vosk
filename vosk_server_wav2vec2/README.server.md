@@ -73,7 +73,14 @@ Example:
 	"openvino_device": "CPU",
 	"sample_rate": 16000,
 	"verbose_output": true,
-	"use_lm": false
+	"use_lm": false,
+	"use_subword_lm": false,
+	"subword_lm_path": "./lm/hsb_wordpiece_4gram.binary",
+	"subword_tokenizer_path": "./lm/hsb_wordpiece_15000.json",
+	"subword_lm_alpha": 1.0,
+	"subword_lm_beta": 0.0,
+	"subword_nbest": 20,
+	"subword_beam_width": 50
 }
 ```
 
@@ -82,6 +89,14 @@ Notes:
 - `backend` supports: `pytorch`, `onnx`, `openvino`.
 - For OpenVINO, `model_name` can be a folder (the server will load `openvino_model.xml` from it).
 - For ONNX, `model_name` must point to the ONNX model file.
+- `use_lm` enables the legacy word-level LM decoder.
+- `use_subword_lm` enables acoustic N-best search followed by subword LM rescoring; it cannot be enabled together with `use_lm`.
+- `subword_lm_path` is the KenLM binary path (default: `./lm/hsb_wordpiece_4gram.binary`).
+- `subword_tokenizer_path` is the matching WordPiece tokenizer JSON (default: `./lm/hsb_wordpiece_15000.json`).
+- `subword_lm_alpha` weights the subword LM log-probability (default: `1.0`).
+- `subword_lm_beta` applies a word-count insertion score (default: `0.0`).
+- `subword_nbest` controls how many acoustic hypotheses are rescored (default: `20`).
+- `subword_beam_width` controls pyctcdecode search width (default: `50`).
 
 ## Run Locally
 

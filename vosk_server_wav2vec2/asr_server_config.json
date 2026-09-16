@@ -1,11 +1,18 @@
 {
   "interface": "0.0.0.0",
   "port": 2700,
-  "backend": "openvino",
-  "model_name": "./models/ov_int8",
+  "backend": "onnx",
+  "model_name": "./onnx/wav2vec2.onnx",
   "processor_name": "Korla/Wav2Vec2BertForCTC-hsb-0",
   "openvino_device": "CPU",
   "sample_rate": 16000,
   "verbose_output": true,
-  "use_lm": false
+  "use_lm": false,
+  "use_subword_lm": true,
+  "subword_lm_path": "./lm/hsb_wordpiece_4gram.binary",
+  "subword_tokenizer_path": "./lm/hsb_wordpiece_15000.json",
+  "subword_lm_alpha": 1.0,
+  "subword_lm_beta": 0.0,
+  "subword_nbest": 20,
+  "subword_beam_width": 50
 }

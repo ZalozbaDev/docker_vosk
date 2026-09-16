@@ -11,13 +11,51 @@ import numpy as np
 import librosa
 import gc
 from pyctcdecode import build_ctcdecoder
-from transformers import AutoProcessor, Wav2Vec2ProcessorWithLM, AutoModelForCTC
+from transformers import (
+    AutoProcessor,
+    SeamlessM4TFeatureExtractor,
+    Wav2Vec2BertProcessor,
+    Wav2Vec2CTCTokenizer,
+    Wav2Vec2ProcessorWithLM,
+    AutoModelForCTC,
+)
 from silero_vad import load_silero_vad
 import time
 
 
 model = load_silero_vad()
 model.eval()
+
+
+def load_ctc_processor(processor_name):
+    try:
+        return AutoProcessor.from_pretrained(processor_name)
+    except AttributeError as error:
+        if "extra_special_tokens" not in str(error) and "keys" not in str(error):
+            raise
+        logging.warning(
+            "Processor tokenizer config is incompatible with this Transformers version; "
+            "loading vocab.json directly."
+        )
+        processor_path = Path(processor_name)
+        if processor_path.is_dir():
+            vocab_path = processor_path / "vocab.json"
+        else:
+            from huggingface_hub import hf_hub_download
+            vocab_path = Path(hf_hub_download(processor_name, "vocab.json"))
+        feature_extractor = SeamlessM4TFeatureExtractor.from_pretrained(processor_name)
+        tokenizer = Wav2Vec2CTCTokenizer(
+            str(vocab_path),
+            unk_token="[UNK]",
+            pad_token="[PAD]",
+            word_delimiter_token="|",
+            bos_token="<s>",
+            eos_token="</s>",
+        )
+        return Wav2Vec2BertProcessor(
+            feature_extractor=feature_extractor,
+            tokenizer=tokenizer,
+        )
 
 
 def load_server_config(config_path):
@@ -31,6 +69,13 @@ def load_server_config(config_path):
         "backend": "openvino",
         "openvino_device": "CPU",
         "use_lm": False,
+        "use_subword_lm": False,
+        "subword_lm_path": "./lm/hsb_wordpiece_4gram.binary",
+        "subword_tokenizer_path": "./lm/hsb_wordpiece_15000.json",
+        "subword_lm_alpha": 1.0,
+        "subword_lm_beta": 0.0,
+        "subword_nbest": 20,
+        "subword_beam_width": 50,
         "empty_text_conf_zero": True,
         "vad_threshold": 0.2
     }
@@ -43,6 +88,8 @@ def load_server_config(config_path):
     config["backend"] = str(config["backend"]).lower()
     if config["backend"] not in {"pytorch", "onnx", "openvino"}:
         raise ValueError("backend must be one of: pytorch, onnx, openvino")
+    if config["use_lm"] and config["use_subword_lm"]:
+        raise ValueError("use_lm and use_subword_lm are mutually exclusive")
     return config
 
 
@@ -141,7 +188,31 @@ def process_chunk(asr_pipeline, sample_rate, message, buffer, silence_dur, speec
                     predicted_ids = torch.argmax(logits, dim=-1)
                     pred_scores = logits.softmax(dim=-1).gather(-1, predicted_ids.unsqueeze(-1))[:, :, 0]
                 cleanup_memory()            
-            if "decoder" in asr_pipeline:
+            if "subword_rescorer" in asr_pipeline:
+                logging.info('generate acoustic N-best and rescore with subword LM')
+                beam_logits = logits[0].detach().float().cpu().numpy().copy()
+                beam_logits[:, asr_pipeline["suppressed_token_ids"]] = -1e9
+                beams = asr_pipeline["beam_decoder"].decode_beams(
+                    beam_logits,
+                    beam_width=args.subword_beam_width,
+                    beam_prune_logp=-30.0,
+                    token_min_logp=-10.0,
+                    prune_history=False,
+                )[:args.subword_nbest]
+                hypotheses = [
+                    {"text": beam[0], "acoustic_logp": beam[3]}
+                    for beam in beams
+                ]
+                transcription = asr_pipeline["subword_rescorer"].rescore(hypotheses)["text"]
+                confidence = masked_mean_or_zero(pred_scores, (predicted_ids != blank_id) & (predicted_ids != word_delemiter_id))
+                confidence = finalize_confidence(transcription, confidence)
+                t2 = time.time()
+                print(f"Transcription took {t2 - t1:.2f} seconds. Real-time factor: {(len(audio) / sample_rate) /(t2 - t1) :.2f}x")
+                silence_dur["value"] = 0
+                speech_dur["value"] = 0
+                cleanup_memory()
+                return json.dumps({"text": transcription, "conf": confidence}, ensure_ascii=False), False
+            elif "decoder" in asr_pipeline:
                 logging.info('use LM to rescore results')
                 transcription = asr_pipeline["decoder"].decode(predicted_ids[0].cpu().numpy())
                 confidence = masked_mean_or_zero(pred_scores, (predicted_ids != blank_id) & (predicted_ids != word_delemiter_id))
@@ -306,6 +377,13 @@ async def start():
     args.onnx = args.backend == "onnx"
     args.openvino = args.backend == "openvino"
     args.use_lm = bool(cfg["use_lm"])
+    args.use_subword_lm = bool(cfg["use_subword_lm"])
+    args.subword_lm_path = cfg.get("subword_lm_path") or "./lm/hsb_wordpiece_4gram.binary"
+    args.subword_tokenizer_path = cfg.get("subword_tokenizer_path") or "./lm/hsb_wordpiece_15000.json"
+    args.subword_lm_alpha = float(cfg["subword_lm_alpha"])
+    args.subword_lm_beta = float(cfg["subword_lm_beta"])
+    args.subword_nbest = int(cfg["subword_nbest"])
+    args.subword_beam_width = int(cfg["subword_beam_width"])
     args.openvino_device = cfg.get("openvino_device", "CPU")
     args.empty_text_conf_zero = bool(cfg.get("empty_text_conf_zero", True))
     args.vad_threshold = float(cfg.get("vad_threshold", 0.2))
@@ -321,10 +399,10 @@ async def start():
 
 
     try:
-        processor = AutoProcessor.from_pretrained(args.processor_name)
+        processor = load_ctc_processor(args.processor_name)
     except (OSError, ValueError):
         # when processor is not found in the specified path, try to load from Hugging Face Hub
-        processor = AutoProcessor.from_pretrained("Korla/Wav2Vec2BertForCTC-hsb-0")
+        processor = load_ctc_processor("Korla/Wav2Vec2BertForCTC-hsb-0")
     processor.feature_extractor._processor_class = "Wav2Vec2ProcessorWithLM"
     vocab_dict = processor.tokenizer.get_vocab()
     sorted_vocab_dict = {k.lower(): v for k, v in sorted(vocab_dict.items(), key=lambda item: item[1])}
@@ -388,6 +466,36 @@ async def start():
             asr_pipeline["ov_input_name"] = ov_input_name
             asr_pipeline["ov_output"] = ov_output
         logging.info('IGNORING any ARPA LM.')
+    if args.use_subword_lm:
+        from subword_lm_rescorer import SubwordLMRescorer
+
+        labels = [processor.tokenizer.convert_ids_to_tokens(i) for i in range(len(processor.tokenizer))]
+        labels[processor.tokenizer.word_delimiter_token_id] = " "
+        labels[processor.tokenizer.pad_token_id] = ""
+        suppressed_token_ids = [
+            token_id for token_id in (
+                processor.tokenizer.unk_token_id,
+                processor.tokenizer.bos_token_id,
+                processor.tokenizer.eos_token_id,
+            ) if token_id is not None
+        ]
+        placeholder_tokens = ["¤", "⟨", "⟩"]
+        for token_id, placeholder in zip(suppressed_token_ids, placeholder_tokens):
+            labels[token_id] = placeholder
+        asr_pipeline["beam_decoder"] = build_ctcdecoder(labels=labels)
+        asr_pipeline["suppressed_token_ids"] = suppressed_token_ids
+        asr_pipeline["subword_rescorer"] = SubwordLMRescorer(
+            args.subword_lm_path,
+            args.subword_tokenizer_path,
+            alpha=args.subword_lm_alpha,
+            beta=args.subword_lm_beta,
+        )
+        logging.info(
+            'Subword LM rescoring enabled: lm=%s tokenizer=%s alpha=%s beta=%s nbest=%s beam_width=%s',
+            args.subword_lm_path, args.subword_tokenizer_path,
+            args.subword_lm_alpha, args.subword_lm_beta,
+            args.subword_nbest, args.subword_beam_width,
+        )
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     global inference_semaphore
     inference_semaphore = asyncio.Semaphore(1)
