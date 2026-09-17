@@ -2,3 +2,6 @@ onnx
 *.wav
 *.aff
 *.dic
+__pycache__
+lm/*
+docker-compose.yml

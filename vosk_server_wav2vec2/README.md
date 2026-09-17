@@ -32,7 +32,9 @@ cd ../../
 
 (optional) provide and use a diferent LM
 
-TBD: path of LM is fixed to "lm/5gram_correct.arpa"
+The legacy word LM is enabled with `use_lm`. Subword rescoring is enabled with
+`use_subword_lm`; configure `subword_lm_path` and `subword_tokenizer_path` in
+`asr_server_config.json`. See `README.server.md` for all LM options.
 
 (optional) provide hunspell directory
 
@@ -70,4 +72,3 @@ Jeli chceš ty tón połnu performance měć, by radźomne było zo spytaš raz 
 
 * torch.compile + flash attention
 * Tensor RT + onnx
-
