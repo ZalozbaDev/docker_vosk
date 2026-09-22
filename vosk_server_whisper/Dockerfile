@@ -1,4 +1,4 @@
-FROM nvidia/cuda:13.1.1-cudnn-devel-ubuntu24.04
+FROM nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
 LABEL org.opencontainers.image.authors="Daniel Sobe <daniel.sobe@sorben.com>"
 
 # normal call
@@ -81,9 +81,9 @@ RUN cd whisper.cpp && git checkout v1.8.6
 # -DCUDA_DOCKER_ARCH=sm_61 
 # TBD how to specify???
 # Ref: https://stackoverflow.com/a/53464012
-ENV CUDA_MAIN_VERSION=13.1
+ENV CUDA_MAIN_VERSION=13.0
 ENV LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_MAIN_VERSION}/compat:$LD_LIBRARY_PATH
-RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=89 && cmake --build build -j4 --config Release
+RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=120 && cmake --build build -j --config Release
 
 COPY common/*.cpp  common/*.h /
 COPY vosk_server_whisper/*.cpp vosk_server_whisper/*.h /
