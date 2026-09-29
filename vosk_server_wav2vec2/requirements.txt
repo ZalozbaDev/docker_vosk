@@ -3,6 +3,8 @@ websockets
 numpy
 soundfile
 pyctcdecode
+kenlm
+tokenizers
 silero-vad
 onnxruntime
 hunspell
