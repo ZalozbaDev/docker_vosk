@@ -355,7 +355,8 @@ int RecognizerBase::acceptWaveform(const char *data, int length, bool block_not_
 	
 		// check if we shall drop audio in case of congestion (live transcription)
 		// or rather block (offline subtitles)
-		
+		UsageLogger::logAudioData(m_instanceId, length, audioQueueLengthSamples);
+
 		// 48000 samples * 30 seconds max --> ca. 3MByte
 		// lower sample rates and/or sizes will keep more audio seconds buffered
 		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
@@ -378,6 +379,7 @@ int RecognizerBase::acceptWaveform(const char *data, int length, bool block_not_
 	
 				audioQueueLengthSamples -= packet->length;
 				
+				UsageLogger::logAudioDrop(m_instanceId, packet->length);
 				std::cout << "Handle audio packet queue length: DROP packet with len=" << packet->length << std::endl;
 			}
 		}
@@ -537,6 +539,8 @@ const char* RecognizerBase::getFinalResult(void)
 		uStopTime    = fin->m_uStopTime;
 		uStopTimeMs  = fin->m_uStopTimeMs;
 		
+		UsageLogger::logFinalUtteranceTiming(uStartTime, uStartTimeMs, uStopTime, uStopTimeMs);
+
 		if (detailedResults == false)
 		{
 			res += "\" }";
