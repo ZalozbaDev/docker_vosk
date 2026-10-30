@@ -9,13 +9,15 @@
 class UsageStats
 {
 public:
-    UsageStats() { instanceId = 0; nrAudioPackets = 0; maxAudioQueueLength = 0; droppedDataLength = 0; nrRecognizedUtterances = 0; } 
+    UsageStats() { instanceId = 0; nrAudioPackets = 0; maxAudioQueueLength = 0; droppedDataLength = 0; nrRecognizedUtterances = 0; startTimeStamp = ""; } 
 
     int      instanceId;
     uint64_t nrAudioPackets;
     uint64_t maxAudioQueueLength;
     uint64_t droppedDataLength;
     uint64_t nrRecognizedUtterances;
+
+    std::string startTimeStamp;
 };
 
 //////////////////////////////////////////////
@@ -33,7 +35,8 @@ public:
 private:
 	UsageLogger(void);
 
-    static int getStatsIndex(int instanceId);
+    static int         getStatsIndex(int instanceId);
+    static std::string getTimeStampString(void);
 
     static std::string m_path;
 
