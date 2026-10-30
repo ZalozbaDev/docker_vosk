@@ -36,11 +36,9 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
     cpp->setConvertCase(true);
     
     
-	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 250, 0, 0, 3, 0, vad->getFrameTimeMs(), cpp);
-	std::string voskAnnouncementString = recIktsImpl->getAnnouncementString();
-	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) voskAnnouncementString.c_str(), (char*) voskAnnouncementString.c_str(), 2000ms, 100ms, 1900ms, 1.0f, true);
-	res->addWord(std::move(wrd));
-	utterances.push_back(std::move(res));	
+	recikts_version   = recIktsImpl->getRecognizerVersion();
+	recikts_model     = recIktsImpl->getCurrentModel();
+	announce_versions = true;
 	
     lastUttStopTime = 0;
     checkUtterancePause = false;
@@ -359,4 +357,18 @@ void VoskRecognizer::runTokensToWords(void)
 	tokens.clear();
 	
 	tokenMutex.unlock();
+}
+
+//////////////////////////////////////////////
+//
+// { "text" : "", "recognizer" : "recikts X.Y.Z", "model" : "misa_cfg_1.2.3.4.cfg" }
+std::string VoskRecognizer::getVersionStringsResult(void)
+{
+	std::string res = "witaj\", \"recognizer\" : \"";
+	res += recikts_version;
+	res += "\", \"model\" : \"";
+	res += recikts_model;
+	res += "\" }";
+
+	return res;
 }

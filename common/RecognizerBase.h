@@ -131,6 +131,9 @@ protected:
 	float m_probThresholdDiscard;
 	float m_logprobThresholdDiscard;
 
+	bool announce_versions;
+	virtual std::string getVersionStringsResult(void) = 0;
+
 private:
 	void recomputeMinNumberAudioPackages(void);
 };

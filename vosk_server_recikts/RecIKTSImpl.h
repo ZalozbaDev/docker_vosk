@@ -11,7 +11,9 @@ class RecIKTSImpl
 {
 public:
 	RecIKTSImpl(std::string configPath);
-	std::string getAnnouncementString(void);
+	std::string getAnnouncementString(void); // legacy
+	std::string getRecognizerVersion(void);
+	std::string getCurrentModel(void);
 	void startUtterance(bool longPauseBetweenUtterances);
 	void consumeAudio(int16_t* buf,uint32_t samples);
 	void finalizeUtterance();
