@@ -590,10 +590,10 @@ void VoskRecognizer::runTokensToWords(void)
 
 //////////////////////////////////////////////
 //
-// { "text" : "", "recognizer" : "whisper.cpp X.Y.Z", "model" : "whisper_large_turbo.ggml" }
+// { "text" : "whisper_large_turbo.ggml", "recognizer" : "whisper.cpp X.Y.Z", "model" : "whisper_large_turbo.ggml" }
 std::string VoskRecognizer::getVersionStringsResult(void)
 {
-	std::string res = "witaj\", \"recognizer\" : \"";
+	std::string res = whisper_model + "\", \"recognizer\" : \"";
 	res += whisper_version;
 	res += "\", \"model\" : \"";
 	res += whisper_model;

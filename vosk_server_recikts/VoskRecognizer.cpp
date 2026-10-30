@@ -361,10 +361,10 @@ void VoskRecognizer::runTokensToWords(void)
 
 //////////////////////////////////////////////
 //
-// { "text" : "", "recognizer" : "recikts X.Y.Z", "model" : "misa_cfg_1.2.3.4.cfg" }
+// { "text" : "misa_cfg_1.2.3.4.cfg", "recognizer" : "recikts X.Y.Z", "model" : "misa_cfg_1.2.3.4.cfg" }
 std::string VoskRecognizer::getVersionStringsResult(void)
 {
-	std::string res = "witaj\", \"recognizer\" : \"";
+	std::string res = recikts_model + "\", \"recognizer\" : \"";
 	res += recikts_version;
 	res += "\", \"model\" : \"";
 	res += recikts_model;
