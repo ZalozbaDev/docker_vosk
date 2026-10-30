@@ -23,6 +23,7 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	bool        env_whisper_force_cpu      = false;
 	std::string env_vosk_model_language    = "auto";
 	bool        env_whisper_translate_mode = false; 
+	int         env_whisper_max_instances  = 1; 
 
     // optional environment var
     // - --language            ("en", "czech", ...)
@@ -85,10 +86,18 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
     }
     std::cout << "ENV setting whisper use GPU to  " << env_whisper_force_cpu << "." << std::endl;
 
+    // optional environment var
+    // specify number of maximum parallel whisper instances
+    if (const char *env_p = std::getenv("VOSK_WHISPER_MAX_NR_INSTANCES"))
+    {
+    	env_whisper_max_instances = std::atoi(env_p);
+    }
+    std::cout << "ENV setting whisper max nr instances to " << env_whisper_max_instances << "." << std::endl;
+    
 	// init whisper impl with all the collected options
 	WhisperPool::setWhisperParams(m_configPath, env_vosk_model_language, env_whisper_max_context, 
 		env_whisper_no_timestamps, env_whisper_no_fallback, env_whisper_force_cpu, env_whisper_translate_mode);
-	WhisperPool::allocate(1);
+	WhisperPool::allocate(env_whisper_max_instances);
 	
 	// temporalily allocate the instance for the announcement string
 	std::unique_ptr<WhisperImpl> whisperInst = WhisperPool::getInstance();
