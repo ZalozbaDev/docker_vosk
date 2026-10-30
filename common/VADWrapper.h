@@ -46,6 +46,7 @@ public:
 		        std::chrono::time_point<std::chrono::system_clock> frameTime) = 0;
 	virtual bool analyze(bool hintShortAudio = false) = 0;
 	virtual unsigned int getAvailableChunks(void) = 0;
+	virtual unsigned int getTotalBufferedChunks(void) = 0;
 	virtual VADWrapperState getUtteranceStatus(void) = 0;
 	virtual std::unique_ptr<VADFrame> getNextChunk(void) = 0;
 	virtual std::unique_ptr<VADFrameTiming> getUtteranceStart(void) = 0;

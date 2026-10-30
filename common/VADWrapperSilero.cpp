@@ -169,6 +169,12 @@ unsigned int VADWrapperSilero::getAvailableChunks(void)
 }
 
 //////////////////////////////////////////////
+unsigned int VADWrapperSilero::getTotalBufferedChunks(void)
+{
+	return chunks.size();
+}
+
+//////////////////////////////////////////////
 bool VADWrapperSilero::findUtteranceStart(void)
 {
 	assert(state == VADWrapperState::IDLE);

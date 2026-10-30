@@ -50,6 +50,8 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	
     clientTimeStamp = std::chrono::system_clock::now();
     
+    audioQueueLengthSamples = 0;
+    
     threadRunning = true;    
     recoWorkerThread = new std::thread(&VoskRecognizer::workerThreadFunc, this);
 }
@@ -113,6 +115,7 @@ void VoskRecognizer::workerThreadFunc(void)
 		{
 			std::unique_ptr<AudioPacket> packet = std::move(audioPackets.front());
 			audioPackets.pop_front();
+			audioQueueLengthSamples -= packet->length;
 
 			audioPacketLock.unlock();
 		
@@ -121,7 +124,7 @@ void VoskRecognizer::workerThreadFunc(void)
 			char *data = packet->data;
 			int length = packet->length;
 			std::chrono::time_point<std::chrono::system_clock> arrivalTime = packet->arrivalTime;
-			
+						
 			// splitting audio into chunks & resampling to 16kHz
 			while(leftOverDataLen + length >= framelen48 * 2){
 		

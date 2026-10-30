@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'feat_runtime_change_model_and_audiorecord'
+      - 'feat_rebase_block_or_discard_audio'
     tags:
       - "v*"
   schedule:

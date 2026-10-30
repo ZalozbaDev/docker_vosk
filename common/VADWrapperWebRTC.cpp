@@ -132,6 +132,8 @@ bool VADWrapperWebRTC::analyze(bool hintShortAudio)
 			break;
 	}
 	
+	// std::cout << "VAD analyze availableChunks=" << getAvailableChunks() << std::endl;
+	
 	// must use the more complex computation due to postbuffering (chunks in queue != available chunks)
 	return (getAvailableChunks() == 0) ? true : false;
 }
@@ -188,6 +190,12 @@ unsigned int VADWrapperWebRTC::getAvailableChunks(void)
 	assert(false);
 	
 	return 0;
+}
+
+//////////////////////////////////////////////
+unsigned int VADWrapperWebRTC::getTotalBufferedChunks(void)
+{
+	return chunks.size();
 }
 
 //////////////////////////////////////////////
