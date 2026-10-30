@@ -539,7 +539,7 @@ const char* RecognizerBase::getFinalResult(void)
 		uStopTime    = fin->m_uStopTime;
 		uStopTimeMs  = fin->m_uStopTimeMs;
 		
-		UsageLogger::logFinalUtteranceTiming(uStartTime, uStartTimeMs, uStopTime, uStopTimeMs);
+		UsageLogger::logFinalUtteranceTiming(m_instanceId, uStartTime, uStartTimeMs, uStopTime, uStopTimeMs);
 
 		if (detailedResults == false)
 		{
