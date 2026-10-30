@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'feat_rebase_block_or_discard_audio'
+      - 'unify_recognizers'
     tags:
       - "v*"
   schedule:
