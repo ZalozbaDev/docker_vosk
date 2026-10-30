@@ -13,6 +13,8 @@
 #include <ResamplerLibResample_48_16.h>
 #include <ResamplerLibResample_8_16.h>
 
+#include <UsageLogger.h>
+
 int RecognizerBase::voskRecognizerInstanceId = 1;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -35,6 +37,9 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
 	m_audioChunkLength = 48000;
 	m_minNumberAudioPackages = 1;
 	
+	UsageLogger::setLogPath(std::string("logs/"));
+	UsageLogger::logInstanceNew(m_instanceId);
+
 	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
     
     if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
@@ -153,6 +158,7 @@ RecognizerBase::~RecognizerBase()
 	
 	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
 
+	UsageLogger::logInstanceDelete(m_instanceId);
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
 }

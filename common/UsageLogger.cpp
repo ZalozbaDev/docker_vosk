@@ -1,0 +1,35 @@
+
+#include <UsageLogger.h>
+
+std::string UsageLogger::m_path;
+
+///////////////////////////////////////////////////
+UsageLogger::UsageLogger(void)
+{
+
+}
+
+///////////////////////////////////////////////////
+UsageLogger::~UsageLogger(void)
+{
+
+}
+
+///////////////////////////////////////////////////
+void UsageLogger::setLogPath(std::string path)
+{
+    m_path = path;
+}
+
+///////////////////////////////////////////////////
+void UsageLogger::logInstanceNew(int instanceId)
+{
+
+}
+
+///////////////////////////////////////////////////
+void UsageLogger::logInstanceDelete(int instanceId)
+{
+    
+}
+
