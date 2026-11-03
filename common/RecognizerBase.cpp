@@ -13,6 +13,8 @@
 #include <ResamplerLibResample_48_16.h>
 #include <ResamplerLibResample_8_16.h>
 
+#include <UsageLogger.h>
+
 int RecognizerBase::voskRecognizerInstanceId = 1;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -35,6 +37,9 @@ RecognizerBase::RecognizerBase(int modelId, float sample_rate, const char *confi
 	m_audioChunkLength = 48000;
 	m_minNumberAudioPackages = 1;
 	
+	UsageLogger::setLogPath(std::string("logs/"));
+	UsageLogger::logInstanceNew(m_instanceId);
+
 	audioLogger = new AudioLogger(std::string("logs/"), m_instanceId);
     
     if (const char *env_p = std::getenv("VOSK_LOG_AUDIO"))
@@ -153,6 +158,7 @@ RecognizerBase::~RecognizerBase()
 	
 	std::cout << "vosk_recognizer_free, instance=" << m_instanceId << std::endl;
 
+	UsageLogger::logInstanceDelete(m_instanceId);
 	// don't decrease, let every instance get a unique ID
 	// voskRecognizerInstanceId--;
 }
@@ -349,7 +355,8 @@ int RecognizerBase::acceptWaveform(const char *data, int length, bool block_not_
 	
 		// check if we shall drop audio in case of congestion (live transcription)
 		// or rather block (offline subtitles)
-		
+		UsageLogger::logAudioData(m_instanceId, length, audioQueueLengthSamples);
+
 		// 48000 samples * 30 seconds max --> ca. 3MByte
 		// lower sample rates and/or sizes will keep more audio seconds buffered
 		std::unique_lock<std::mutex> audioPacketLock{audioPacketMutex};
@@ -372,6 +379,7 @@ int RecognizerBase::acceptWaveform(const char *data, int length, bool block_not_
 	
 				audioQueueLengthSamples -= packet->length;
 				
+				UsageLogger::logAudioDrop(m_instanceId, packet->length);
 				std::cout << "Handle audio packet queue length: DROP packet with len=" << packet->length << std::endl;
 			}
 		}
@@ -538,6 +546,8 @@ const char* RecognizerBase::getFinalResult(void)
 			uStopTime    = fin->m_uStopTime;
 			uStopTimeMs  = fin->m_uStopTimeMs;
 			
+			UsageLogger::logFinalUtteranceTiming(m_instanceId, uStartTime, uStartTimeMs, uStopTime, uStopTimeMs);
+
 			if (detailedResults == false)
 			{
 				res += "\" }";
