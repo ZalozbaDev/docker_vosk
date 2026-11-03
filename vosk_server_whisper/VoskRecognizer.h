@@ -31,6 +31,7 @@ public:
 protected:
 	virtual void runTokensToWords(void) override;
 	void workerThreadFunc(void);
+	virtual std::string getVersionStringsResult(void) override;
 
 private:
 	static const ssize_t m_processingSampleRate = 16000;
@@ -43,6 +44,9 @@ private:
 	int leftOverDataLen = 0;
 	
 	PartialResultOracle* partOracle;
+
+	std::string whisper_version;
+	std::string whisper_model;
 };
 
 #endif // VOSK_RECOGNIZER_H

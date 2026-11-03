@@ -102,12 +102,9 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 	// temporalily allocate the instance for the announcement string
 	std::unique_ptr<WhisperImpl> whisperInst = WhisperPool::getInstance();
 	
-	// announce the details of the impl
-	std::unique_ptr<RecognizedUtterance> res = std::make_unique<RecognizedUtterance>(0, 125, 0, 0, 2, 0, vad->getFrameTimeMs(), cpp);
-	std::string voskAnnouncementString = whisperInst->getAnnouncementString();
-	std::unique_ptr<RecognizedWord> wrd = std::make_unique<RecognizedWord>((char*) voskAnnouncementString.c_str(), (char*) voskAnnouncementString.c_str(), 2000ms, 100ms, 1900ms, 1.0f, true);
-	res->addWord(std::move(wrd));
-	utterances.push_back(std::move(res));
+	whisper_version   = whisperInst->getRecognizerVersion();
+	whisper_model     = whisperInst->getCurrentModel();
+	announce_versions = true;
 	
 	WhisperPool::releaseInstance(std::move(whisperInst));
 	
@@ -128,6 +125,8 @@ RecognizerBase(modelId, sample_rate, configPath, aggressiveness, m_processingSam
 void VoskRecognizer::changeConfigPath(const char *newPath)
 {
 	std::cout << "VoskRecognizer::changeConfigPath stub!" << std::endl;
+
+	// do not forget to update whisper_model string after successfully applying the change!
 }
 
 //////////////////////////////////////////////
@@ -587,4 +586,18 @@ void VoskRecognizer::runTokensToWords(void)
 	tokens.clear();
 	
 	tokenMutex.unlock();
+}
+
+//////////////////////////////////////////////
+//
+// { "text" : "whisper_large_turbo.ggml", "recognizer" : "whisper.cpp X.Y.Z", "model" : "whisper_large_turbo.ggml" }
+std::string VoskRecognizer::getVersionStringsResult(void)
+{
+	std::string res = whisper_model + "\", \"recognizer\" : \"";
+	res += whisper_version;
+	res += "\", \"model\" : \"";
+	res += whisper_model;
+	res += "\" }";
+
+	return res;
 }

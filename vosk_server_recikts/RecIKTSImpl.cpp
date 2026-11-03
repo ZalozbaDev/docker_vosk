@@ -47,12 +47,27 @@ RecIKTSImpl::~RecIKTSImpl()
 }
 
 //////////////////////////////////////////////
+// legacy
 std::string RecIKTSImpl::getAnnouncementString(void)
 {
 	std::string versionStr = std::string(recikts_version());
 	std::string modelStr = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
 	
 	return "recikts " + versionStr + " : " + modelStr;
+}
+
+//////////////////////////////////////////////
+std::string RecIKTSImpl::getRecognizerVersion(void)
+{
+	std::string versionStr = std::string(recikts_version());
+	return "recikts " + versionStr;
+}
+
+//////////////////////////////////////////////
+std::string RecIKTSImpl::getCurrentModel(void)
+{
+	std::string modelStr = std::regex_replace(m_configPath, std::regex("(\\/|\\.)"), "-");
+	return modelStr;
 }
 
 //////////////////////////////////////////////

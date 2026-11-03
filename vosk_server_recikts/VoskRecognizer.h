@@ -29,6 +29,7 @@ public:
 protected:
 	virtual void runTokensToWords(void) override;
 	void workerThreadFunc(void);
+	virtual std::string getVersionStringsResult(void) override;
 	
 private:
 	static const ssize_t m_processingSampleRate = 16000;
@@ -41,6 +42,9 @@ private:
 	static const int64_t longPauseSeconds = 10;
 	int64_t lastUttStopTime;
 	bool checkUtterancePause;
+
+	std::string recikts_version;
+	std::string recikts_model;
 };
 
 #endif // VOSK_RECOGNIZER_H

@@ -414,7 +414,7 @@ int RecognizerBase::acceptWaveform(const char *data, int length, bool block_not_
 	
 	// access final results queue to compute return value
     utteranceMutex.lock();
-	if (utterances.size() > 0)
+	if ((utterances.size() > 0) || (announce_versions == true))
 	{
 		// at least one final utterance can be read
 		retVal = 1;
@@ -518,60 +518,68 @@ const char* RecognizerBase::getFinalResult(void)
     int64_t uStopTime = 0;
     int64_t uStopTimeMs = 0;
 	
-    utteranceMutex.lock();
-    
-	if (utterances.size() > 0)
+	if (announce_versions == true)
 	{
-		std::unique_ptr<RecognizedUtterance> fin = std::move(utterances.front());
-		utterances.pop_front();
-		res += fin->getTotalUtterance();
+		res += getVersionStringsResult();
+		announce_versions = false;
+	}	
+	else
+	{
+		utteranceMutex.lock();
 		
-		uStartTime   = fin->m_uStartTime;
-		uStartTimeMs = fin->m_uStartTimeMs;
-		uStopTime    = fin->m_uStopTime;
-		uStopTimeMs  = fin->m_uStopTimeMs;
-		
-		if (detailedResults == false)
+		if (utterances.size() > 0)
 		{
-			res += "\" }";
+			std::unique_ptr<RecognizedUtterance> fin = std::move(utterances.front());
+			utterances.pop_front();
+			res += fin->getTotalUtterance();
+			
+			uStartTime   = fin->m_uStartTime;
+			uStartTimeMs = fin->m_uStartTimeMs;
+			uStopTime    = fin->m_uStopTime;
+			uStopTimeMs  = fin->m_uStopTimeMs;
+			
+			if (detailedResults == false)
+			{
+				res += "\" }";
+			}
+			else
+			{
+				res += "\", \"start\" : \"";
+				res += std::to_string(uStartTime);
+				res += "\", \"startMs\" : \"";
+				res += std::to_string(uStartTimeMs);
+				res += "\", \"stop\" : \"";
+				res += std::to_string(uStopTime);
+				res += "\", \"stopMs\" : \"";
+				res += std::to_string(uStopTimeMs);
+				res += "\" ";
+				
+				// word-level results
+				res += ", \"result\": [ ";
+				for (unsigned int i = 0; i < fin->getNumberWords(); i++)
+				{
+					if (i > 0)
+					{
+						res += ", ";	
+					}
+					std::unique_ptr<RecognizedWord> word = fin->popWord(i);
+					res += "{ \"conf\": \""  + std::to_string(word->m_meanConfidence)   + "\", ";
+					res +=  " \"end\": \""   + std::to_string(word->m_relEnd.count())   + "\", ";
+					res +=  " \"spell\": \"" + std::to_string(word->m_correctSpelling)  + "\", ";
+					res +=  " \"start\": \"" + std::to_string(word->m_relStart.count()) + "\", ";
+					res +=  " \"word\": \""  + word->m_replacer                         + "\" } ";
+				}
+				res += "] }";
+			}
 		}
 		else
 		{
-			res += "\", \"start\" : \"";
-			res += std::to_string(uStartTime);
-			res += "\", \"startMs\" : \"";
-			res += std::to_string(uStartTimeMs);
-			res += "\", \"stop\" : \"";
-			res += std::to_string(uStopTime);
-			res += "\", \"stopMs\" : \"";
-			res += std::to_string(uStopTimeMs);
-			res += "\" ";
-			
-			// word-level results
-			res += ", \"result\": [ ";
-			for (unsigned int i = 0; i < fin->getNumberWords(); i++)
-			{
-				if (i > 0)
-				{
-					res += ", ";	
-				}
-				std::unique_ptr<RecognizedWord> word = fin->popWord(i);
-				res += "{ \"conf\": \""  + std::to_string(word->m_meanConfidence)   + "\", ";
-				res +=  " \"end\": \""   + std::to_string(word->m_relEnd.count())   + "\", ";
-				res +=  " \"spell\": \"" + std::to_string(word->m_correctSpelling)  + "\", ";
-				res +=  " \"start\": \"" + std::to_string(word->m_relStart.count()) + "\", ";
-				res +=  " \"word\": \""  + word->m_replacer                         + "\" } ";
-			}
-			res += "] }";
+			res += "\" }";
 		}
+			
+		utteranceMutex.unlock();
 	}
-	else
-	{
-		res += "\" }";
-	}
-		
-    utteranceMutex.unlock();
-    
+
 	std::cout << "Final result: " << res << std::endl;
 	
 	// FIXME shall log if text would not fit buffer!

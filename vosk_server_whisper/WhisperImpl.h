@@ -102,7 +102,9 @@ class WhisperImpl
 {
 public:
 	WhisperImpl(std::string modelPath, std::string vosk_model_language, int whisper_max_context, bool whisper_no_timestamps, bool whisper_no_fallback, bool whisper_force_cpu, bool whisper_translate_mode=false);
-	std::string getAnnouncementString(void);
+	std::string getAnnouncementString(void); // legacy
+	std::string getRecognizerVersion(void);
+	std::string getCurrentModel(void);
 	unsigned int getShortAudioBufferSizeSamples() { return pcm_buffer_short; }
 	unsigned int getMaxAudioBufferSizeSamples()   { return pcm_buffer_max; }
 	void run(std::vector<float>& pcmf32, std::vector<RecognizedToken>& tokens);
