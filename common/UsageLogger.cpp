@@ -49,7 +49,7 @@ void UsageLogger::logInstanceDelete(int instanceId)
         // do not write empty statistics (never received any audio)
         if (m_stats[index]->nrAudioPackets > 0)
         { 
-            filename = m_stats[index]->startTimeStamp + "_" + std::to_string(instanceId) + "_" + getTimeStampString() + ".log";
+            filename = m_path + m_stats[index]->startTimeStamp + "_" + std::to_string(instanceId) + "_" + getTimeStampString() + ".log";
 
             std::ofstream textStream(filename.c_str(), std::ofstream::out);
             
