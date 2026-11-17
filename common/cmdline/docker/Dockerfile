@@ -14,7 +14,8 @@ RUN cd whisper.cpp && git checkout v1.8.6
 
 ENV CUDA_MAIN_VERSION=13.1
 ENV LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_MAIN_VERSION}/compat:$LD_LIBRARY_PATH
-RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=89 && cmake --build build -j4 --config Release
+RUN cd whisper.cpp/ && cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES=89 -DGGML_NATIVE=OFF -DCMAKE_C_FLAGS="-march=x86-64-v3" -DCMAKE_CXX_FLAGS="-march=x86-64-v3"\
+ && cmake --build build -j4 --config Release
 
 COPY common common
 COPY vosk_server_recikts vosk_server_recikts
